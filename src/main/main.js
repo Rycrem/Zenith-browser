@@ -196,7 +196,7 @@ function setScreen(tab, screen, numbered = [], kind = screen.kind) {
 function tabTitle(tab) {
   if (!tab.screen) return tab.title || shortUrl(tab.url) || 'nouvel onglet';
   const s = tab.screen;
-  return { home: 'accueil', ai: `ia: ${s.question}`, results: `brows: ${s.query}`, fav: 'fav', hist: 'hist', ext: 'ext', dl: 'dl', tabs: 'tab', help: 'help', alias: 'alias' }[s.kind] || s.kind;
+  return { home: 'accueil', ai: `ia: ${s.question}`, results: `brows: ${s.query}`, fav: 'fav', hist: 'hist', ext: 'ext', dl: 'dl', tabs: 'tab', help: 'help', alias: 'alias', aiproviders: 'ia' }[s.kind] || s.kind;
 }
 
 // ---------------------------------------------------------------- disposition
@@ -851,6 +851,9 @@ async function select(tab, n, newTab, say, onlyKind) {
       showInPane(t, activePane);
       break;
     }
+    case 'aiuse':
+      aiUse(tab, item.provider, say);
+      break;
     case 'ext':
       openExtPopup(item.n);
       break;
@@ -979,27 +982,67 @@ function aliasCommand(tab, text, say) {
 
 let aiRequest = 0;
 
+function aiProvidersScreen(tab) {
+  const rows = ai.list(settings).map((r, i) => ({ n: i + 1, ...r }));
+  setScreen(tab, { kind: 'aiproviders', rows }, rows.map((r) => ({ kind: 'aiuse', provider: r.id })));
+}
+
+// Choisit une IA ; sans clé, ouvre la page où la créer.
+function aiUse(tab, id, say) {
+  const p = ai.PROVIDERS[id];
+  ai.use(settings, id);
+  say(`  ✓ ia : ${p.name} · modèle ${ai.model(settings, id)}`, 'ok');
+  if (!p.noKey && !ai.readKey(settings, id)) {
+    say(`  il faut une clé${p.free ? ' (gratuite)' : ''} : crée-la sur la page ouverte, puis tape « ia key <clé> »`, 'warn');
+    createTab({ url: p.keyUrl });
+  } else if (id === 'ollama') {
+    say(`  Ollama doit tourner sur cet ordinateur avec le modèle installé (« ollama pull ${ai.model(settings, id)} »)`, 'dim');
+  }
+  if (tab.screen && tab.screen.kind === 'aiproviders') aiProvidersScreen(tab);
+}
+
 function aiCommand(tab, args, rest, say) {
-  if (args[0] === 'key') {
-    if (!args[1]) throw new Error('ia key <clé API Anthropic>');
-    const encrypted = ai.saveKey(settings, args[1]);
-    say(`  ✓ clé enregistrée${encrypted ? ' (chiffrée par le système)' : ' (le système ne permet pas de la chiffrer)'}`, 'ok');
-    return;
-  }
-  if (args[0] === 'model') {
-    if (args[1]) {
-      settings.data.aiModel = args[1];
-      settings.save();
-    }
-    say(`  modèle : ${settings.data.aiModel || ai.DEFAULT_MODEL}`);
-    return;
-  }
+  const sub = (args[0] || '').toLowerCase();
+  const target = ai.resolve(args[1]);
   if (!rest) {
-    say('  ia <question> · ia key <clé> · ia model [id]', 'dim');
+    aiProvidersScreen(tab);
+    return;
+  }
+  if (sub === 'key' || (sub === 'connect' && target)) {
+    const id = sub === 'key' ? ai.current(settings) : target;
+    const key = sub === 'key' ? args[1] : args[2];
+    if (sub === 'connect') ai.use(settings, id);
+    if (!key) {
+      if (sub === 'connect') aiUse(tab, id, say);
+      else say(`  ia key <clé de ${ai.PROVIDERS[id].name}>`, 'err');
+      return;
+    }
+    const encrypted = ai.saveKey(settings, id, key);
+    say(`  ✓ clé ${ai.PROVIDERS[id].name} enregistrée${encrypted ? ' (chiffrée par le système)' : ' (le système ne permet pas de la chiffrer)'}`, 'ok');
+    if (tab.screen && tab.screen.kind === 'aiproviders') aiProvidersScreen(tab);
+    return;
+  }
+  if (sub === 'use' && args.length === 2) {
+    if (!target) throw new Error(`IA inconnue : ${args[1]} (${Object.keys(ai.PROVIDERS).join(', ')})`);
+    aiUse(tab, target, say);
+    return;
+  }
+  if (sub === 'logout' && args.length <= 2) {
+    const id = args[1] ? target : ai.current(settings);
+    if (!id) throw new Error(`IA inconnue : ${args[1]}`);
+    say(ai.removeKey(settings, id) ? `  ✓ clé ${ai.PROVIDERS[id].name} supprimée` : `  pas de clé enregistrée pour ${ai.PROVIDERS[id].name}`, 'ok');
+    if (tab.screen && tab.screen.kind === 'aiproviders') aiProvidersScreen(tab);
+    return;
+  }
+  if (sub === 'model' && args.length <= 2) {
+    const id = ai.current(settings);
+    if (args[1]) ai.setModel(settings, id, args[1] === 'default' ? ai.PROVIDERS[id].model : args[1]);
+    say(`  modèle ${ai.PROVIDERS[id].name} : ${ai.model(settings, id)}`);
     return;
   }
   const id = ++aiRequest;
-  const screen = { kind: 'ai', id, question: rest, text: '', sources: [], done: false, error: null };
+  const provider = ai.current(settings);
+  const screen = { kind: 'ai', id, provider: ai.PROVIDERS[provider].name, question: rest, text: '', sources: [], done: false, error: null };
   setScreen(tab, screen, []);
   let timer = null;
   // Le texte arrive en continu : on rafraîchit l'écran au plus toutes les 80 ms.
@@ -1015,11 +1058,11 @@ function aiCommand(tab, args, rest, say) {
   }).then((r) => {
     screen.text = r.text || (r.refused ? '' : '(pas de réponse)');
     screen.sources = r.sources.map((src, i) => ({ n: i + 1, ...src, short: shortUrl(src.url) }));
-    if (r.refused) screen.error = 'Claude a refusé de répondre à cette question.';
+    if (r.refused) screen.error = `${screen.provider} a refusé de répondre à cette question.`;
     screen.done = true;
     refresh(true);
   }).catch((err) => {
-    screen.error = ai.errorMessage(err);
+    screen.error = ai.errorMessage(err, provider);
     screen.done = true;
     refresh(true);
     if (id === aiRequest) print([{ t: `  ${screen.error}`, c: 'err' }]);
@@ -1233,6 +1276,7 @@ function complete(line) {
   else if (head[0] === 'add') pool = folders();
   else if (head[0] === 'go' || head[0] === 'split') pool = [...new Set(fav.allLinks(tree).map((l) => shortUrl(l.url)))];
   else if (head[0] === 'unalias') pool = Object.keys(settings.data.aliases);
+  else if ((head[0] === 'ia' || head[0] === 'ai') && head.length === 2 && ['use', 'connect', 'logout'].includes(head[1])) pool = Object.keys(ai.PROVIDERS);
   else if (head.length === 1 && C.SUBCOMMANDS[head[0]]) pool = C.SUBCOMMANDS[head[0]];
   const options = [...new Set(pool)].filter((p) => p.toLowerCase().startsWith(last.toLowerCase())).sort();
   if (!options.length) return { line, options: [] };
@@ -1425,6 +1469,7 @@ app.whenReady().then(async () => {
   favorites = new JsonStore(path.join(dir, 'favoris.json'), { tree: fav.emptyTree() });
   history = new JsonStore(path.join(dir, 'historique.json'), { entries: [] });
   settings = new JsonStore(path.join(dir, 'reglages.json'), { engine: 'ddg', theme: 'ambre', aliases: {}, extensions: [] });
+  ai.migrate(settings);
   exts = new Extensions(ses, settings, path.join(dir, 'extensions'));
   await exts.loadAll();
   setupIpc();

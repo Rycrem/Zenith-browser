@@ -64,8 +64,8 @@ function print(lines) {
 }
 
 // La clé API ne doit apparaître ni à l'écran ni dans l'historique des commandes.
-const SECRET = /^\s*(ia|ai)\s+key\s+\S/i;
-const masked = (line) => (SECRET.test(line) ? line.replace(/(key\s+)\S+/i, '$1••••••••') : line);
+const SECRET = /^(\s*(?:ia|ai)\s+(?:key|connect\s+\S+)\s+)\S+/i;
+const masked = (line) => line.replace(SECRET, '$1••••••••');
 
 async function run(line, { echo = true } = {}) {
   if (echo) print([{ t: `❯ ${masked(line)}`, c: 'cmd' }]);
@@ -350,7 +350,7 @@ const screens = {
 
   ai(s) {
     return [
-      head(`ia ${s.question}`, s.done ? 'Claude' : 'Claude réfléchit…'),
+      head(`ia ${s.question}`, s.done ? s.provider : `${s.provider} réfléchit…`),
       s.text ? h('div', { class: 'ai-text' }, s.text, s.done ? null : h('span', { class: 'acc' }, ' ▍')) : (s.done ? null : h('div', { class: 'dim' }, '…')),
       s.error ? h('div', { class: 'err' }, s.error) : null,
       s.sources.length ? [
@@ -358,6 +358,33 @@ const screens = {
         s.sources.map((r) => item('result', String(r.n), h('span', { class: 'badge' }, r.n), h('span', { class: 'body' }, h('span', { class: 'title' }, r.title), h('span', { class: 'link' }, r.short)))),
         h('div', { class: 'hint' }, 'Tape un numéro pour ouvrir une source · ', h('b', {}, '2t'), ' nouvel onglet · ', h('b', {}, 'brows'), ' pour une recherche classique'),
       ] : null,
+    ];
+  },
+
+  aiproviders(s) {
+    return [
+      head('ia', 'choisir l\'IA qui répond à « ia <question> »'),
+      h(
+        'table',
+        {},
+        h('tr', {}, ['#', 'IA', 'modèle', 'clé', ''].map((t) => h('th', {}, t))),
+        s.rows.map((r) => h(
+          'tr',
+          { class: r.current ? 'current' : '' },
+          h('td', { class: 'dim' }, `[${r.n}]`),
+          h('td', {}, h('button', { type: 'button', class: 'link-btn', onclick: () => run(String(r.n)) }, r.name), r.current ? h('span', { class: 'acc' }, ' ● actuelle') : null),
+          h('td', { class: 'dim' }, r.model),
+          h('td', { class: r.ready ? 'ok' : 'dim' }, r.key),
+          h('td', {}, r.free ? h('span', { class: 'pill ok' }, 'gratuit') : h('span', { class: 'pill dim' }, 'payant'), r.web ? h('span', { class: 'pill' }, 'web') : null),
+        )),
+      ),
+      h(
+        'div',
+        { class: 'hint' },
+        'Tape un numéro pour choisir · ', h('b', {}, 'ia key'), ' <clé> pour connecter l\'IA actuelle · ',
+        h('b', {}, 'ia logout'), ' retire sa clé · ', h('b', {}, 'ia model'), ' <id> change de modèle',
+      ),
+      h('div', { class: 'hint' }, 'Les clés restent sur cet ordinateur, chiffrées par le système. Gratuit : Gemini, Mistral, Groq et OpenRouter (avec des limites par jour), Ollama (en local).'),
     ];
   },
 
