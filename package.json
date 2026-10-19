@@ -5,14 +5,90 @@
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "dist": "electron-builder --publish never",
+    "release": "electron-builder --publish always"
   },
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",
-    "adm-zip": "^0.6.1"
+    "adm-zip": "^0.6.1",
+    "electron-updater": "^6.8.9"
   },
   "devDependencies": {
-    "electron": "^44.0.0"
+    "electron": "^44.0.0",
+    "electron-builder": "^26.15.3"
+  },
+  "author": {
+    "name": "Rycrem",
+    "email": "47139830+Rycrem@users.noreply.github.com"
+  },
+  "homepage": "https://github.com/Rycrem/dev-brows",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Rycrem/dev-brows.git"
+  },
+  "build": {
+    "appId": "io.github.rycrem.devbrows",
+    "productName": "dev-brows",
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "electronFuses": {
+      "runAsNode": false,
+      "enableCookieEncryption": true,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "onlyLoadAppFromAsar": true
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Rycrem",
+        "repo": "dev-brows",
+        "releaseType": "draft"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "category": "public.app-category.productivity"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Network",
+      "maintainer": "Rycrem <47139830+Rycrem@users.noreply.github.com>"
+    }
   }
 }
