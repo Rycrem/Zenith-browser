@@ -149,6 +149,8 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
 .badge { flex: none; min-width: 34px; text-align: center; background: var(--accent); color: var(--bg); font-weight: 800; border-radius: 3px; }
 .result { flex-direction: row; margin-bottom: 8px; }
 .result .title { font-weight: 600; }
+.ai-text { max-width: 860px; white-space: pre-wrap; font-size: 15px; line-height: 1.65; margin-bottom: 24px; }
+.screen h3.sources { margin-top: 8px; }
 .result .link { color: var(--green); font-size: 13px; }
 .result .desc { color: var(--dim); font-size: 13px; }
 .result .body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }

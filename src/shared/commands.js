@@ -46,6 +46,7 @@ const ENGINES = {
 // Liste des commandes, utilisée pour l'aide et l'autocomplétion.
 const COMMANDS = [
   ['brows', '<recherche>', 'lancer une recherche (résultats numérotés)'],
+  ['ia', '<question>', 'réponse courte de Claude, avec ses sources numérotées (ia key <clé> la première fois)'],
   ['go', '<url>', 'ouvrir une adresse'],
   ['<n>', '', 'ouvrir l\'élément numéro n de la liste affichée ; « nt » dans un nouvel onglet'],
   ['links', '', 'numéroter les liens de la page'],
@@ -71,13 +72,14 @@ const COMMANDS = [
   ['perm', '[reset [site]]', 'autorisations accordées aux sites (caméra, micro, position…)'],
   ['devtools', '', 'ouvrir ou fermer les outils de développement'],
   ['term', '', 'cacher le terminal (Ctrl+J pour le rappeler)'],
+  ['update', '[install | electron]', 'vérifier ou installer les mises à jour (appli et Electron)'],
   ['help', '', 'cette aide'],
 ];
 
 const COMMAND_NAMES = [
-  'brows', 'go', 'links', 'back', 'fwd', 'reload', 'home', 'tab', 'close', 'split', 'focus',
+  'brows', 'ia', 'go', 'links', 'back', 'fwd', 'reload', 'home', 'tab', 'close', 'split', 'focus',
   'fav', 'add', 'undo', 'hist', 'clean', 'find', 'ext', 'dl', 'alias', 'unalias', 'engine',
-  'theme', 'perm', 'devtools', 'term', 'help', 'clear',
+  'theme', 'perm', 'update', 'devtools', 'term', 'help', 'clear',
 ];
 
 const SUBCOMMANDS = {
@@ -87,6 +89,8 @@ const SUBCOMMANDS = {
   split: ['off'],
   clean: ['all'],
   perm: ['reset'],
+  ia: ['key', 'model'],
+  update: ['install', 'electron'],
   engine: Object.keys(ENGINES),
   theme: ['ambre', 'vert', 'cyan', 'rose'],
 };

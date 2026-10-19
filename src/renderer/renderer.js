@@ -63,8 +63,12 @@ function print(lines) {
   renderPs1();
 }
 
+// La clé API ne doit apparaître ni à l'écran ni dans l'historique des commandes.
+const SECRET = /^\s*(ia|ai)\s+key\s+\S/i;
+const masked = (line) => (SECRET.test(line) ? line.replace(/(key\s+)\S+/i, '$1••••••••') : line);
+
 async function run(line, { echo = true } = {}) {
-  if (echo) print([{ t: `❯ ${line}`, c: 'cmd' }]);
+  if (echo) print([{ t: `❯ ${masked(line)}`, c: 'cmd' }]);
   awaiting = false;
   renderPs1();
   const res = await api.exec(line);
@@ -93,7 +97,7 @@ $('#prompt').addEventListener('submit', (e) => {
   e.preventDefault();
   const line = input.value;
   input.value = '';
-  if (line.trim() && !awaiting && cmdHistory[cmdHistory.length - 1] !== line) {
+  if (line.trim() && !awaiting && !SECRET.test(line) && cmdHistory[cmdHistory.length - 1] !== line) {
     cmdHistory.push(line);
     if (cmdHistory.length > 300) cmdHistory.shift();
     persist('cmdHistory', cmdHistory);
@@ -306,6 +310,7 @@ const LOGO = String.raw`     _                 _
 
 const HOME_COMMANDS = [
   ['brows', '<recherche>', 'lancer une recherche'],
+  ['ia', '<question>', 'réponse courte de Claude'],
   ['go', '<url>', 'ouvrir une adresse'],
   ['fav', '', 'liste des favoris'],
   ['add', '[dossier/]nom', 'ajouter la page aux favoris'],
@@ -313,6 +318,7 @@ const HOME_COMMANDS = [
   ['clean', '[all]', 'vider l\'historique (+ cookies)'],
   ['split', '', 'deux écrans côte à côte'],
   ['ext', '', 'extensions'],
+  ['update', '', 'mises à jour'],
   ['help', '', 'toutes les commandes et raccourcis'],
 ];
 
@@ -339,6 +345,19 @@ const screens = {
           s.recent.length ? h('div', { class: 'hint' }, 'Tape un numéro pour ouvrir.') : null,
         ),
       ),
+    ];
+  },
+
+  ai(s) {
+    return [
+      head(`ia ${s.question}`, s.done ? 'Claude' : 'Claude réfléchit…'),
+      s.text ? h('div', { class: 'ai-text' }, s.text, s.done ? null : h('span', { class: 'acc' }, ' ▍')) : (s.done ? null : h('div', { class: 'dim' }, '…')),
+      s.error ? h('div', { class: 'err' }, s.error) : null,
+      s.sources.length ? [
+        h('h3', { class: 'sources' }, 'Sources'),
+        s.sources.map((r) => item('result', String(r.n), h('span', { class: 'badge' }, r.n), h('span', { class: 'body' }, h('span', { class: 'title' }, r.title), h('span', { class: 'link' }, r.short)))),
+        h('div', { class: 'hint' }, 'Tape un numéro pour ouvrir une source · ', h('b', {}, '2t'), ' nouvel onglet · ', h('b', {}, 'brows'), ' pour une recherche classique'),
+      ] : null,
     ];
   },
 
