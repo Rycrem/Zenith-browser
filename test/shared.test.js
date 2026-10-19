@@ -101,4 +101,8 @@ test('crx3 vers zip et identifiant d\'extension', () => {
   assert.strictEqual(crx.extensionIdFrom(`https://chromewebstore.google.com/detail/ublock-origin/${id}`), id);
   assert.strictEqual(crx.extensionIdFrom(id), id);
   assert.strictEqual(crx.extensionIdFrom('ublock'), null);
+  assert.strictEqual(crx.storeExtensionId(`https://chromewebstore.google.com/detail/ublock-origin/${id}?hl=fr`), id);
+  assert.strictEqual(crx.storeExtensionId(`https://chrome.google.com/webstore/detail/${id}`), id);
+  assert.strictEqual(crx.storeExtensionId(`https://example.com/detail/${id}`), null);
+  assert.strictEqual(crx.storeExtensionId('https://chromewebstore.google.com/'), null);
 });

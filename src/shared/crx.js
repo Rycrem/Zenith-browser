@@ -23,4 +23,16 @@ function extensionIdFrom(text) {
   return m ? m[1] : null;
 }
 
-module.exports = { crxToZip, extensionIdFrom };
+// Identifiant de l'extension d'une page du Chrome Web Store, sinon null.
+function storeExtensionId(url) {
+  let u;
+  try {
+    u = new URL(url);
+  } catch {
+    return null;
+  }
+  const store = u.hostname === 'chromewebstore.google.com' || (u.hostname === 'chrome.google.com' && u.pathname.startsWith('/webstore/'));
+  return store ? extensionIdFrom(u.pathname) : null;
+}
+
+module.exports = { crxToZip, extensionIdFrom, storeExtensionId };
