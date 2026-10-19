@@ -68,6 +68,7 @@ const COMMANDS = [
   ['ext', '[add | on | off | rm | alias | n]', 'gérer les extensions'],
   ['dl', '[n]', 'téléchargements ; n ouvre le fichier'],
   ['alias', '[nom = commande]', 'créer un raccourci ; « unalias nom » le supprime'],
+  ['adblock', '[on | off]', 'bloqueur de pub intégré (actif par défaut)'],
   ['engine', '[ddg | google | bing | qwant]', 'moteur de recherche'],
   ['theme', '[ambre | vert | cyan | rose | violet]', 'couleur d\'accent'],
   ['perm', '[reset [site]]', 'autorisations accordées aux sites (caméra, micro, position…)'],
@@ -81,7 +82,7 @@ const COMMANDS = [
 const COMMAND_NAMES = [
   'brows', 'ia', 'go', 'links', 'back', 'fwd', 'reload', 'home', 'tab', 'close', 'split', 'focus',
   'fav', 'add', 'undo', 'hist', 'clean', 'find', 'ext', 'dl', 'alias', 'unalias', 'engine',
-  'theme', 'perm', 'update', 'devtools', 'term', 'quit', 'exit', 'help', 'clear',
+  'theme', 'adblock', 'perm', 'update', 'devtools', 'term', 'quit', 'exit', 'help', 'clear',
 ];
 
 const SUBCOMMANDS = {
@@ -90,6 +91,7 @@ const SUBCOMMANDS = {
   tab: ['new', 'save'],
   split: ['off'],
   clean: ['all'],
+  adblock: ['on', 'off'],
   perm: ['reset'],
   ia: ['use', 'connect', 'key', 'logout', 'model'],
   update: ['install', 'electron'],
@@ -103,7 +105,7 @@ const ARG_SHAPES = {
   help: null, '?': null, clear: null, home: null, accueil: null, back: null, b: null, fwd: null, f: null,
   reload: null, r: null, n: null, next: null, p: null, prev: null, links: null, l: null, term: null, quit: null, exit: null, q: null,
   undo: null, focus: null,
-  tab: /^(\d+|new|save)$/i, tabs: /^(\d+|new|save)$/i, close: /^\d+$/, dl: /^\d+$/, split: /^(off|close)$/i,
+  tab: /^(\d+|new|save)$/i, tabs: /^(\d+|new|save)$/i, close: /^\d+$/, dl: /^\d+$/, split: /^(off|close)$/i, adblock: /^(on|off)$/i, pub: /^(on|off)$/i,
   devtools: /^(detach|detacher|attach|rattacher|close|off)$/i, dev: /^(detach|detacher|attach|rattacher|close|off)$/i,
 };
 

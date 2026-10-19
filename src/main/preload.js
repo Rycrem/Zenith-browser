@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('brows', {
   extPopup: (n, x) => ipcRenderer.send('ui:ext-popup', n, x),
   readClipboard: () => ipcRenderer.invoke('ui:clipboard-read'),
   writeClipboard: (text) => ipcRenderer.send('ui:clipboard-write', text),
+  resetZoom: () => ipcRenderer.send('ui:zoom-reset'),
   on: (channel, fn) => {
     if (!['state', 'term:print', 'term:focus', 'term:toggle'].includes(channel)) return;
     ipcRenderer.on(channel, (e, ...args) => fn(...args));

@@ -5,7 +5,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { JsonStore } = require('./store');
-const { Extensions } = require('./extensions');
+const { Extensions, isUblock } = require('./extensions');
+const { AdBlock } = require('./adblock');
 const { ElectronChromeExtensions } = require('electron-chrome-extensions');
 const ai = require('./ai');
 const updater = require('./updater');
@@ -51,7 +52,8 @@ const isGoogleLogin = (url) => {
 };
 
 // Le filtre d'en-têtes n'est posé que pendant une connexion Google : tant qu'un filtre
-// session.webRequest existe, Electron ignore le chrome.webRequest des extensions (uBlock Origin).
+// session.webRequest existe (celui-ci ou le bloqueur intégré), Electron ignore le
+// chrome.webRequest des extensions.
 const onGoogleLogin = new Set();
 
 function setGoogleFilter(id, on) {
@@ -90,12 +92,15 @@ function setupGoogleLogin() {
 const THEMES = { ambre: '#F2A541', vert: '#7FD18B', cyan: '#6CC5D9', rose: '#E07AA8', violet: '#B48CF2' };
 const HISTORY_MAX = 5000;
 const DEVTOOLS_RATIO = 0.4;
+const DEVBAR_H = 26; // barre de l'interface au-dessus des DevTools (détacher, fermer)
 
 let win = null;
 let ses = null;
 let chromeApi = null; // API d'extensions Chrome (onglets, fenêtres…) qu'Electron ne fournit pas
 let favorites = null; // JsonStore { tree }
 let history = null; // JsonStore { entries }
+let adblock = null;
+let lastCommandAt = 0; // heure de la dernière commande tapée, pour garder le focus dans le terminal
 let settings = null; // JsonStore { engine, theme, aliases, extensions }
 let exts = null;
 
@@ -247,7 +252,18 @@ function wireWebContents(tab, wc) {
     if (win && !win.isDestroyed()) closeTab(tab);
   });
   // Ctrl+molette : Electron le signale sans zoomer lui-même.
-  wc.on('zoom-changed', (e, dir) => wc.setZoomLevel(wc.getZoomLevel() + (dir === 'in' ? 0.5 : -0.5)));
+  wc.on('zoom-changed', (e, dir) => {
+    wc.setZoomLevel(wc.getZoomLevel() + (dir === 'in' ? 0.5 : -0.5));
+    sendState();
+  });
+  // Une page qui prend le focus juste après une commande (chargement, nouvel onglet) le rend au terminal ;
+  // un clic dans la page, lui, le garde.
+  wc.on('focus', () => {
+    if (Date.now() - lastCommandAt < 5000) focusTerminal();
+  });
+  wc.on('input-event', (e, input) => {
+    if (input.type === 'mouseDown') lastCommandAt = 0;
+  });
   wc.on('found-in-page', (e, r) => {
     if (r.finalUpdate) print([{ t: `  ${r.matches ? `${r.activeMatchOrdinal}/${r.matches}` : 'aucun résultat'}`, c: 'dim' }]);
   });
@@ -350,7 +366,7 @@ function layout() {
     if (devOpen) {
       const devW = Math.round(r.width * DEVTOOLS_RATIO);
       tab.view.setBounds({ x: r.x, y: r.y, width: r.width - devW, height: r.height });
-      tab.dev.setBounds({ x: r.x + r.width - devW, y: r.y, width: devW, height: r.height });
+      tab.dev.setBounds({ x: r.x + r.width - devW, y: r.y + DEVBAR_H, width: devW, height: Math.max(0, r.height - DEVBAR_H) });
     } else {
       tab.view.setBounds(r);
     }
@@ -369,7 +385,7 @@ function sendState() {
     tabs: tabs.map((t, i) => ({ id: t.id, n: i + 1, title: tabTitle(t), loading: t.loading, pane: paneOf(t) })),
     panes: panes.map((p) => {
       const t = getTab(p.tabId);
-      return { tabId: p.tabId, screen: t.screen, page: !!t.view && !t.screen, url: t.url, title: t.screen ? tabTitle(t) : t.title || hostOf(t.url) || 'nouvel onglet' };
+      return { tabId: p.tabId, screen: t.screen, page: !!t.view && !t.screen, dev: !!(t.dev && t.devOpen && !t.devWin && !t.screen), url: t.url, title: t.screen ? tabTitle(t) : t.title || hostOf(t.url) || 'nouvel onglet' };
     }),
     activePane,
     status: {
@@ -379,6 +395,7 @@ function sendState() {
       fav: favHere ? favHere.path : null,
       split: panes.length > 1,
       devtools: tab.devOpen ? (tab.devWin ? 'detached' : 'docked') : null,
+      zoom: tab.view && tab.view.webContents && !tab.screen ? Math.round(tab.view.webContents.getZoomFactor() * 100) : 100,
     },
     exts: exts.summary(),
     downloads: downloads.filter((d) => d.state === 'progressing').length,
@@ -995,6 +1012,10 @@ async function exec(raw, depth = 0) {
         settings.save();
         say(`  ✓ alias ${args[0]} supprimé`, 'ok');
         break;
+      case 'adblock':
+      case 'pub':
+        await adblockCommand(args[0], say);
+        break;
       case 'engine':
         if (!args.length) say(`  moteur : ${C.ENGINES[settings.data.engine].label} (ddg | google | bing | qwant)`);
         else {
@@ -1154,11 +1175,16 @@ async function extCommand(tab, args, say) {
     case 'add': {
       // Sans argument, installe l'extension de la page du Chrome Web Store ouverte.
       const source = args[1] ? args.slice(1).join(' ') : storeExtensionId(tab.url || '');
-      if (!source) throw new Error('ext add <lien du Chrome Web Store | identifiant | dossier | ublock>, ou « ext add » seul sur la page de l\'extension');
+      if (!source) throw new Error('ext add <lien du Chrome Web Store | identifiant | dossier>, ou « ext add » seul sur la page de l\'extension');
+      if (isUblock(source)) {
+        say('  uBlock Origin ne fonctionne pas dans Electron ; dev-brows a son propre bloqueur de pub (mêmes listes EasyList)', 'dim');
+        await adblockCommand('on', say);
+        break;
+      }
       print([{ t: '  installation de l\'extension…', c: 'dim' }]);
       const ext = await exts.add(source);
       say(`  ✓ ${ext.name} installée, alias « ${ext.alias} »${ext.popup ? '' : ' (pas de popup)'}`, 'ok');
-      if (ext.dnrOnly) say('  ⚠ cette extension bloque avec declarativeNetRequest, qu\'Electron ne gère pas : elle ne bloquera rien. Pour bloquer les pubs : « ext add ublock » (uBlock Origin complet).', 'warn');
+      if (ext.dnrOnly) say('  ⚠ cette extension bloque avec declarativeNetRequest, qu\'Electron ne gère pas : elle ne bloquera rien. Le bloqueur de pub intégré s\'en charge (« adblock »).', 'warn');
       break;
     }
     case 'on':
@@ -1185,6 +1211,26 @@ async function extCommand(tab, args, say) {
       throw new Error('ext [add | on | off | rm | alias | n]');
   }
   if (tab.screen && tab.screen.kind === 'ext') showExt(tab);
+  sendState();
+}
+
+async function adblockCommand(arg, say) {
+  if (arg === 'on') {
+    settings.data.adblock = true;
+    settings.save();
+    say('  chargement des listes de blocage…', 'dim');
+    try {
+      await adblock.enable();
+    } catch (err) {
+      throw new Error(`listes non téléchargées : ${err.message}`);
+    }
+  } else if (arg === 'off') {
+    settings.data.adblock = false;
+    settings.save();
+    adblock.disable();
+  } else if (arg) throw new Error('adblock [on | off]');
+  if (adblock.on) say(`  ✓ bloqueur de pub actif : ${adblock.blocked} requête${adblock.blocked > 1 ? 's' : ''} bloquée${adblock.blocked > 1 ? 's' : ''} depuis le démarrage`, 'ok');
+  else say('  bloqueur de pub en pause (« adblock on » pour le relancer) ; les extensions de blocage reprennent la main', 'dim');
   sendState();
 }
 
@@ -1549,6 +1595,7 @@ function zoom(delta) {
   if (!tab.view) return;
   const wc = tab.view.webContents;
   wc.setZoomLevel(delta === 0 ? 0 : wc.getZoomLevel() + delta);
+  sendState();
 }
 
 function buildMenu() {
@@ -1640,7 +1687,11 @@ function setupIpc() {
     dragging = !!on;
     layout();
   });
-  ipcMain.handle('ui:exec', (e, line) => exec(String(line)));
+  ipcMain.handle('ui:exec', (e, line) => {
+    lastCommandAt = Date.now();
+    return exec(String(line));
+  });
+  ipcMain.on('ui:zoom-reset', () => zoom(0));
   ipcMain.handle('ui:complete', (e, line) => complete(String(line)));
   ipcMain.handle('ui:clipboard-read', () => clipboard.readText());
   ipcMain.on('ui:clipboard-write', (e, text) => clipboard.writeText(String(text)));
@@ -1653,6 +1704,7 @@ function setupIpc() {
     }
   });
   ipcMain.on('ui:focus-page', () => {
+    lastCommandAt = 0;
     const tab = activeTab();
     if (tab.screen && tab.view) {
       tab.screen = null;
@@ -1723,7 +1775,7 @@ app.whenReady().then(async () => {
   const dir = app.getPath('userData');
   favorites = new JsonStore(path.join(dir, 'favoris.json'), { tree: fav.emptyTree() });
   history = new JsonStore(path.join(dir, 'historique.json'), { entries: [] });
-  settings = new JsonStore(path.join(dir, 'reglages.json'), { engine: 'ddg', theme: 'ambre', aliases: {}, extensions: [] });
+  settings = new JsonStore(path.join(dir, 'reglages.json'), { engine: 'ddg', theme: 'ambre', aliases: {}, extensions: [], adblock: true });
   ai.migrate(settings);
   setupChromeApi(); // avant le chargement des extensions, pour lire leurs manifestes
   exts = new Extensions(ses, settings, path.join(dir, 'extensions'));
@@ -1732,6 +1784,8 @@ app.whenReady().then(async () => {
   setupDownloads();
   setupPermissions();
   setupGoogleLogin();
+  adblock = new AdBlock(ses, path.join(dir, 'adblock.bin'));
+  if (settings.data.adblock) adblock.enable().catch((err) => print([{ t: `  bloqueur de pub : listes non téléchargées (${err.message}), « adblock on » pour réessayer`, c: 'err' }]));
   buildMenu();
   createWindow();
   createTab();
