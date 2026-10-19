@@ -6,6 +6,8 @@ const os = require('os');
 const path = require('path');
 const { JsonStore } = require('./store');
 const { Extensions } = require('./extensions');
+const ai = require('./ai');
+const updater = require('./updater');
 const fav = require('../shared/favorites');
 const C = require('../shared/commands');
 const { parseDuckDuckGoHtml, parseNextPage, shortUrl } = require('../shared/search');
@@ -184,7 +186,7 @@ function setScreen(tab, screen, numbered = [], kind = screen.kind) {
 function tabTitle(tab) {
   if (!tab.screen) return tab.title || shortUrl(tab.url) || 'nouvel onglet';
   const s = tab.screen;
-  return { home: 'accueil', results: `brows: ${s.query}`, fav: 'fav', hist: 'hist', ext: 'ext', dl: 'dl', tabs: 'tab', help: 'help', alias: 'alias' }[s.kind] || s.kind;
+  return { home: 'accueil', ai: `ia: ${s.question}`, results: `brows: ${s.query}`, fav: 'fav', hist: 'hist', ext: 'ext', dl: 'dl', tabs: 'tab', help: 'help', alias: 'alias' }[s.kind] || s.kind;
 }
 
 // ---------------------------------------------------------------- disposition
@@ -787,6 +789,13 @@ async function exec(raw) {
       case 'perm':
         permCommand(args, say);
         break;
+      case 'ia':
+      case 'ai':
+        aiCommand(tab, args, rest, say);
+        break;
+      case 'update':
+        await updateCommand(args, say);
+        break;
       case 'devtools':
       case 'dev':
         toggleDevtools(tab);
@@ -954,6 +963,112 @@ function aliasCommand(tab, text, say) {
   aliases[key] = value;
   settings.save();
   say(`  ✓ alias ${key} = ${value}`, 'ok');
+}
+
+// ---------------------------------------------------------------- IA
+
+let aiRequest = 0;
+
+function aiCommand(tab, args, rest, say) {
+  if (args[0] === 'key') {
+    if (!args[1]) throw new Error('ia key <clé API Anthropic>');
+    const encrypted = ai.saveKey(settings, args[1]);
+    say(`  ✓ clé enregistrée${encrypted ? ' (chiffrée par le système)' : ' (le système ne permet pas de la chiffrer)'}`, 'ok');
+    return;
+  }
+  if (args[0] === 'model') {
+    if (args[1]) {
+      settings.data.aiModel = args[1];
+      settings.save();
+    }
+    say(`  modèle : ${settings.data.aiModel || ai.DEFAULT_MODEL}`);
+    return;
+  }
+  if (!rest) {
+    say('  ia <question> · ia key <clé> · ia model [id]', 'dim');
+    return;
+  }
+  const id = ++aiRequest;
+  const screen = { kind: 'ai', id, question: rest, text: '', sources: [], done: false, error: null };
+  setScreen(tab, screen, []);
+  let timer = null;
+  // Le texte arrive en continu : on rafraîchit l'écran au plus toutes les 80 ms.
+  const refresh = (final) => {
+    if (tab.screen !== screen) return; // la personne est passée à autre chose
+    clearTimeout(timer);
+    if (final) setScreen(tab, screen, screen.sources.map((src) => ({ kind: 'url', url: src.url })));
+    else timer = setTimeout(() => sendState(), 80);
+  };
+  ai.ask(settings, rest, (text) => {
+    screen.text = text;
+    refresh(false);
+  }).then((r) => {
+    screen.text = r.text || (r.refused ? '' : '(pas de réponse)');
+    screen.sources = r.sources.map((src, i) => ({ n: i + 1, ...src, short: shortUrl(src.url) }));
+    if (r.refused) screen.error = 'Claude a refusé de répondre à cette question.';
+    screen.done = true;
+    refresh(true);
+  }).catch((err) => {
+    screen.error = ai.errorMessage(err);
+    screen.done = true;
+    refresh(true);
+    if (id === aiRequest) print([{ t: `  ${screen.error}`, c: 'err' }]);
+  });
+}
+
+// ---------------------------------------------------------------- mises à jour
+
+async function updateCommand(args, say) {
+  const sub = args[0];
+  if (sub === 'install' || sub === 'electron') {
+    const what = sub === 'electron'
+      ? 'passer à la dernière version majeure d\'Electron (peut casser des choses, à tester)'
+      : 'mettre à jour l\'appli et Electron dans sa version actuelle';
+    ask(say, `${what} ? l'appli va se fermer puis se relancer`, async (s) => {
+      await updater.launch(sub === 'electron' ? 'electron' : 'app');
+      s('  mise à jour lancée, l\'appli redémarre…', 'ok');
+      setTimeout(() => app.quit(), 600);
+    });
+    return;
+  }
+  say('  vérification…', 'dim');
+  const r = await updater.check();
+  settings.data.lastUpdateCheck = Date.now();
+  settings.save();
+  for (const l of updateLines(r)) say(l.t, l.c);
+}
+
+function updateLines(r) {
+  const lines = [{ t: `  Electron ${r.current} (Chromium ${process.versions.chrome})` }];
+  const patch = r.sameMajor !== r.current;
+  if (patch) lines.push({ t: `  ↑ correctifs disponibles : Electron ${r.sameMajor} → « update install »`, c: 'warn' });
+  if (updater.major(r.latest) > updater.major(r.current)) {
+    lines.push({ t: `  ↑ nouvelle version majeure : Electron ${r.latest} → « update electron » (à tester)`, c: 'dim' });
+  }
+  if (r.behind) lines.push({ t: `  ↑ ${r.behind} nouveau${r.behind > 1 ? 'x' : ''} commit${r.behind > 1 ? 's' : ''} sur le dépôt → « update install »`, c: 'warn' });
+  if (!patch && !r.behind) lines.push({ t: '  ✓ à jour', c: 'ok' });
+  return lines;
+}
+
+// Au démarrage : compte rendu de la dernière mise à jour, et une vérification par jour.
+function startupUpdateNotes() {
+  const report = updater.lastReport();
+  if (report) {
+    const versions = report.before !== report.after ? ` (Electron ${report.before} → ${report.after})` : '';
+    print([{ t: `  ${report.ok ? '✓ mise à jour terminée' : '✗ mise à jour incomplète'}${versions}`, c: report.ok ? 'ok' : 'err' }]);
+    for (const step of report.steps.filter((st) => !st.ok)) print([{ t: `    ${step.cmd} : ${step.output}`, c: 'err' }]);
+  }
+  if (Date.now() - (settings.data.lastUpdateCheck || 0) < 24 * 3600 * 1000) return;
+  setTimeout(async () => {
+    try {
+      const r = await updater.check();
+      settings.data.lastUpdateCheck = Date.now();
+      settings.save();
+      if (r.sameMajor !== r.current || r.behind) print(updateLines(r).filter((l) => l.c === 'warn'));
+    } catch {
+      // hors ligne : on réessaiera au prochain démarrage
+    }
+  }, 8000);
 }
 
 // ---------------------------------------------------------------- autorisations des sites
@@ -1191,7 +1306,14 @@ function setupIpc() {
   });
   ipcMain.handle('ui:exec', (e, line) => exec(String(line)));
   ipcMain.handle('ui:complete', (e, line) => complete(String(line)));
-  ipcMain.on('ui:ready', () => sendState());
+  let started = false;
+  ipcMain.on('ui:ready', () => {
+    sendState();
+    if (!started) {
+      started = true;
+      startupUpdateNotes();
+    }
+  });
   ipcMain.on('ui:focus-page', () => {
     const tab = activeTab();
     if (tab.screen && tab.view) {

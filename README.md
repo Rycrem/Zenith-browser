@@ -16,6 +16,7 @@ Tests de la logique (favoris, alias, lecture des résultats, extensions) : `npm 
 | Commande | Effet |
 | --- | --- |
 | `brows <recherche>` | recherche, résultats numérotés (DuckDuckGo par défaut) |
+| `ia <question>` | réponse courte de Claude, avec recherche web et sources numérotées |
 | `<n>` / `<n>t` | ouvre l'élément n de la liste affichée, `t` pour un nouvel onglet |
 | `go <url>` | ouvre une adresse (taper directement une adresse marche aussi) |
 | `links` | numérote les liens et boutons de la page, puis tape un numéro |
@@ -33,6 +34,7 @@ Tests de la logique (favoris, alias, lecture des résultats, extensions) : `npm 
 | `alias nom = commande`, `unalias nom` | raccourcis perso |
 | `engine ddg\|google\|bing\|qwant`, `theme ambre\|vert\|cyan\|rose` | réglages |
 | `perm`, `perm reset [site]` | autorisations données aux sites |
+| `update`, `update install`, `update electron` | mises à jour (voir plus bas) |
 | `devtools`, `term`, `help`, `clear` | divers |
 
 Tout ce qui n'est ni une commande ni une adresse lance une recherche.
@@ -47,11 +49,25 @@ Ctrl+L terminal · Ctrl+J cacher/montrer le terminal · Échap rendre la main à
 
 `ext add` accepte un lien du Chrome Web Store, un identifiant d'extension ou un dossier d'extension décompressée. Chaque extension a une pastille numérotée dans la barre d'état ; un clic ou Alt+n ouvre sa popup. Electron ne gère qu'une partie des API d'extensions Chrome : les bloqueurs de pub et scripts de contenu fonctionnent bien, certaines extensions plus poussées peuvent ne pas marcher.
 
+## IA
+
+`ia <question>` affiche une réponse de quelques phrases écrite par Claude (modèle `claude-opus-5-5`, effort bas pour aller vite), qui fait une recherche web quand la question touche à l'actualité. Les sources sont numérotées : tape un numéro pour en ouvrir une.
+
+Il faut une clé API Anthropic (console.anthropic.com, facturée à l'usage, indépendante d'un abonnement Claude) : `ia key <clé>`. Elle est chiffrée par le système quand c'est possible et n'apparaît ni à l'écran ni dans l'historique des commandes. `ia model <id>` change de modèle ; la variable `ANTHROPIC_API_KEY` marche aussi.
+
+## Mises à jour
+
+- `update` vérifie la version d'Electron (et donc de Chromium) et les nouveaux commits du dépôt. Une vérification se fait aussi toute seule une fois par jour au démarrage.
+- `update install` récupère le code (`git pull`), puis met à jour les dépendances sans changer de version majeure d'Electron : ce sont les correctifs de sécurité, sans risque de casse.
+- `update electron` passe à la toute dernière version majeure d'Electron, à tester.
+
+L'appli se ferme, la mise à jour se fait avec le `node` du système (sous Windows, Electron ne peut pas être remplacé pendant qu'il tourne), puis elle se relance et affiche le compte rendu dans le terminal.
+
 ## Sécurité
 
 - Chaque site tourne dans le bac à sable de Chromium, sans accès à Node ni à l'ordinateur.
 - Caméra, micro, position, notifications, presse-papier, partage d'écran, ouverture d'applications externes : chaque demande d'un site pose la question dans le terminal (`o` oui, `t` toujours, `j` jamais, `N` non). `perm` liste les choix enregistrés.
-- La version de Chromium est celle d'Electron : lancer `npm update` régulièrement pour recevoir les correctifs de sécurité.
+- La version de Chromium est celle d'Electron : faire `update install` quand l'appli le signale pour recevoir les correctifs de sécurité.
 - Pas de protection anti-hameçonnage (navigation sécurisée de Google) comme dans Chrome.
 
 ## Données
