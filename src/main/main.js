@@ -27,6 +27,42 @@ app.userAgentFallback = app.userAgentFallback
   .replace(/ Electron\/\S+/, '')
   .replace(/ dev-brows\/\S+/, '');
 
+// La connexion Google refuse les navigateurs basés sur Electron (« Ce navigateur ou cette application
+// ne sont peut-être pas sécurisés »). Sur accounts.google.com seulement, on se présente comme Firefox :
+// en-tête User-Agent, navigator.userAgent, et sans les en-têtes Sec-CH-UA propres à Chromium.
+const GOOGLE_LOGIN = 'accounts.google.com';
+function firefoxUserAgent() {
+  // Firefox sort une version toutes les 4 semaines (140 le 24 juin 2025) ; on annonce l'avant-dernière.
+  const version = 140 + Math.floor((Date.now() - Date.UTC(2025, 5, 24)) / (28 * 24 * 3600 * 1000)) - 1;
+  const platform = {
+    win32: 'Windows NT 10.0; Win64; x64',
+    darwin: 'Macintosh; Intel Mac OS X 10.15',
+  }[process.platform] || 'X11; Linux x86_64';
+  return `Mozilla/5.0 (${platform}; rv:${version}.0) Gecko/20100101 Firefox/${version}.0`;
+}
+const isGoogleLogin = (url) => {
+  try {
+    return new URL(url).hostname === GOOGLE_LOGIN;
+  } catch {
+    return false;
+  }
+};
+
+function setupGoogleLogin() {
+  const ua = firefoxUserAgent();
+  ses.webRequest.onBeforeSendHeaders({ urls: [`https://${GOOGLE_LOGIN}/*`] }, (details, callback) => {
+    const headers = details.requestHeaders;
+    for (const name of Object.keys(headers)) if (/^sec-ch-ua/i.test(name)) delete headers[name];
+    headers['User-Agent'] = ua;
+    callback({ requestHeaders: headers });
+  });
+}
+
+function matchUserAgent(wc, url) {
+  const ua = isGoogleLogin(url) ? firefoxUserAgent() : app.userAgentFallback;
+  if (wc.getUserAgent() !== ua) wc.setUserAgent(ua);
+}
+
 const THEMES = { ambre: '#F2A541', vert: '#7FD18B', cyan: '#6CC5D9', rose: '#E07AA8' };
 const HISTORY_MAX = 5000;
 const DEVTOOLS_RATIO = 0.4;
@@ -85,6 +121,9 @@ function ensureView(tab) {
 }
 
 function wireWebContents(tab, wc) {
+  wc.on('did-start-navigation', (details) => {
+    if (details.isMainFrame) matchUserAgent(wc, details.url);
+  });
   wc.on('did-start-loading', () => {
     tab.loading = true;
     sendState();
@@ -150,6 +189,15 @@ function showInPane(tab, idx) {
   if (other >= 0) panes[other].tabId = panes[idx].tabId; // échange si l'onglet est déjà dans l'autre écran
   panes[idx].tabId = tab.id;
   activePane = idx;
+  layout();
+  sendState();
+}
+
+function closePane(idx) {
+  if (panes.length === 1) throw new Error('pas de split en cours');
+  const keep = panes[1 - idx];
+  panes.splice(0, panes.length, keep);
+  activePane = 0;
   layout();
   sendState();
 }
@@ -233,7 +281,7 @@ function sendState() {
     tabs: tabs.map((t, i) => ({ id: t.id, n: i + 1, title: tabTitle(t), loading: t.loading, pane: paneOf(t) })),
     panes: panes.map((p) => {
       const t = getTab(p.tabId);
-      return { tabId: p.tabId, screen: t.screen, page: !!t.view && !t.screen, url: t.url };
+      return { tabId: p.tabId, screen: t.screen, page: !!t.view && !t.screen, url: t.url, title: t.screen ? tabTitle(t) : t.title || hostOf(t.url) || 'nouvel onglet' };
     }),
     activePane,
     status: {
@@ -689,14 +737,13 @@ async function exec(raw) {
         break;
       }
       case 'split':
-        if (args[0] === 'off') {
-          if (panes.length === 1) throw new Error('pas de split en cours');
-          panes.splice(1);
-          activePane = 0;
-          layout();
-          sendState();
+        if (args[0] === 'off' || args[0] === 'close') {
+          // Sans numéro, garde l'écran actif ; l'onglet de l'écran fermé reste ouvert.
+          const n = args[1] ? Number(args[1]) : 2 - activePane;
+          if (n !== 1 && n !== 2) throw new Error('split off [1|2]');
+          closePane(n - 1);
         } else if (panes.length > 1) {
-          say('  déjà en split : « focus » change d\'écran, « split off » revient à un seul', 'dim');
+          say('  déjà en split : « focus » change d\'écran, « split off » ferme l\'autre écran (« split off 1|2 » pour choisir)', 'dim');
         } else {
           panes.push({ tabId: null });
           const t = args.length
@@ -1475,6 +1522,7 @@ app.whenReady().then(async () => {
   setupIpc();
   setupDownloads();
   setupPermissions();
+  setupGoogleLogin();
   buildMenu();
   createWindow();
   createTab();

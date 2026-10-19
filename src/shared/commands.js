@@ -54,7 +54,7 @@ const COMMANDS = [
   ['home', '', 'revenir à l\'accueil'],
   ['tab', '[n | new [url]]', 'lister, changer ou ouvrir un onglet'],
   ['close', '[n]', 'fermer l\'onglet courant ou le numéro n'],
-  ['split', '[off]', 'deux écrans côte à côte ; « focus » change d\'écran'],
+  ['split', '[off [1|2]]', 'deux écrans côte à côte ; « focus » change d\'écran, « split off » ferme l\'autre'],
   ['fav', '[dossier]', 'liste des favoris'],
   ['add', '[dossier/]nom', 'ajouter la page aux favoris (crée le dossier si besoin)'],
   ['fav rm', '<chemin | n>', 'supprimer un favori ou un dossier'],

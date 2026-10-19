@@ -102,8 +102,11 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
 #content.split .pane[data-pane="0"] { flex: var(--ratio) 1 0; }
 #content.split .pane[data-pane="1"] { flex: calc(1 - var(--ratio)) 1 0; }
 .pane-bar { height: 0; background: var(--line); }
-#content.split .pane-bar { height: 2px; }
-#content.split .pane.active .pane-bar { background: var(--accent); }
+#content.split .pane-bar { height: 22px; display: flex; align-items: center; gap: 8px; padding: 0 4px 0 10px; font-size: 12px; color: var(--dim); border-top: 2px solid var(--line); }
+#content.split .pane.active .pane-bar { border-top-color: var(--accent); color: var(--text); }
+.pane-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pane-close { flex: none; width: 20px; height: 18px; padding: 0; border-radius: 3px; background: none; color: inherit; cursor: pointer; }
+.pane-close:hover { background: var(--accent); color: var(--bg); }
 .pane[data-pane="1"], .pane-resizer { display: none; }
 #content.split .pane[data-pane="1"] { display: flex; }
 #content.split .pane-resizer { display: block; }

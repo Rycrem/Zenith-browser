@@ -38,7 +38,7 @@ Le workflow construit les installateurs Windows, macOS et Linux, les joint à un
 | `links` | numérote les liens et boutons de la page, puis tape un numéro |
 | `back`, `fwd`, `reload`, `home` | navigation |
 | `tab`, `tab <n>`, `tab new [url]`, `close [n]` | onglets |
-| `split [off]`, `focus` | deux écrans côte à côte, changer d'écran |
+| `split`, `split off [1\|2]`, `focus` | deux écrans côte à côte, fermer un écran (l'autre par défaut, ou le ✕ en haut de l'écran), changer d'écran |
 | `fav [dossier]` | favoris en arbre |
 | `add [dossier/]nom` | ajoute la page, crée les dossiers manquants |
 | `fav rm <chemin\|n>`, `fav mv <chemin> <dest>`, `fav rename <chemin> <nom>`, `undo` | gérer les favoris |
@@ -108,6 +108,7 @@ L'appli se ferme, la mise à jour se fait avec le `node` du système (sous Windo
 - Chaque site tourne dans le bac à sable de Chromium, sans accès à Node ni à l'ordinateur.
 - Caméra, micro, position, notifications, presse-papier, partage d'écran, ouverture d'applications externes : chaque demande d'un site pose la question dans le terminal (`o` oui, `t` toujours, `j` jamais, `N` non). `perm` liste les choix enregistrés.
 - La version de Chromium est celle d'Electron : faire `update install` quand l'appli le signale pour recevoir les correctifs de sécurité.
+- Connexion Google : Google refuse les navigateurs basés sur Electron (« Ce navigateur ou cette application ne sont peut-être pas sécurisés »). Sur `accounts.google.com` uniquement, dev-brows se présente donc comme Firefox. Google peut bloquer cette parade à tout moment.
 - Pas de protection anti-hameçonnage (navigation sécurisée de Google) comme dans Chrome.
 
 ## Données
