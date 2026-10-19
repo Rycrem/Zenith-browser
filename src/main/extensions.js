@@ -11,6 +11,14 @@ const { crxToZip, extensionIdFrom } = require('../shared/crx');
 const UBLOCK_IDS = ['cjpalhdlnbpafiamejdnhcphjbkeiagm', 'ddkjiahejlhfcafbddmgiahcphecmpfh'];
 const UBLOCK_NAMES = /^(ublock|ubo|ublock[ -]?origin|ublock0)$/i;
 
+// Vrai si la version a est plus récente que b (« 1.62.0 » > « 1.61.2 »).
+function newer(a, b) {
+  const x = String(a).split('.').map(Number);
+  const y = String(b).split('.').map(Number);
+  for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
+  return false;
+}
+
 // Gère les extensions Chrome : installation depuis le Chrome Web Store ou un dossier,
 // activation, désactivation et popups. La liste est gardée dans settings.extensions.
 class Extensions {
@@ -37,12 +45,6 @@ class Extensions {
     if (!entry && data.ublockBundled) return null;
     if (entry && fs.existsSync(path.join(dir, 'manifest.json'))) {
       // Déjà installé : on ne remplace que par une version plus récente (« ext add ublock » a pu en mettre une).
-      const newer = (a, b) => {
-        const x = a.split('.').map(Number);
-        const y = b.split('.').map(Number);
-        for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
-        return false;
-      };
       if (!newer(version, this.readManifest(dir).version)) {
         data.ublockBundled = version;
         return null;
@@ -166,11 +168,58 @@ class Extensions {
     return this.unpack(new AdmZip(crxToZip(Buffer.from(await res.arrayBuffer()))), id);
   }
 
-  // Dernière version de uBlock Origin pour Chromium, depuis github.com/gorhill/uBlock.
-  async downloadUblock() {
+  // Met à jour les extensions installées depuis le Chrome Web Store et uBlock Origin.
+  // Renvoie [{ name, from, to }] pour celles mises à jour, [{ name, error }] pour les échecs.
+  async updateAll() {
+    const done = [];
+    for (const ext of this.list) {
+      const source = this.updateSource(ext);
+      if (!source) continue;
+      try {
+        const from = this.readManifest(ext.path).version;
+        const to = source === 'ublock' ? (await this.ublockRelease()).version : await this.storeVersion(source, from);
+        if (!to || !newer(to, from)) continue;
+        if (ext.id && ext.enabled) this.api.removeExtension(ext.id);
+        if (source === 'ublock') await this.downloadUblock();
+        else await this.download(source);
+        if (ext.enabled) await this.load(ext);
+        done.push({ name: ext.name || ext.alias, from, to });
+      } catch (err) {
+        done.push({ name: ext.name || ext.alias, error: err.message });
+      }
+    }
+    if (done.length) this.settings.save();
+    return done;
+  }
+
+  // D'où vient la mise à jour : identifiant du Chrome Web Store, « ublock », ou rien (dossier perso).
+  updateSource(ext) {
+    if (!ext.path.startsWith(this.dir + path.sep)) return null;
+    const base = path.basename(ext.path);
+    if (base === 'ublock-origin') return 'ublock';
+    return /^[a-p]{32}$/.test(base) ? base : null;
+  }
+
+  // Dernière version publiée sur le Chrome Web Store.
+  async storeVersion(id, current) {
+    const url = 'https://clients2.google.com/service/update2/crx?response=updatecheck'
+      + `&prodversion=${process.versions.chrome}&acceptformat=crx2,crx3&x=id%3D${id}%26v%3D${current}%26uc`;
+    const res = await net.fetch(url);
+    if (!res.ok) throw new Error(`Chrome Web Store : ${res.status}`);
+    const m = (await res.text()).match(/<updatecheck[^>]*\sversion="([^"]+)"/);
+    return m ? m[1] : null;
+  }
+
+  async ublockRelease() {
     const rel = await net.fetch('https://api.github.com/repos/gorhill/uBlock/releases/latest', { headers: { accept: 'application/vnd.github+json' } });
     if (!rel.ok) throw new Error(`GitHub ne répond pas (${rel.status})`);
-    const asset = ((await rel.json()).assets || []).find((a) => /chromium\.zip$/.test(a.name));
+    const data = await rel.json();
+    return { version: String(data.tag_name || '').replace(/^v/, ''), assets: data.assets || [] };
+  }
+
+  // Dernière version de uBlock Origin pour Chromium, depuis github.com/gorhill/uBlock.
+  async downloadUblock() {
+    const asset = (await this.ublockRelease()).assets.find((a) => /chromium\.zip$/.test(a.name));
     if (!asset) throw new Error('pas de version Chromium de uBlock Origin dans la dernière Release');
     const res = await net.fetch(asset.browser_download_url);
     if (!res.ok) throw new Error(`téléchargement refusé (${res.status})`);
@@ -254,4 +303,4 @@ class Extensions {
   }
 }
 
-module.exports = { Extensions };
+module.exports = { Extensions, newer };

@@ -90,7 +90,7 @@ function showTerm(id, alive) {
 function print(lines, el = term()) {
   for (const l of lines) {
     el.append(h('div', { class: l.c || '' }, l.t));
-    if (l.c === 'warn' && l.t.trim().startsWith('?')) awaiting = /\(o\/N\)$/.test(l.t) ? '(o/N)' : '(O/n)';
+    if (l.c === 'warn' && l.t.trim().startsWith('?')) awaiting = (l.t.match(/\([^()]*\)$/) || ['(O/n)'])[0];
   }
   while (el.childElementCount > 600) el.firstElementChild.remove();
   scrollback.scrollTop = scrollback.scrollHeight;

@@ -770,8 +770,9 @@ const YES = /^(o|oui|y|yes)$/i;
 const ANSWER = /^(o|oui|y|yes|n|non|no|t|toujours|j|jamais)?$/i;
 
 // Met une question en file ; renvoie les lignes à afficher si c'est la seule en attente.
-function enqueue(question, answer) {
-  prompts.push({ question, answer });
+// accept : réponses valables (les autres comptent comme « non » et s'exécutent comme commande).
+function enqueue(question, answer, accept = ANSWER) {
+  prompts.push({ question, answer, accept });
   return prompts.length === 1 ? [{ t: `  ? ${question}`, c: 'warn' }] : [];
 }
 
@@ -801,7 +802,7 @@ async function exec(raw, depth = 0) {
 
   if (prompts.length) {
     // Une réponse répond à la question ; une autre commande vaut « non » puis s'exécute.
-    const isAnswer = ANSWER.test(input);
+    const isAnswer = prompts[0].accept.test(input);
     const p = prompts.shift();
     await p.answer(isAnswer ? input : 'non', say);
     if (prompts.length) say(`  ? ${prompts[0].question}`, 'warn');
@@ -1433,7 +1434,8 @@ function updateLines(r) {
   return lines;
 }
 
-// Au démarrage : compte rendu de la dernière mise à jour, et une vérification par jour.
+// Au démarrage : compte rendu de la dernière mise à jour, puis vérification de l'appli
+// et mise à jour des extensions, à chaque lancement.
 function startupUpdateNotes() {
   const report = updater.lastReport();
   if (report) {
@@ -1446,7 +1448,6 @@ function startupUpdateNotes() {
   }
   settings.data.lastVersion = app.getVersion();
   settings.save();
-  if (Date.now() - (settings.data.lastUpdateCheck || 0) < 24 * 3600 * 1000) return;
   setTimeout(async () => {
     try {
       const r = await updater.check();
@@ -1456,7 +1457,33 @@ function startupUpdateNotes() {
     } catch {
       // hors ligne : on réessaiera au prochain démarrage
     }
+    const results = await exts.updateAll();
+    for (const u of results.filter((x) => !x.error)) print([{ t: `  ✓ extension ${u.name} mise à jour : ${u.from} → ${u.to}`, c: 'ok' }]);
+    const failed = results.filter((x) => x.error);
+    if (failed.length) print([{ t: `  mise à jour impossible pour ${failed.map((x) => x.name).join(', ')} (${failed[0].error})`, c: 'dim' }]);
+    sendState();
   }, 8000);
+}
+
+// ---------------------------------------------------------------- clés de sécurité (WebAuthn)
+
+// Une clé (YubiKey…) qui garde plusieurs comptes pour un site : on demande lequel dans le
+// terminal. Sans ce choix, Electron annule la connexion.
+function setupWebAuthn() {
+  ses.on('select-webauthn-account', (e, details, callback) => {
+    const accounts = details.accounts || [];
+    if (accounts.length <= 1) return callback(accounts[0] && accounts[0].credentialId);
+    const label = (a) => [a.displayName, a.name].filter(Boolean).join(' · ') || a.credentialId.slice(0, 12);
+    const lines = enqueue(`${details.relyingPartyId} : quel compte de la clé utiliser ? ${accounts.map((a, i) => `${i + 1} = ${label(a)}`).join(', ')} (1-${accounts.length})`, async (input, say) => {
+      const a = accounts[(input ? Number(input) : 1) - 1];
+      callback(a ? a.credentialId : undefined);
+      say(a ? `  ✓ compte ${label(a)}` : '  connexion annulée', a ? 'ok' : 'dim');
+    }, /^\d*$/);
+    if (lines.length) {
+      print(lines);
+      focusTerminal();
+    }
+  });
 }
 
 // ---------------------------------------------------------------- autorisations des sites
@@ -1803,6 +1830,7 @@ app.whenReady().then(async () => {
   setupIpc();
   setupDownloads();
   setupPermissions();
+  setupWebAuthn();
   setupGoogleLogin();
   adblock = new AdBlock(ses, path.join(dir, 'adblock.bin'));
   if (settings.data.builtinAdblock) adblock.enable().catch((err) => print([{ t: `  bloqueur de pub : listes non téléchargées (${err.message}), « adblock on » pour réessayer`, c: 'err' }]));

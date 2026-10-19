@@ -4,6 +4,14 @@
 // Ajouter une entrée en tête à chaque nouvelle version.
 const CHANGELOG = [
   {
+    version: '0.1.12',
+    notes: [
+      'Les mises à jour sont vérifiées à chaque lancement (et plus une fois par jour).',
+      'Les extensions du Chrome Web Store et uBlock Origin se mettent à jour toutes seules au lancement.',
+      'Clés de sécurité (YubiKey) : quand la clé garde plusieurs comptes pour un site, le terminal demande lequel utiliser (avant, la connexion était annulée).',
+    ],
+  },
+  {
     version: '0.1.11',
     notes: [
       'uBlock Origin est préinstallé et fonctionne : il bloque les pubs et sa popup s\'ouvre (Alt+1 ou clic sur sa pastille).',
