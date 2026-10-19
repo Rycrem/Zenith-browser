@@ -2,6 +2,7 @@
 
 const { safeStorage } = require('electron');
 const Anthropic = require('@anthropic-ai/sdk').default;
+const { t, getLang } = require('../shared/i18n');
 
 // Les IA proposées par « ia ». Claude passe par le SDK d'Anthropic (avec recherche web) ;
 // les autres par leur API compatible OpenAI (chat/completions en streaming).
@@ -70,12 +71,14 @@ const DEFAULT_PROVIDER = 'claude';
 
 const BASE_SYSTEM = [
   'Tu réponds dans la barre de commande d\'un navigateur web en mode terminal.',
-  'Réponds en français, en 2 à 5 phrases courtes, sans titre ni liste sauf si la question en demande une.',
+  'Réponds en {language}, en 2 à 5 phrases courtes, sans titre ni liste sauf si la question en demande une.',
   'Va droit au but : la personne veut une description rapide, pas un exposé.',
   'Le texte brut s\'affiche tel quel : pas de Markdown.',
 ];
-const SYSTEM_WEB = [...BASE_SYSTEM, 'Quand la question porte sur l\'actualité, un prix, une date ou un fait qui peut avoir changé, fais une recherche web avant de répondre.'].join(' ');
-const SYSTEM_OFFLINE = [...BASE_SYSTEM, 'Tu n\'as pas accès au web : si la réponse dépend de l\'actualité, dis-le en une phrase.'].join(' ');
+// La consigne reste en français ; seule la langue de la réponse suit le réglage « lang ».
+const system = (extra) => [...BASE_SYSTEM, extra].join(' ').replace('{language}', getLang() === 'en' ? 'anglais' : 'français');
+const systemWeb = () => system('Quand la question porte sur l\'actualité, un prix, une date ou un fait qui peut avoir changé, fais une recherche web avant de répondre.');
+const systemOffline = () => system('Tu n\'as pas accès au web : si la réponse dépend de l\'actualité, dis-le en une phrase.');
 
 function resolve(name) {
   const id = String(name || '').toLowerCase();
@@ -154,11 +157,11 @@ function readKey(settings, id) {
 function list(settings) {
   const cur = current(settings);
   return Object.entries(PROVIDERS).map(([id, p]) => {
-    let key = 'à connecter';
-    if (p.noKey) key = 'sans clé';
-    else if (settings.data.aiKeys && settings.data.aiKeys[id]) key = 'clé enregistrée';
-    else if (p.env && process.env[p.env]) key = `clé via ${p.env}`;
-    return { id, name: p.name, model: model(settings, id), free: p.free, web: !!p.web, key, ready: key !== 'à connecter', current: id === cur, keyUrl: p.keyUrl };
+    let key = null;
+    if (p.noKey) key = t('sans clé');
+    else if (settings.data.aiKeys && settings.data.aiKeys[id]) key = t('clé enregistrée');
+    else if (p.env && process.env[p.env]) key = t('clé via {env}', { env: p.env });
+    return { id, name: t(p.name), model: model(settings, id), free: p.free, web: !!p.web, key: key || t('à connecter'), ready: !!key, current: id === cur, keyUrl: p.keyUrl };
   });
 }
 
@@ -210,20 +213,20 @@ async function replacement(id, p, apiKey, retired, message) {
 
 function errorMessage(err, id) {
   const p = PROVIDERS[id] || PROVIDERS.claude;
-  if (err instanceof Anthropic.AuthenticationError) return 'clé API refusée : vérifie-la avec « ia key <clé> »';
-  if (err instanceof Anthropic.PermissionDeniedError) return 'cette clé n\'a pas accès à ce modèle';
-  if (err instanceof Anthropic.RateLimitError) return 'trop de requêtes ou crédit épuisé, réessaie plus tard';
-  if (err instanceof Anthropic.APIConnectionError) return 'impossible de joindre l\'API Claude (connexion ?)';
-  if (err instanceof Anthropic.APIError) return `erreur de l'API (${err.status}) : ${err.message}`;
+  if (err instanceof Anthropic.AuthenticationError) return t('clé API refusée : vérifie-la avec « ia key <clé> »');
+  if (err instanceof Anthropic.PermissionDeniedError) return t('cette clé n\'a pas accès à ce modèle');
+  if (err instanceof Anthropic.RateLimitError) return t('trop de requêtes ou crédit épuisé, réessaie plus tard');
+  if (err instanceof Anthropic.APIConnectionError) return t('impossible de joindre l\'API Claude (connexion ?)');
+  if (err instanceof Anthropic.APIError) return t('erreur de l\'API ({status}) : {error}', { status: err.status, error: err.message });
   if (err instanceof ProviderError) {
-    if (err.status === 401 || err.status === 403 || (err.status === 400 && /api.?key/i.test(err.message))) return `clé refusée par ${p.name} : vérifie-la avec « ia key <clé> » (${err.message})`;
-    if (err.status === 429) return `limite atteinte chez ${p.name} (quota gratuit ou trop de requêtes), réessaie plus tard`;
-    if (err.status === 404) return `modèle « ${err.model} » introuvable chez ${p.name} : change-le avec « ia model <id> » (${err.message})`;
-    return `erreur de ${p.name} (${err.status}) : ${err.message}`;
+    if (err.status === 401 || err.status === 403 || (err.status === 400 && /api.?key/i.test(err.message))) return t('clé refusée par {name} : vérifie-la avec « ia key <clé> » ({error})', { name: t(p.name), error: err.message });
+    if (err.status === 429) return t('limite atteinte chez {name} (quota gratuit ou trop de requêtes), réessaie plus tard', { name: t(p.name) });
+    if (err.status === 404) return t('modèle « {model} » introuvable chez {name} : change-le avec « ia model <id> » ({error})', { model: err.model, name: t(p.name), error: err.message });
+    return t('erreur de {name} ({status}) : {error}', { name: t(p.name), status: err.status, error: err.message });
   }
   if (err && err.name === 'TypeError' && /fetch/i.test(err.message)) {
-    if (id === 'ollama') return `Ollama ne répond pas : installe-le (ollama.com), puis « ollama pull ${PROVIDERS.ollama.model} »`;
-    return `impossible de joindre ${p.name} (connexion ?)`;
+    if (id === 'ollama') return t('Ollama ne répond pas : installe-le (ollama.com), puis « ollama pull {model} »', { model: PROVIDERS.ollama.model });
+    return t('impossible de joindre {name} (connexion ?)', { name: t(p.name) });
   }
   return err.message;
 }
@@ -247,7 +250,7 @@ async function askClaude(apiKey, modelId, question, onText) {
       model: modelId,
       max_tokens: 8000,
       output_config: { effort: 'low' },
-      system: SYSTEM_WEB,
+      system: systemWeb(),
       tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 }],
       messages,
       // Si le modèle refuse pour une raison de sécurité, l'API essaie un autre modèle.
@@ -288,7 +291,7 @@ async function askCompatible(p, apiKey, modelId, question, onText) {
     body: JSON.stringify({
       model: modelId,
       stream: true,
-      messages: [{ role: 'system', content: SYSTEM_OFFLINE }, { role: 'user', content: question }],
+      messages: [{ role: 'system', content: systemOffline() }, { role: 'user', content: question }],
     }),
   });
   if (!res.ok) {
@@ -314,7 +317,7 @@ async function askCompatible(p, apiKey, modelId, question, onText) {
     const data = line.slice(5).trim();
     if (!data || data === '[DONE]') return;
     const chunk = JSON.parse(data);
-    if (chunk.error) throw new ProviderError(chunk.error.code || 500, chunk.error.message || 'erreur pendant la réponse');
+    if (chunk.error) throw new ProviderError(chunk.error.code || 500, chunk.error.message || t('erreur pendant la réponse'));
     const choice = chunk.choices && chunk.choices[0];
     if (!choice) return;
     if (choice.finish_reason === 'content_filter') refused = true;
@@ -340,7 +343,7 @@ async function ask(settings, question, onText) {
   const id = current(settings);
   const p = PROVIDERS[id];
   const apiKey = readKey(settings, id);
-  if (!apiKey && !p.noKey) throw new Error(`pas de clé pour ${p.name} : crée-en une sur ${p.keyUrl.replace('https://', '')} puis tape « ia key <clé> »`);
+  if (!apiKey && !p.noKey) throw new Error(t('pas de clé pour {name} : crée-en une sur {url} puis tape « ia key <clé> »', { name: t(p.name), url: p.keyUrl.replace('https://', '') }));
   const run = (m) => (id === 'claude' ? askClaude(apiKey, m, question, onText) : askCompatible(p, apiKey, m, question, onText));
   const retired = model(settings, id);
   try {

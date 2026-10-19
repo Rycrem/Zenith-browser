@@ -3,6 +3,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('brows', {
+  lang: ipcRenderer.sendSync('ui:lang'),
   exec: (line) => ipcRenderer.invoke('ui:exec', line),
   complete: (line) => ipcRenderer.invoke('ui:complete', line),
   ready: () => ipcRenderer.send('ui:ready'),

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Configuration d'artefact SignPath « app » : l'appli dépaquetée (dist/win-unpacked),
+     envoyée en zip par actions/upload-artifact. Seul dev-brows.exe est signé : les DLL
+     viennent d'Electron (projet amont) et restent telles quelles, comme le demande la
+     politique de SignPath Foundation. -->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <parameters>
+    <parameter name="version" required="true" />
+  </parameters>
+  <zip-file>
+    <pe-file path="dev-brows.exe" product-name="dev-brows" product-version="${version}">
+      <authenticode-sign />
+    </pe-file>
+  </zip-file>
+</artifact-configuration>

@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   prepare:
@@ -37,14 +38,14 @@ jobs:
             echo "::error::la Release $TAG existe déjà : augmente la version dans package.json"
             exit 1
           fi
-          gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "dev-brows $TAG" --generate-notes
+          gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "dev-brows $TAG" --notes-file .github/release-notes.md --generate-notes
 
   build:
     needs: prepare
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
+        os: [macos-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -65,8 +66,14 @@ jobs:
           # Pas de certificat de signature : installateurs non signés.
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
+  # Windows : construit et signé (SignPath) par le workflow « Installateur Windows ».
+  windows:
+    needs: prepare
+    uses: ./.github/workflows/release-windows.yml
+    secrets: inherit
+
   publish:
-    needs: [prepare, build]
+    needs: [prepare, build, windows]
     runs-on: ubuntu-latest
     steps:
       - name: Publier la Release

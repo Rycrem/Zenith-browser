@@ -5,6 +5,7 @@ const path = require('path');
 const { net } = require('electron');
 const AdmZip = require('adm-zip');
 const { crxToZip, extensionIdFrom } = require('../shared/crx');
+const { t } = require('../shared/i18n');
 
 // uBlock Origin complet (MV2) n'est plus sur le Chrome Web Store : on le prend dans ses Releases GitHub.
 // uBlock Origin Lite (MV3) bloque avec declarativeNetRequest, qu'Electron ne gère pas.
@@ -148,10 +149,10 @@ class Extensions {
     } else if (fs.existsSync(source) && fs.statSync(source).isDirectory()) {
       dir = path.resolve(source);
     } else {
-      if (!id) throw new Error('donne un lien du Chrome Web Store, un identifiant, un dossier ou « ublock »');
+      if (!id) throw new Error(t('donne un lien du Chrome Web Store, un identifiant, un dossier ou « ublock »'));
       dir = await this.download(id);
     }
-    if (this.list.some((e) => e.path === dir)) throw new Error('extension déjà installée');
+    if (this.list.some((e) => e.path === dir)) throw new Error(t('extension déjà installée'));
     const ext = { path: dir, enabled: true };
     await this.load(ext);
     ext.alias = this.makeAlias(ext.name);
@@ -164,7 +165,7 @@ class Extensions {
     const url = 'https://clients2.google.com/service/update2/crx?response=redirect'
       + `&prodversion=${process.versions.chrome}&acceptformat=crx2,crx3&x=id%3D${id}%26uc`;
     const res = await net.fetch(url);
-    if (!res.ok) throw new Error(`téléchargement refusé (${res.status})`);
+    if (!res.ok) throw new Error(t('téléchargement refusé ({status})', { status: res.status }));
     return this.unpack(new AdmZip(crxToZip(Buffer.from(await res.arrayBuffer()))), id);
   }
 
@@ -212,7 +213,7 @@ class Extensions {
 
   async ublockRelease() {
     const rel = await net.fetch('https://api.github.com/repos/gorhill/uBlock/releases/latest', { headers: { accept: 'application/vnd.github+json' } });
-    if (!rel.ok) throw new Error(`GitHub ne répond pas (${rel.status})`);
+    if (!rel.ok) throw new Error(t('GitHub ne répond pas ({status})', { status: rel.status }));
     const data = await rel.json();
     return { version: String(data.tag_name || '').replace(/^v/, ''), assets: data.assets || [] };
   }
@@ -220,9 +221,9 @@ class Extensions {
   // Dernière version de uBlock Origin pour Chromium, depuis github.com/gorhill/uBlock.
   async downloadUblock() {
     const asset = (await this.ublockRelease()).assets.find((a) => /chromium\.zip$/.test(a.name));
-    if (!asset) throw new Error('pas de version Chromium de uBlock Origin dans la dernière Release');
+    if (!asset) throw new Error(t('pas de version Chromium de uBlock Origin dans la dernière Release'));
     const res = await net.fetch(asset.browser_download_url);
-    if (!res.ok) throw new Error(`téléchargement refusé (${res.status})`);
+    if (!res.ok) throw new Error(t('téléchargement refusé ({status})', { status: res.status }));
     return this.unpack(new AdmZip(Buffer.from(await res.arrayBuffer())), 'ublock-origin');
   }
 
@@ -252,7 +253,7 @@ class Extensions {
 
   get(n) {
     const ext = this.list[n - 1];
-    if (!ext) throw new Error(`pas d'extension numéro ${n}`);
+    if (!ext) throw new Error(t('pas d\'extension numéro {n}', { n }));
     return ext;
   }
 
@@ -276,7 +277,7 @@ class Extensions {
   }
 
   rename(n, alias) {
-    if (!/^[\w-]{1,12}$/.test(alias || '')) throw new Error('alias invalide (lettres, chiffres, 12 max)');
+    if (!/^[\w-]{1,12}$/.test(alias || '')) throw new Error(t('alias invalide (lettres, chiffres, 12 max)'));
     const ext = this.get(n);
     ext.alias = alias;
     this.settings.save();
@@ -285,8 +286,8 @@ class Extensions {
 
   popupUrl(n) {
     const ext = this.get(n);
-    if (!ext.enabled) throw new Error(`${ext.alias} est désactivée (ext on ${n})`);
-    if (!ext.popup) throw new Error(`${ext.alias} n'a pas de popup`);
+    if (!ext.enabled) throw new Error(t('{alias} est désactivée (ext on {n})', { alias: ext.alias, n }));
+    if (!ext.popup) throw new Error(t('{alias} n\'a pas de popup', { alias: ext.alias }));
     return `chrome-extension://${ext.id}/${ext.popup.replace(/^\//, '')}`;
   }
 

@@ -1,139 +1,184 @@
 # dev-brows
 
-Un navigateur basé sur Chromium (Electron) qui se pilote comme un terminal. Les sites s'affichent normalement et restent cliquables à la souris ; le terminal reste en dessous pour taper des commandes.
+**English** · [Français](README.fr.md)
 
-## Installer
+A Chromium-based browser (Electron) that you drive like a terminal. Websites display normally and stay clickable with the mouse; the terminal stays below the page for typing commands.
 
-Les installateurs sont sur la page [Releases](https://github.com/Rycrem/dev-brows/releases/latest) :
+![Home screen](docs/screenshots/home.png)
 
-- Windows : `dev-brows-Setup-x.y.z.exe`. L'appli n'est pas signée : Windows SmartScreen affiche « Windows a protégé votre ordinateur », cliquer sur « Informations complémentaires » › « Exécuter quand même ».
-- macOS : `.dmg` (`arm64` pour les Mac Apple Silicon, `x64` pour les Mac Intel). L'appli n'est pas signée : au premier lancement, clic droit sur l'appli › Ouvrir.
-- Linux : `.AppImage` (le rendre exécutable puis le lancer) ou `.deb`.
+| | |
+| --- | --- |
+| ![Bookmarks](docs/screenshots/fav.png) | ![AI](docs/screenshots/ai.png) |
+| `fav`: bookmarks as a tree, type a number to open one | `ia`: pick the AI that answers `ia <question>` |
 
-## Lancer depuis le code
+![Help](docs/screenshots/help.png)
+
+## Install
+
+Installers are on the [Releases](https://github.com/Rycrem/dev-brows/releases/latest) page:
+
+- Windows: `dev-brows-Setup-x.y.z.exe`. The installer asks for the app's language (English or French) and, on its Privacy page, whether the app may check for updates on its own. If an installer is unsigned (see "Signing the Windows installer"), Windows SmartScreen shows "Windows protected your PC": click "More info" › "Run anyway". Windows 11 Smart App Control blocks unsigned installers with no way around it.
+- macOS: `.dmg` (`arm64` for Apple Silicon Macs, `x64` for Intel Macs). The app is not signed: on first launch, right-click the app › Open.
+- Linux: `.AppImage` (make it executable, then run it) or `.deb`.
+
+**Uninstall:** on Windows, Settings › Apps › Installed apps › dev-brows › Uninstall. On macOS, drag dev-brows from Applications to the Trash. On Linux, delete the `.AppImage`, or `sudo apt remove dev-brows` for the `.deb`. Your data stays in the folder listed under "Data" until you delete it.
+
+## Language
+
+dev-brows speaks English and French. `lang` shows the current language, `lang en` or `lang fr` switches it right away. The first time, the app uses the language picked in the Windows installer, or else the system language (French if the system is in French, English otherwise).
+
+## Run from source
 
 ```bash
 npm install
 npm start
 ```
 
-Tests de la logique (favoris, alias, lecture des résultats, extensions) : `npm test`. `npm run ublock` télécharge uBlock Origin dans `vendor/` pour qu'il soit préinstallé au lancement. `npm run dist` le fait aussi, puis construit l'installateur du système courant dans `dist/`.
+Logic tests (bookmarks, aliases, result parsing, extensions, translations): `npm test`. `npm run ublock` downloads uBlock Origin into `vendor/` so it is preinstalled at launch. `npm run dist` does that too, then builds the installer for the current OS into `dist/`.
 
-## Publier une version
+## Publishing a version
 
-1. Changer `version` dans `package.json` (par exemple `0.2.0`), ajouter ses notes en tête de `src/shared/changelog.js` (affichées sur l'écran d'accueil ; `npm test` le vérifie) et pousser sur `main`.
-2. Lancer le workflow GitHub Actions « Installateurs » (onglet Actions › Installateurs › Run workflow), ou pousser le tag correspondant (`git tag v0.2.0 && git push origin v0.2.0`).
+1. Change `version` in `package.json` (for example `0.2.0`), add its notes at the top of `src/shared/changelog.js` in French and English (shown on the home screen; `npm test` checks it), and push to `main`.
+2. Run the GitHub Actions workflow "Installateurs" (Actions tab › Installateurs › Run workflow), or push the matching tag (`git tag v0.2.0 && git push origin v0.2.0`).
 
-Le workflow construit les installateurs Windows, macOS et Linux, les joint à une Release `v0.2.0` puis la publie. C'est cette Release que l'appli installée détecte avec `update`.
+The workflow builds the Windows, macOS and Linux installers, attaches them to a `v0.2.0` Release and publishes it. That Release is what the installed app finds with `update`.
 
-Pour seulement Windows, lancer plutôt le workflow « Installateur Windows » (onglet Actions › Installateur Windows › Run workflow) : il ne construit que le `.exe` et le publie dans la Release `v<version>`, plus vite. Les applis macOS et Linux installées ne verront pas cette version comme une mise à jour.
+For Windows only, run the "Installateur Windows" workflow instead (Actions tab › Installateur Windows › Run workflow): it builds only the `.exe` and publishes it in the `v<version>` Release, faster. Installed macOS and Linux apps will not see that version as an update.
 
-## Commandes
+### Signing the Windows installer
 
-| Commande | Effet |
+The "Installateur Windows" workflow has [SignPath](https://signpath.io) sign the app, then the installer, when the repository has the `SIGNPATH_API_TOKEN` secret and the `SIGNPATH_ORGANIZATION_ID` variable (Settings › Secrets and variables › Actions). Without them, the installer stays unsigned. Optional variables: `SIGNPATH_PROJECT_SLUG` (default `dev-brows`) and `SIGNPATH_POLICY_SLUG` (default `release-signing`). In SignPath, the project has two artifact configurations, `app` and `installer`, to copy from [.signpath/artifact-configurations](.signpath/artifact-configurations). Each signing request waits for approval in SignPath before the workflow goes on. To test the build without publishing, run the workflow with "Publier" unchecked: the installer is then a workflow artifact.
+
+## Commands
+
+| Command | What it does |
 | --- | --- |
-| `brows <recherche>` | recherche, résultats numérotés (DuckDuckGo par défaut) |
-| `ia <question>` | réponse courte de l'IA choisie (Claude avec recherche web et sources numérotées) |
-| `ia`, `ia use <ia>`, `ia key <clé>`, `ia logout`, `ia model [id]` | choisir et connecter l'IA |
-| `<n>` / `<n>t` | ouvre l'élément n de la liste affichée, `t` pour un nouvel onglet |
-| `go <url>` | ouvre une adresse (taper directement une adresse marche aussi) |
-| `links` | numérote les liens et boutons de la page, puis tape un numéro |
+| `brows <search>` | search, numbered results (DuckDuckGo by default) |
+| `ia <question>` | short answer from the chosen AI (Claude with web search and numbered sources) |
+| `ia`, `ia use <ai>`, `ia key <key>`, `ia logout`, `ia model [id]` | choose and connect the AI |
+| `<n>` / `<n>t` | opens item n of the list on screen, `t` for a new tab |
+| `go <url>` | opens an address (typing an address directly works too) |
+| `links` | numbers the page's links and buttons, then type a number |
 | `back`, `fwd`, `reload`, `home` | navigation |
-| `tab`, `tab <n>`, `tab new [url…]`, `tab save <nom>`, `close [n]` | onglets (`tab new` avec plusieurs adresses ouvre un onglet pour chacune) |
-| `split`, `split off [1\|2]`, `focus` | deux écrans côte à côte, fermer un écran (l'autre par défaut, ou le ✕ en haut de l'écran), changer d'écran |
-| `fav [dossier]` | favoris en arbre |
-| `add [dossier/]nom` | ajoute la page, crée les dossiers manquants |
-| `fav rm <chemin\|n>`, `fav mv <chemin> <dest>`, `fav rename <chemin> <nom>`, `undo` | gérer les favoris |
-| `hist [texte]` | historique, filtrable |
-| `clean`, `clean all` | vide l'historique ; `all` vide aussi cookies et cache (avec confirmation) |
-| `find [texte]` | chercher dans la page |
-| `ext`, `ext add <lien store \| id \| dossier>`, `ext on/off/rm <n>`, `ext alias <n> <nom>`, `ext <n>` | extensions |
-| `dl [n]` | téléchargements (enregistrés directement dans Téléchargements) |
-| `alias nom = commande [; commande…]`, `unalias nom` | raccourcis perso, qui peuvent enchaîner des commandes |
-| `adblock [on\|off]` | bloqueur de pub de secours, éteint par défaut (uBlock Origin est préinstallé) |
-| `engine ddg\|google\|bing\|qwant`, `theme ambre\|vert\|cyan\|rose\|violet` | réglages |
-| `perm`, `perm reset [site]` | autorisations données aux sites |
-| `update`, `update install`, `update electron` | mises à jour (voir plus bas) |
-| `devtools [detach\|close]`, `term`, `fullscreen [on\|off]`, `quit` (ou `exit`, `q`), `help`, `clear` | divers (DevTools : à côté de la page, dans une fenêtre, ou fermées ; boutons aussi dans la barre d'état ; `quit` ferme le navigateur) |
+| `tab`, `tab <n>`, `tab new [url…]`, `tab save <name>`, `close [n]` | tabs (`tab new` with several addresses opens a tab for each) |
+| `split`, `split off [1\|2]`, `focus` | two panes side by side, close a pane (the other one by default, or the ✕ at the top of the pane), switch pane |
+| `fav [folder]` | bookmarks as a tree |
+| `add [folder/]name` | bookmarks the page, creating missing folders |
+| `fav rm <path\|n>`, `fav mv <path> <dest>`, `fav rename <path> <name>`, `undo` | manage bookmarks |
+| `hist [text]` | history, filterable |
+| `clean`, `clean all` | clears history; `all` also clears cookies and cache (asks first) |
+| `find [text]` | find in page |
+| `ext`, `ext add <store link \| id \| folder>`, `ext on/off/rm <n>`, `ext alias <n> <name>`, `ext <n>` | extensions |
+| `dl [n]` | downloads (saved straight to Downloads) |
+| `alias name = command [; command…]`, `unalias name` | your own shortcuts, which can chain commands |
+| `adblock [on\|off]` | fallback ad blocker, off by default (uBlock Origin is preinstalled) |
+| `engine ddg\|google\|bing\|qwant`, `theme ambre\|vert\|cyan\|rose\|violet`, `lang [en\|fr]` | settings |
+| `perm`, `perm reset [site]` | permissions given to sites |
+| `update`, `update install`, `update electron`, `update auto [on\|off]` | updates (see below) |
+| `devtools [detach\|close]`, `term`, `fullscreen [on\|off]`, `quit` (or `exit`, `q`), `help`, `clear` | misc (DevTools: next to the page, in a window, or closed; also buttons in the status bar; `quit` closes the browser) |
 
-Tout ce qui n'est ni une commande, ni un alias, ni une adresse lance une recherche ; une adresse (`exemple.fr`, `localhost:3000`) s'ouvre directement. Une commande suivie de mots qu'elle n'attend pas (« home depot », « close friends ») est aussi une recherche.
+Anything that is not a command, an alias or an address runs a search; an address (`example.com`, `localhost:3000`) opens directly. A command followed by words it does not expect ("home depot", "close friends") is a search too.
 
-**Groupes d'onglets :** `tab save travail` crée l'alias `travail`, qui rouvre tous les onglets ouverts. À la main : `alias travail = tab new gmail.com github.com`, ou avec plusieurs commandes séparées par `;` (`alias matin = tab new meteo.fr ; split ; ia actus`).
+**Tab groups:** `tab save work` creates the alias `work`, which reopens all the open tabs. By hand: `alias work = tab new gmail.com github.com`, or with several commands separated by `;` (`alias morning = tab new weather.com ; split ; ia news`).
 
-Les questions oui/non répondent oui quand on appuie sur Entrée (`(O/n)`), sauf `clean all`, qui efface cookies et cache sans retour possible (`(o/N)`). Taper une autre commande vaut non.
+Yes/no questions answer yes when you press Enter (`(Y/n)`), except `clean all`, which deletes cookies and cache for good (`(y/N)`). Typing another command means no.
 
-Après une commande, le clavier reste dans le terminal, même quand une page se charge ; Échap ou un clic dans la page lui donne la main.
+After a command, the keyboard stays in the terminal, even while a page loads; Esc or a click in the page hands it over.
 
-Chaque onglet a son propre terminal ; l'historique des commandes (↑ ↓) est commun à tous.
+Each tab has its own terminal; command history (↑ ↓) is shared by all of them.
 
-## Raccourcis
+## Shortcuts
 
-Ctrl+L terminal · Ctrl+J cacher/montrer le terminal · F11 plein écran · Échap rendre la main à la page · Ctrl+T / Ctrl+W onglets · Ctrl+Tab, Ctrl+1…9 · Alt+←/→ · F5 · Ctrl+F chercher · Ctrl+D favori · Ctrl+Maj+S split · F6 changer d'écran · F12 ou clic droit › Inspecter pour les DevTools · Alt+1…9 popup d'extension · ↑/↓ historique des commandes · Tab autocomplétion.
+Ctrl+L terminal · Ctrl+J hide/show the terminal · F11 fullscreen · Esc hand over to the page · Ctrl+T / Ctrl+W tabs · Ctrl+Tab, Ctrl+1…9 · Alt+←/→ · F5 · Ctrl+F find · Ctrl+D bookmark · Ctrl+Shift+S split · F6 switch pane · F12 or right-click › Inspect for DevTools · Alt+1…9 extension popup · ↑/↓ command history · Tab completion.
 
-À la souris : un clic sur l'adresse en haut à droite la copie, le + ouvre un onglet, le zoom s'affiche dans la barre d'état quand il n'est pas à 100 % (clic pour revenir à 100 %), et la barre au-dessus des DevTools les détache (⇱) ou les ferme (✕). La barre entre la page et le terminal se glisse pour changer sa hauteur (double-clic pour revenir à la taille par défaut), la barre entre les deux écrans du split aussi. Les onglets, résultats, favoris et pastilles d'extensions sont cliquables (Ctrl+clic pour un nouvel onglet). Clic molette sur un onglet pour le fermer, glisser-déposer pour changer leur ordre. Dans le terminal, le clic droit copie le texte sélectionné, ou colle le presse-papier dans la ligne de commande s'il n'y a pas de sélection.
+With the mouse: clicking the address at the top right copies it, + opens a tab, the zoom level shows in the status bar when it is not 100% (click it to go back to 100%), and the bar above DevTools detaches them (⇱) or closes them (✕). The bar between the page and the terminal can be dragged to change its height (double-click for the default size), and so can the bar between the two split panes. Tabs, results, bookmarks and extension badges are clickable (Ctrl+click for a new tab). Middle-click a tab to close it, drag and drop to reorder. In the terminal, right-click copies the selected text, or pastes the clipboard into the command line when nothing is selected.
 
 ## Extensions
 
-Sur le Chrome Web Store, le bouton « Ajouter à Chrome » est grisé hors de Chrome : sur la page de l'extension, tape simplement `ext add` (le terminal le rappelle). `ext add` accepte aussi un lien du Chrome Web Store, un identifiant d'extension ou un dossier d'extension décompressée. Chaque extension a une pastille numérotée dans la barre d'état ; un clic ou Alt+n ouvre sa popup. Electron ne gère qu'une partie des API d'extensions Chrome ; la bibliothèque [electron-chrome-extensions](https://github.com/samuelmaddock/electron-browser-shell/tree/master/packages/electron-chrome-extensions) ajoute les onglets, fenêtres, notifications, cookies et permissions (une extension peut par exemple ouvrir un onglet). Les bloqueurs de pub et scripts de contenu fonctionnent bien ; certaines extensions plus poussées peuvent encore ne pas marcher.
+On the Chrome Web Store, the "Add to Chrome" button is greyed out outside Chrome: on the extension's page, just type `ext add` (the terminal reminds you). `ext add` also takes a Chrome Web Store link, an extension id or an unpacked extension folder. Each extension has a numbered badge in the status bar; a click or Alt+n opens its popup. Electron supports only part of the Chrome extension APIs; the [electron-chrome-extensions](https://github.com/samuelmaddock/electron-browser-shell/tree/master/packages/electron-chrome-extensions) library adds tabs, windows, notifications, cookies and permissions (an extension can open a tab, for instance). Ad blockers and content scripts work well; some more advanced extensions may still not work.
 
+**Ad blocker:** [uBlock Origin](https://github.com/gorhill/uBlock) is preinstalled (badge 1 in the status bar, Alt+1 for its popup). The installer ships the latest version published when it was built; `ext add ublock` replaces it with the very latest. If you remove it with `ext rm`, it is not reinstalled. uBlock Origin Lite, the Chrome Web Store version, blocks with `declarativeNetRequest`, which Electron does not support: it blocks nothing here, and `ext` says so.
 
-**Bloqueur de pub :** [uBlock Origin](https://github.com/gorhill/uBlock) est préinstallé (pastille 1 dans la barre d'état, Alt+1 pour sa popup). L'installateur embarque la dernière version publiée au moment de sa construction ; `ext add ublock` la remplace par la toute dernière. Si on le supprime avec `ext rm`, il n'est pas réinstallé. uBlock Origin Lite, la version du Chrome Web Store, bloque avec `declarativeNetRequest`, qu'Electron ne gère pas : elle ne bloque rien ici, et `ext` le signale.
+`adblock on` turns on a built-in fallback blocker ([Ghostery](https://github.com/ghostery/adblocker)'s engine, EasyList and EasyPrivacy lists). Electron accepts only one request filter at a time: while it is on, uBlock Origin no longer filters. So it is off by default, and installing uBlock turns it off.
 
-`adblock on` allume un bloqueur de secours intégré (moteur de [Ghostery](https://github.com/ghostery/adblocker), listes EasyList et EasyPrivacy). Electron n'accepte qu'un filtre de requêtes à la fois : tant qu'il est allumé, uBlock Origin ne filtre plus. Il est donc éteint par défaut, et installer uBlock l'éteint.
+## AI
 
-## IA
+`ia <question>` shows a few sentences written by the chosen AI. `ia` alone lists the AIs: type a number to pick one. If it has no key yet, the page to create one opens; copy the key, then type `ia key <key>`.
 
-`ia <question>` affiche une réponse de quelques phrases écrite par l'IA choisie. `ia` tout seul affiche la liste des IA : tape un numéro pour en choisir une. Si elle n'a pas encore de clé, la page où la créer s'ouvre ; copie la clé puis tape `ia key <clé>`.
-
-| IA | Modèle par défaut | Prix |
+| AI | Default model | Price |
 | --- | --- | --- |
-| Claude (Anthropic) | `claude-opus-5-5`, avec recherche web et sources numérotées | payant à l'usage |
-| Gemini (Google AI Studio) | `gemini-3.8-flash` | gratuit, avec une limite par jour |
-| ChatGPT (OpenAI) | `gpt-5-mini` | payant à l'usage |
-| Mistral AI | `mistral-small-latest` | gratuit (offre Experiment) |
-| Groq | `openai/gpt-oss-120b` | gratuit, avec une limite par jour |
-| OpenRouter | `openrouter/free` (choisit un modèle gratuit) | gratuit, avec une limite par jour |
-| Ollama | `llama3.2`, sur ton ordinateur | gratuit, sans clé ([ollama.com](https://ollama.com), puis `ollama pull llama3.2`) |
+| Claude (Anthropic) | `claude-opus-5-5`, with web search and numbered sources | pay as you go |
+| Gemini (Google AI Studio) | `gemini-3.8-flash` | free, with a daily limit |
+| ChatGPT (OpenAI) | `gpt-5-mini` | pay as you go |
+| Mistral AI | `mistral-small-latest` | free (Experiment plan) |
+| Groq | `openai/gpt-oss-120b` | free, with a daily limit |
+| OpenRouter | `openrouter/free` (picks a free model) | free, with a daily limit |
+| Ollama | `llama3.2`, on your computer | free, no key ([ollama.com](https://ollama.com), then `ollama pull llama3.2`) |
 
-- `ia connect <ia> <clé>` choisit l'IA et enregistre sa clé en une fois.
-- `ia model <id>` change le modèle de l'IA actuelle (`ia model default` revient au modèle par défaut). Quand une IA retire un modèle, dev-brows passe tout seul à son modèle actuel (celui que conseille l'IA, sinon la version la plus récente de la même famille) et s'en souvient.
-- `ia logout [ia]` supprime la clé enregistrée, par exemple avant de prêter l'ordinateur.
+- `ia connect <ai> <key>` picks the AI and saves its key in one go.
+- `ia model <id>` changes the current AI's model (`ia model default` goes back to the default). When an AI retires a model, dev-brows switches on its own to the current one (the one the AI recommends, or else the newest version of the same family) and remembers it.
+- `ia logout [ai]` deletes the saved key, for example before lending the computer.
 
-Chaque clé reste sur cet ordinateur, chiffrée par le système quand c'est possible, et n'apparaît ni à l'écran ni dans l'historique des commandes. Personne d'autre qui installe l'appli n'utilise ta clé. Les variables `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, `MISTRAL_API_KEY`, `GROQ_API_KEY` et `OPENROUTER_API_KEY` marchent aussi. Seul Claude fait des recherches web ; les autres répondent avec ce qu'ils savent.
+Each key stays on this computer, encrypted by the system when possible, and never appears on screen or in the command history. Nobody else who installs the app uses your key. The `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, `MISTRAL_API_KEY`, `GROQ_API_KEY` and `OPENROUTER_API_KEY` variables work too. Only Claude searches the web; the others answer with what they know.
 
-## Mises à jour
+## Updates
 
-Une vérification se fait à chaque lancement ; `update` la lance à la demande. Au même moment, les extensions installées depuis le Chrome Web Store et uBlock Origin sont mises à jour toutes seules quand une nouvelle version existe (le terminal l'affiche). Les extensions ajoutées depuis un dossier ne sont pas touchées.
+A check runs at every launch (`update auto off` turns it off); `update` runs it on demand. At the same time, extensions installed from the Chrome Web Store and uBlock Origin update themselves when a new version exists (the terminal says so). Extensions added from a folder are left alone.
 
-**Appli installée** (depuis un installateur des Releases) :
+**Installed app** (from a Releases installer):
 
-- `update` compare la version installée avec la dernière Release GitHub et signale quand un nouvel installateur est publié.
-- `update install` télécharge le nouvel installateur, l'applique et relance l'appli. Sur macOS (appli non signée, la mise à jour automatique y est impossible), il ouvre la page de la Release pour télécharger le `.dmg`.
-- Electron et Chromium sont livrés avec l'installateur : chaque nouvelle Release les met à jour.
+- `update` compares the installed version with the latest GitHub Release and says when a new installer is out.
+- `update install` downloads the new installer, applies it and restarts the app. On macOS (unsigned app, where automatic updates are impossible), it opens the Release page to download the `.dmg`.
+- Electron and Chromium ship with the installer: each new Release updates them.
 
-**Lancée depuis le code** (`npm start`) :
+**Run from source** (`npm start`):
 
-- `update` vérifie la version d'Electron (et donc de Chromium) et les nouveaux commits du dépôt.
-- `update install` récupère le code (`git pull`), puis met à jour les dépendances sans changer de version majeure d'Electron : ce sont les correctifs de sécurité, sans risque de casse.
-- `update electron` passe à la toute dernière version majeure d'Electron, à tester.
+- `update` checks the Electron (and so Chromium) version and new commits in the repository.
+- `update install` pulls the code (`git pull`), then updates dependencies without changing Electron's major version: security fixes, with no risk of breakage.
+- `update electron` moves to the very latest major Electron version, to be tested.
 
-L'appli se ferme, la mise à jour se fait avec le `node` du système (sous Windows, Electron ne peut pas être remplacé pendant qu'il tourne), puis elle se relance et affiche le compte rendu dans le terminal.
+The app closes, the update runs with the system's `node` (on Windows, Electron cannot be replaced while it runs), then it restarts and shows the report in the terminal.
 
-## Sécurité
+## Security
 
-- Chaque site tourne dans le bac à sable de Chromium, sans accès à Node ni à l'ordinateur.
-- Caméra, micro, position, notifications, presse-papier, partage d'écran, ouverture d'applications externes : chaque demande d'un site pose la question dans le terminal (Entrée ou `o` oui, `t` toujours, `j` jamais, `n` non). `perm` liste les choix enregistrés.
-- La version de Chromium est celle d'Electron : faire `update install` quand l'appli le signale pour recevoir les correctifs de sécurité.
-- Connexion Google : Google refuse les navigateurs basés sur Electron (« Ce navigateur ou cette application ne sont peut-être pas sécurisés »). Sur `accounts.google.com` uniquement, dev-brows se présente donc comme Firefox ; pendant cette connexion, uBlock Origin est en pause (Electron ne laisse pas les deux filtrer les requêtes en même temps). Google peut bloquer cette parade à tout moment.
-- Clés de sécurité (YubiKey et autres clés FIDO2) : la connexion passe par la fenêtre du système (Windows Hello sous Windows). Si la clé garde plusieurs comptes pour le site, le terminal demande lequel utiliser.
-- Pas de protection anti-hameçonnage (navigation sécurisée de Google) comme dans Chrome.
+- Each site runs in Chromium's sandbox, with no access to Node or the computer.
+- Camera, microphone, location, notifications, clipboard, screen sharing, opening external apps: each request from a site asks in the terminal (Enter or `y` yes, `a` always, `x` never, `n` no). `perm` lists the saved choices.
+- The Chromium version is Electron's: run `update install` when the app says so to get security fixes.
+- Google sign-in: Google rejects Electron-based browsers ("This browser or app may not be secure"). On `accounts.google.com` only, dev-brows therefore presents itself as Firefox; during that sign-in, uBlock Origin is paused (Electron does not let both filter requests at the same time). Google may block this workaround at any time.
+- Security keys (YubiKey and other FIDO2 keys): sign-in goes through the system dialog (Windows Hello on Windows). If the key holds several accounts for the site, the terminal asks which one to use.
+- No anti-phishing protection (Google Safe Browsing) like in Chrome.
 
-## Données
+## Data
 
-Favoris, historique et réglages sont des fichiers JSON dans le dossier de données d'Electron (`~/.config/dev-brows` sous Linux, `%APPDATA%\dev-brows` sous Windows, `~/Library/Application Support/dev-brows` sous macOS).
+Bookmarks, history and settings are JSON files in Electron's data folder (`~/.config/dev-brows` on Linux, `%APPDATA%\dev-brows` on Windows, `~/Library/Application Support/dev-brows` on macOS).
 
-Lancée depuis le code, l'appli utilise un dossier à part, `dev-brows-dev` (copié depuis `dev-brows` la première fois) : l'appli installée chiffre ses cookies avec une clé que la version de développement ne peut pas relire.
+Run from source, the app uses a separate folder, `dev-brows-dev` (copied from `dev-brows` the first time): the installed app encrypts its cookies with a key the development version cannot read.
 
-## Licence
+## Code signing policy
 
-GPL-3.0 ou ultérieure (voir [LICENSE](LICENSE)), à cause de la bibliothèque electron-chrome-extensions, distribuée sous GPL-3.0.
+Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
+
+- Committers and reviewers: [Rycrem](https://github.com/Rycrem) (every pull request from anyone else is reviewed before it is merged)
+- Approvers: [Rycrem](https://github.com/Rycrem) (approves each signing request)
+
+Only `dev-brows.exe` and the Windows installer, built from this repository by GitHub Actions, are signed. The other files of the app (Electron's DLLs) come from upstream projects and are shipped as they are.
+
+## Privacy
+
+dev-brows collects no data about you and has no telemetry. Besides the websites you open yourself, it connects on its own only to:
+
+- GitHub (`github.com`, `api.github.com`), at every launch, to look for a new version of dev-brows and of uBlock Origin;
+- the Chrome Web Store update service (`clients2.google.com`), at every launch, to look for new versions of the extensions installed from the store.
+
+Those automatic checks can be turned off in the Windows installer (the privacy page, shown during installation, has a checkbox for them) or at any time with `update auto off`; `update` still works on demand.
+
+Everything else happens only when you ask for it, and then goes to a service you chose, under that service's own privacy policy:
+
+- the search engine you chose (`engine`), when you search;
+- the AI you chose (`ia use`), when you type `ia <question>`, with your question;
+- [uBlock Origin](https://github.com/gorhill/uBlock/wiki/Privacy-policy) and the fallback ad blocker (`adblock on`) download their filter lists from the lists' servers;
+- the extensions you install, under their own privacy policies.
+
+## License
+
+GPL-3.0 or later (see [LICENSE](LICENSE)), because of the electron-chrome-extensions library, distributed under GPL-3.0.

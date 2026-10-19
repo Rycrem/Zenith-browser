@@ -124,3 +124,52 @@ test('les notes de mise à jour couvrent la version de package.json', () => {
   assert.strictEqual(CHANGELOG[0].version, version);
   assert.ok(CHANGELOG[0].notes.length > 0);
 });
+
+test('les notes de mise à jour existent en anglais, autant qu\'en français', () => {
+  const { CHANGELOG, notesFor } = require('../src/shared/changelog');
+  for (const e of CHANGELOG) assert.strictEqual((e.en || []).length, e.notes.length, e.version);
+  assert.deepStrictEqual(notesFor(CHANGELOG[0].version, 'en').notes, CHANGELOG[0].en);
+  assert.deepStrictEqual(notesFor('0.0.0').notes, CHANGELOG[0].notes);
+});
+
+test('t traduit en anglais, remplace les variables et revient au français', () => {
+  const i18n = require('../src/shared/i18n');
+  try {
+    assert.strictEqual(i18n.t('aucun résultat'), 'aucun résultat');
+    i18n.setLang('en');
+    assert.strictEqual(i18n.getLang(), 'en');
+    assert.strictEqual(i18n.t('aucun résultat'), 'no results');
+    assert.strictEqual(i18n.t('pas de numéro {n} ici (1 à {max})', { n: 7, max: 3 }), 'no number 7 here (1 to 3)');
+    assert.strictEqual(i18n.t('phrase sans traduction {x}', { x: 1 }), 'phrase sans traduction 1');
+    assert.throws(() => fav.addFavorite(fav.emptyTree(), '', 'x'), /a name is needed/);
+    i18n.setLang('de');
+    assert.strictEqual(i18n.getLang(), 'fr');
+  } finally {
+    i18n.setLang('fr');
+  }
+});
+
+test('chaque phrase passée à t() a sa traduction anglaise', () => {
+  const { EN } = require('../src/shared/i18n');
+  const files = [];
+  const walk = (d) => {
+    for (const f of fs.readdirSync(d)) {
+      const p = path.join(d, f);
+      if (fs.statSync(p).isDirectory()) walk(p);
+      else if (p.endsWith('.js') && !p.endsWith('i18n.js')) files.push(p);
+    }
+  };
+  walk(path.join(__dirname, '..', 'src'));
+  const missing = [];
+  for (const f of files) {
+    const src = fs.readFileSync(f, 'utf8');
+    for (const m of src.matchAll(/\b(?:t|tr|mark)\('((?:[^'\\]|\\.)*)'/g)) {
+      const key = m[1].replace(/\\(.)/g, '$1');
+      if (!Object.prototype.hasOwnProperty.call(EN, key)) missing.push(`${path.basename(f)} : ${key}`);
+    }
+  }
+  for (const [, args, desc] of cmd.COMMANDS) {
+    for (const key of [args, desc]) if (key && !Object.prototype.hasOwnProperty.call(EN, key)) missing.push(`commands.js : ${key}`);
+  }
+  assert.deepStrictEqual(missing, []);
+});
