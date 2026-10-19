@@ -108,6 +108,7 @@ L'appli se ferme, la mise à jour se fait avec le `node` du système (sous Windo
 - Chaque site tourne dans le bac à sable de Chromium, sans accès à Node ni à l'ordinateur.
 - Caméra, micro, position, notifications, presse-papier, partage d'écran, ouverture d'applications externes : chaque demande d'un site pose la question dans le terminal (`o` oui, `t` toujours, `j` jamais, `N` non). `perm` liste les choix enregistrés.
 - La version de Chromium est celle d'Electron : faire `update install` quand l'appli le signale pour recevoir les correctifs de sécurité.
+- Connexion Google : Google refuse les navigateurs basés sur Electron (« Ce navigateur ou cette application ne sont peut-être pas sécurisés »). Sur `accounts.google.com` uniquement, dev-brows se présente donc comme Firefox. Google peut bloquer cette parade à tout moment.
 - Pas de protection anti-hameçonnage (navigation sécurisée de Google) comme dans Chrome.
 
 ## Données

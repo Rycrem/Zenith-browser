@@ -27,6 +27,42 @@ app.userAgentFallback = app.userAgentFallback
   .replace(/ Electron\/\S+/, '')
   .replace(/ dev-brows\/\S+/, '');
 
+// La connexion Google refuse les navigateurs basés sur Electron (« Ce navigateur ou cette application
+// ne sont peut-être pas sécurisés »). Sur accounts.google.com seulement, on se présente comme Firefox :
+// en-tête User-Agent, navigator.userAgent, et sans les en-têtes Sec-CH-UA propres à Chromium.
+const GOOGLE_LOGIN = 'accounts.google.com';
+function firefoxUserAgent() {
+  // Firefox sort une version toutes les 4 semaines (140 le 24 juin 2025) ; on annonce l'avant-dernière.
+  const version = 140 + Math.floor((Date.now() - Date.UTC(2025, 5, 24)) / (28 * 24 * 3600 * 1000)) - 1;
+  const platform = {
+    win32: 'Windows NT 10.0; Win64; x64',
+    darwin: 'Macintosh; Intel Mac OS X 10.15',
+  }[process.platform] || 'X11; Linux x86_64';
+  return `Mozilla/5.0 (${platform}; rv:${version}.0) Gecko/20100101 Firefox/${version}.0`;
+}
+const isGoogleLogin = (url) => {
+  try {
+    return new URL(url).hostname === GOOGLE_LOGIN;
+  } catch {
+    return false;
+  }
+};
+
+function setupGoogleLogin() {
+  const ua = firefoxUserAgent();
+  ses.webRequest.onBeforeSendHeaders({ urls: [`https://${GOOGLE_LOGIN}/*`] }, (details, callback) => {
+    const headers = details.requestHeaders;
+    for (const name of Object.keys(headers)) if (/^sec-ch-ua/i.test(name)) delete headers[name];
+    headers['User-Agent'] = ua;
+    callback({ requestHeaders: headers });
+  });
+}
+
+function matchUserAgent(wc, url) {
+  const ua = isGoogleLogin(url) ? firefoxUserAgent() : app.userAgentFallback;
+  if (wc.getUserAgent() !== ua) wc.setUserAgent(ua);
+}
+
 const THEMES = { ambre: '#F2A541', vert: '#7FD18B', cyan: '#6CC5D9', rose: '#E07AA8' };
 const HISTORY_MAX = 5000;
 const DEVTOOLS_RATIO = 0.4;
@@ -85,6 +121,9 @@ function ensureView(tab) {
 }
 
 function wireWebContents(tab, wc) {
+  wc.on('did-start-navigation', (details) => {
+    if (details.isMainFrame) matchUserAgent(wc, details.url);
+  });
   wc.on('did-start-loading', () => {
     tab.loading = true;
     sendState();
@@ -1483,6 +1522,7 @@ app.whenReady().then(async () => {
   setupIpc();
   setupDownloads();
   setupPermissions();
+  setupGoogleLogin();
   buildMenu();
   createWindow();
   createTab();
