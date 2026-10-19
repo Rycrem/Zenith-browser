@@ -4,6 +4,10 @@
 // Ajouter une entrée en tête à chaque nouvelle version.
 const CHANGELOG = [
   {
+    version: '0.1.13',
+    notes: ['L\'installateur Windows peut être signé, pour que le Contrôle intelligent des applications de Windows 11 ne le bloque plus.'],
+  },
+  {
     version: '0.1.12',
     notes: [
       'Les mises à jour sont vérifiées à chaque lancement (et plus une fois par jour).',

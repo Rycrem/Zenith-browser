@@ -59,11 +59,32 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Construire et envoyer les installateurs
-        run: npx electron-builder --publish always
+        shell: bash
+        run: |
+          # Signature Azure Artifact Signing quand les secrets AZURE_* sont configurés,
+          # sinon installateur non signé (bloqué par Smart App Control sous Windows 11).
+          args=()
+          if [ -n "$AZURE_CLIENT_ID" ]; then
+            args+=(
+              -c.win.azureSignOptions.publisherName="$AZURE_PUBLISHER"
+              -c.win.azureSignOptions.endpoint="$AZURE_ENDPOINT"
+              -c.win.azureSignOptions.codeSigningAccountName="$AZURE_ACCOUNT"
+              -c.win.azureSignOptions.certificateProfileName="$AZURE_PROFILE"
+            )
+          else
+            echo "::warning::pas de secrets AZURE_* : installateur Windows non signé"
+          fi
+          npx electron-builder --publish always "${args[@]}"
         env:
           GH_TOKEN: ${{ github.token }}
-          # Pas de certificat de signature : installateurs non signés.
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_ENDPOINT: ${{ vars.AZURE_ENDPOINT }}
+          AZURE_ACCOUNT: ${{ vars.AZURE_ACCOUNT }}
+          AZURE_PROFILE: ${{ vars.AZURE_PROFILE }}
+          AZURE_PUBLISHER: ${{ vars.AZURE_PUBLISHER }}
 
   publish:
     needs: [prepare, build]

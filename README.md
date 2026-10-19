@@ -6,7 +6,7 @@ Un navigateur basé sur Chromium (Electron) qui se pilote comme un terminal. Les
 
 Les installateurs sont sur la page [Releases](https://github.com/Rycrem/dev-brows/releases/latest) :
 
-- Windows : `dev-brows-Setup-x.y.z.exe`. L'appli n'est pas signée : Windows SmartScreen affiche « Windows a protégé votre ordinateur », cliquer sur « Informations complémentaires » › « Exécuter quand même ».
+- Windows : `dev-brows-Setup-x.y.z.exe`. Sans signature (voir « Signer l'installateur Windows »), Windows SmartScreen affiche « Windows a protégé votre ordinateur » : cliquer sur « Informations complémentaires » › « Exécuter quand même ». Le Contrôle intelligent des applications de Windows 11, lui, bloque l'installateur non signé sans proposer d'exception.
 - macOS : `.dmg` (`arm64` pour les Mac Apple Silicon, `x64` pour les Mac Intel). L'appli n'est pas signée : au premier lancement, clic droit sur l'appli › Ouvrir.
 - Linux : `.AppImage` (le rendre exécutable puis le lancer) ou `.deb`.
 
@@ -27,6 +27,13 @@ Tests de la logique (favoris, alias, lecture des résultats, extensions) : `npm 
 Le workflow construit les installateurs Windows, macOS et Linux, les joint à une Release `v0.2.0` puis la publie. C'est cette Release que l'appli installée détecte avec `update`.
 
 Pour seulement Windows, lancer plutôt le workflow « Installateur Windows » (onglet Actions › Installateur Windows › Run workflow) : il ne construit que le `.exe` et le publie dans la Release `v<version>`, plus vite. Les applis macOS et Linux installées ne verront pas cette version comme une mise à jour.
+
+### Signer l'installateur Windows
+
+Les workflows signent l'installateur Windows avec [Azure Artifact Signing](https://learn.microsoft.com/azure/artifact-signing/) quand ces réglages existent dans le dépôt (Settings › Secrets and variables › Actions) ; sinon il reste non signé.
+
+- Secrets : `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` (une application Entra ID qui a le rôle « Artifact Signing Certificate Profile Signer » sur le compte de signature).
+- Variables : `AZURE_ENDPOINT` (par exemple `https://weu.codesigning.azure.net`), `AZURE_ACCOUNT` (nom du compte de signature), `AZURE_PROFILE` (nom du profil de certificat), `AZURE_PUBLISHER` (le nom du certificat, exactement celui de l'identité validée).
 
 ## Commandes
 
