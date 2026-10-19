@@ -217,6 +217,11 @@ function wireWebContents(tab, wc) {
       sendState();
     }
   });
+  // Une page peut se fermer elle-même (window.close(), par exemple après une connexion) :
+  // l'onglet disparaît avec elle.
+  wc.once('destroyed', () => {
+    if (win && !win.isDestroyed()) closeTab(tab);
+  });
   wc.on('found-in-page', (e, r) => {
     if (r.finalUpdate) print([{ t: `  ${r.matches ? `${r.activeMatchOrdinal}/${r.matches}` : 'aucun résultat'}`, c: 'dim' }]);
   });
@@ -244,7 +249,7 @@ function showInPane(tab, idx) {
   if (other >= 0) panes[other].tabId = panes[idx].tabId; // échange si l'onglet est déjà dans l'autre écran
   panes[idx].tabId = tab.id;
   activePane = idx;
-  if (tab.view) chromeApi.selectTab(tab.view.webContents);
+  if (tab.view?.webContents) chromeApi.selectTab(tab.view.webContents);
   layout();
   sendState();
 }
@@ -262,7 +267,7 @@ function destroyTab(tab) {
   for (const v of [tab.view, tab.dev]) {
     if (!v) continue;
     win.contentView.removeChildView(v);
-    v.webContents.close();
+    if (v.webContents) v.webContents.close(); // déjà détruit si la page s'est fermée seule
   }
 }
 
