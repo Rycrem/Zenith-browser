@@ -1,17 +1,47 @@
-# Construit seulement l'installateur Windows (.exe) et le publie dans une Release GitHub.
-# Se lance à la main depuis l'onglet Actions. Plus rapide que « Installateurs », mais les
-# appli macOS et Linux installées ne trouveront pas de mise à jour dans cette Release.
+# Construit l'installateur Windows (.exe), le signe avec SignPath quand c'est configuré, et le
+# publie dans une Release GitHub. Se lance à la main depuis l'onglet Actions (plus rapide que
+# « Installateurs », mais les applis macOS et Linux installées ne trouveront pas de mise à jour
+# dans cette Release), et sert aussi de job Windows au workflow « Installateurs ».
+#
+# Signature (voir README) : secret SIGNPATH_API_TOKEN et variable SIGNPATH_ORGANIZATION_ID.
+# Sans eux, l'installateur reste non signé.
 name: Installateur Windows
 
 on:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publier dans la Release (décoché : seulement un artefact du workflow, pour tester)"
+        type: boolean
+        default: true
+  workflow_call:
+    inputs:
+      called:
+        type: boolean
+        default: true
+      create-release:
+        type: boolean
+        default: false
+      publish-release:
+        type: boolean
+        default: false
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   release:
     runs-on: windows-latest
+    env:
+      SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+      # Appelé par « Installateurs », c'est lui qui crée et publie la Release.
+      CREATE: ${{ inputs.called && inputs.create-release || !inputs.called && inputs.publish }}
+      UPLOAD: ${{ inputs.called || inputs.publish }}
+      PUBLISH: ${{ inputs.called && inputs.publish-release || !inputs.called && inputs.publish }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,10 +50,13 @@ jobs:
           cache: npm
       - id: version
         name: Lire la version
-        shell: bash
-        run: echo "tag=v$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          echo "exe=dev-brows-Setup-$version.exe" >> "$GITHUB_OUTPUT"
       - name: Créer la Release en brouillon
-        shell: bash
+        if: env.CREATE == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
@@ -39,35 +72,82 @@ jobs:
         run: node scripts/fetch-ublock.js
         env:
           GH_TOKEN: ${{ github.token }}
-      - name: Construire et envoyer l'installateur
-        shell: bash
+
+      # 1. L'appli dépaquetée (dist/win-unpacked), dont dev-brows.exe est signé avant d'être
+      #    mis dans l'installateur.
+      - name: Construire l'appli
+        run: npx electron-builder --win --dir --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - id: unsigned-app
+        if: env.SIGNPATH_API_TOKEN != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-non-signee
+          path: dist/win-unpacked
+      - name: Signer l'appli (SignPath)
+        if: env.SIGNPATH_API_TOKEN != ''
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'dev-brows' }}
+          signing-policy-slug: ${{ vars.SIGNPATH_POLICY_SLUG || 'release-signing' }}
+          artifact-configuration-slug: app
+          github-artifact-id: ${{ steps.unsigned-app.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 18000
+          output-artifact-directory: dist/win-unpacked
+
+      # 2. L'installateur, construit à partir de l'appli signée, puis signé à son tour.
+      - name: Construire l'installateur
+        run: npx electron-builder --win nsis --prepackaged dist/win-unpacked --publish never -c.nsis.artifactName='${productName}-Setup-${version}.${ext}'
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - id: unsigned-installer
+        if: env.SIGNPATH_API_TOKEN != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: installateur-non-signe
+          path: dist/${{ steps.version.outputs.exe }}
+      - name: Signer l'installateur (SignPath)
+        if: env.SIGNPATH_API_TOKEN != ''
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'dev-brows' }}
+          signing-policy-slug: ${{ vars.SIGNPATH_POLICY_SLUG || 'release-signing' }}
+          artifact-configuration-slug: installer
+          github-artifact-id: ${{ steps.unsigned-installer.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 18000
+          output-artifact-directory: dist
+      - name: Mettre à jour latest.yml
         run: |
-          # Signature Azure Artifact Signing quand les secrets AZURE_* sont configurés,
-          # sinon installateur non signé (bloqué par Smart App Control sous Windows 11).
-          args=()
-          if [ -n "$AZURE_CLIENT_ID" ]; then
-            args+=(
-              -c.win.azureSignOptions.publisherName="$AZURE_PUBLISHER"
-              -c.win.azureSignOptions.endpoint="$AZURE_ENDPOINT"
-              -c.win.azureSignOptions.codeSigningAccountName="$AZURE_ACCOUNT"
-              -c.win.azureSignOptions.certificateProfileName="$AZURE_PROFILE"
-            )
-          else
-            echo "::warning::pas de secrets AZURE_* : installateur non signé"
+          if [ -z "$SIGNPATH_API_TOKEN" ]; then
+            echo "::warning::pas de SIGNPATH_API_TOKEN : installateur non signé (bloqué par Smart App Control sous Windows 11)"
           fi
-          npx electron-builder --win --publish always "${args[@]}"
+          node scripts/latest-yml.js dist/latest.yml "dist/${{ steps.version.outputs.exe }}"
+
+      - name: Garder l'installateur (artefact du workflow)
+        if: env.UPLOAD != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: installateur
+          path: |
+            dist/${{ steps.version.outputs.exe }}
+            dist/latest.yml
+      - name: Envoyer dans la Release
+        if: env.UPLOAD == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_ENDPOINT: ${{ vars.AZURE_ENDPOINT }}
-          AZURE_ACCOUNT: ${{ vars.AZURE_ACCOUNT }}
-          AZURE_PROFILE: ${{ vars.AZURE_PROFILE }}
-          AZURE_PUBLISHER: ${{ vars.AZURE_PUBLISHER }}
+          TAG: ${{ steps.version.outputs.tag }}
+        # Pas de .blockmap : il décrit l'installateur d'avant la signature, electron-updater
+        # retélécharge donc l'installateur en entier.
+        run: gh release upload "$TAG" "dist/${{ steps.version.outputs.exe }}" dist/latest.yml --clobber
       - name: Publier la Release
-        shell: bash
+        if: env.PUBLISH == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
