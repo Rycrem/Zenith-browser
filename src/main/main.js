@@ -1433,7 +1433,8 @@ function updateLines(r) {
   return lines;
 }
 
-// Au démarrage : compte rendu de la dernière mise à jour, et une vérification par jour.
+// Au démarrage : compte rendu de la dernière mise à jour, puis vérification de l'appli
+// et mise à jour des extensions, à chaque lancement.
 function startupUpdateNotes() {
   const report = updater.lastReport();
   if (report) {
@@ -1446,7 +1447,6 @@ function startupUpdateNotes() {
   }
   settings.data.lastVersion = app.getVersion();
   settings.save();
-  if (Date.now() - (settings.data.lastUpdateCheck || 0) < 24 * 3600 * 1000) return;
   setTimeout(async () => {
     try {
       const r = await updater.check();
@@ -1456,6 +1456,11 @@ function startupUpdateNotes() {
     } catch {
       // hors ligne : on réessaiera au prochain démarrage
     }
+    const results = await exts.updateAll();
+    for (const u of results.filter((x) => !x.error)) print([{ t: `  ✓ extension ${u.name} mise à jour : ${u.from} → ${u.to}`, c: 'ok' }]);
+    const failed = results.filter((x) => x.error);
+    if (failed.length) print([{ t: `  mise à jour impossible pour ${failed.map((x) => x.name).join(', ')} (${failed[0].error})`, c: 'dim' }]);
+    sendState();
   }, 8000);
 }
 

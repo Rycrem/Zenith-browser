@@ -103,7 +103,7 @@ Chaque clé reste sur cet ordinateur, chiffrée par le système quand c'est poss
 
 ## Mises à jour
 
-Une vérification se fait toute seule une fois par jour au démarrage ; `update` la lance à la demande.
+Une vérification se fait à chaque lancement ; `update` la lance à la demande. Au même moment, les extensions installées depuis le Chrome Web Store et uBlock Origin sont mises à jour toutes seules quand une nouvelle version existe (le terminal l'affiche). Les extensions ajoutées depuis un dossier ne sont pas touchées.
 
 **Appli installée** (depuis un installateur des Releases) :
 
