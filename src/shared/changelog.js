@@ -8,6 +8,7 @@ const CHANGELOG = [
     notes: [
       'Les mises à jour sont vérifiées à chaque lancement (et plus une fois par jour).',
       'Les extensions du Chrome Web Store et uBlock Origin se mettent à jour toutes seules au lancement.',
+      'Clés de sécurité (YubiKey) : quand la clé garde plusieurs comptes pour un site, le terminal demande lequel utiliser (avant, la connexion était annulée).',
     ],
   },
   {

@@ -125,6 +125,7 @@ L'appli se ferme, la mise à jour se fait avec le `node` du système (sous Windo
 - Caméra, micro, position, notifications, presse-papier, partage d'écran, ouverture d'applications externes : chaque demande d'un site pose la question dans le terminal (Entrée ou `o` oui, `t` toujours, `j` jamais, `n` non). `perm` liste les choix enregistrés.
 - La version de Chromium est celle d'Electron : faire `update install` quand l'appli le signale pour recevoir les correctifs de sécurité.
 - Connexion Google : Google refuse les navigateurs basés sur Electron (« Ce navigateur ou cette application ne sont peut-être pas sécurisés »). Sur `accounts.google.com` uniquement, dev-brows se présente donc comme Firefox ; pendant cette connexion, uBlock Origin est en pause (Electron ne laisse pas les deux filtrer les requêtes en même temps). Google peut bloquer cette parade à tout moment.
+- Clés de sécurité (YubiKey et autres clés FIDO2) : la connexion passe par la fenêtre du système (Windows Hello sous Windows). Si la clé garde plusieurs comptes pour le site, le terminal demande lequel utiliser.
 - Pas de protection anti-hameçonnage (navigation sécurisée de Google) comme dans Chrome.
 
 ## Données
