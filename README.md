@@ -63,7 +63,7 @@ Ctrl+L terminal · Ctrl+J cacher/montrer le terminal · Échap rendre la main à
 
 ## Extensions
 
-`ext add` accepte un lien du Chrome Web Store, un identifiant d'extension ou un dossier d'extension décompressée. Chaque extension a une pastille numérotée dans la barre d'état ; un clic ou Alt+n ouvre sa popup. Electron ne gère qu'une partie des API d'extensions Chrome : les bloqueurs de pub et scripts de contenu fonctionnent bien, certaines extensions plus poussées peuvent ne pas marcher.
+Sur le Chrome Web Store, le bouton « Ajouter à Chrome » est grisé hors de Chrome : sur la page de l'extension, tape simplement `ext add` (le terminal le rappelle). `ext add` accepte aussi un lien du Chrome Web Store, un identifiant d'extension ou un dossier d'extension décompressée. Chaque extension a une pastille numérotée dans la barre d'état ; un clic ou Alt+n ouvre sa popup. Electron ne gère qu'une partie des API d'extensions Chrome : les bloqueurs de pub et scripts de contenu fonctionnent bien, certaines extensions plus poussées peuvent ne pas marcher.
 
 ## IA
 

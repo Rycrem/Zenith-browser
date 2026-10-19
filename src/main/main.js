@@ -10,6 +10,7 @@ const ai = require('./ai');
 const updater = require('./updater');
 const fav = require('../shared/favorites');
 const C = require('../shared/commands');
+const { storeExtensionId } = require('../shared/crx');
 const { parseDuckDuckGoHtml, parseNextPage, shortUrl } = require('../shared/search');
 
 // Lancée depuis le code, l'appli garde ses données à part : la version installée chiffre
@@ -120,6 +121,15 @@ function ensureView(tab) {
   return view;
 }
 
+// Le Chrome Web Store grise « Ajouter à Chrome » hors de Chrome : on propose « ext add » à la place.
+function storeHint(tab, url) {
+  const id = storeExtensionId(url);
+  if (!id || tab.storeHint === id) return;
+  tab.storeHint = id;
+  const installed = exts.list.some((e) => e.id === id);
+  print([{ t: installed ? '  extension déjà installée (« ext » pour la gérer)' : '  ↓ le bouton « Ajouter à Chrome » ne marche pas ici : tape « ext add » pour installer cette extension', c: installed ? 'dim' : 'warn' }]);
+}
+
 function wireWebContents(tab, wc) {
   wc.on('did-start-navigation', (details) => {
     if (details.isMainFrame) matchUserAgent(wc, details.url);
@@ -145,11 +155,13 @@ function wireWebContents(tab, wc) {
     tab.url = url;
     if (tab.numberedKind === 'links') tab.numbered = [];
     addHistory({ url, title: wc.getTitle() });
+    storeHint(tab, url);
     sendState();
   });
   wc.on('did-navigate-in-page', (e, url, isMainFrame) => {
     if (!isMainFrame) return;
     tab.url = url;
+    storeHint(tab, url);
     sendState();
   });
   wc.on('did-fail-load', (e, code, desc, url, isMainFrame) => {
@@ -972,9 +984,11 @@ async function extCommand(tab, args, say) {
   }
   switch (sub) {
     case 'add': {
-      if (!args[1]) throw new Error('ext add <lien du Chrome Web Store | identifiant | dossier>');
+      // Sans argument, installe l'extension de la page du Chrome Web Store ouverte.
+      const source = args[1] ? args.slice(1).join(' ') : storeExtensionId(tab.url || '');
+      if (!source) throw new Error('ext add <lien du Chrome Web Store | identifiant | dossier>, ou « ext add » seul sur la page de l\'extension');
       print([{ t: '  installation de l\'extension…', c: 'dim' }]);
-      const ext = await exts.add(args.slice(1).join(' '));
+      const ext = await exts.add(source);
       say(`  ✓ ${ext.name} installée, alias « ${ext.alias} »${ext.popup ? '' : ' (pas de popup)'}`, 'ok');
       break;
     }
