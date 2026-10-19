@@ -26,6 +26,8 @@ Tests de la logique (favoris, alias, lecture des résultats, extensions) : `npm 
 
 Le workflow construit les installateurs Windows, macOS et Linux, les joint à une Release `v0.2.0` puis la publie. C'est cette Release que l'appli installée détecte avec `update`.
 
+Pour seulement Windows, lancer plutôt le workflow « Installateur Windows » (onglet Actions › Installateur Windows › Run workflow) : il ne construit que le `.exe` et le publie dans la Release `v<version>`, plus vite. Les applis macOS et Linux installées ne verront pas cette version comme une mise à jour.
+
 ## Commandes
 
 | Commande | Effet |
