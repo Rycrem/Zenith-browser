@@ -1057,6 +1057,11 @@ async function exec(raw, depth = 0) {
       case 'term':
         result.hideTerminal = true;
         break;
+      case 'fullscreen':
+      case 'fs':
+        win.setFullScreen(args[0] === 'off' ? false : args[0] === 'on' ? true : !win.isFullScreen());
+        say(win.isFullScreen() ? '  plein écran (F11 ou « fullscreen » pour en sortir)' : '  plein écran quitté', 'dim');
+        break;
       case 'quit':
       case 'exit':
       case 'q':
@@ -1569,6 +1574,7 @@ function complete(line) {
 const SHORTCUTS = [
   ['Ctrl+L', 'aller au terminal'],
   ['Ctrl+J', 'cacher / montrer le terminal'],
+  ['F11', 'plein écran'],
   ['Échap', 'rendre la main à la page'],
   ['Ctrl+T / Ctrl+W', 'nouvel onglet / fermer l\'onglet'],
   ['Ctrl+Tab', 'onglet suivant (Ctrl+1…9 : onglet n)'],
@@ -1617,6 +1623,7 @@ function buildMenu() {
       submenu: [
         { label: 'Terminal', accelerator: 'CmdOrCtrl+L', click: () => focusTerminal() },
         { label: 'Cacher le terminal', accelerator: 'CmdOrCtrl+J', click: () => win.webContents.send('term:toggle') },
+        { label: 'Plein écran', accelerator: 'F11', click: () => win.setFullScreen(!win.isFullScreen()) },
         { label: 'Nouvel onglet', accelerator: 'CmdOrCtrl+T', click: act(() => { createTab(); focusTerminal(); }) },
         { label: 'Fermer l\'onglet', accelerator: 'CmdOrCtrl+W', click: act(() => closeTab(activeTab())) },
         { label: 'Onglet suivant', accelerator: 'Ctrl+Tab', click: act(() => cycleTab(1)) },
