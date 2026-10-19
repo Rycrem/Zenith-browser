@@ -142,6 +142,9 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
 .logo-art { margin: 0 0 24px; color: var(--accent); font-weight: 700; font-size: 13px; line-height: 1.15; }
 .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 32px; margin-top: 24px; }
 .cmd-list div { white-space: pre-wrap; }
+.changes { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--line); max-width: 860px; }
+.changes ul { margin: 0; padding-left: 20px; color: var(--dim); }
+.changes li { margin: 2px 0; }
 
 .item {
   display: flex;

@@ -11,10 +11,6 @@ const { crxToZip, extensionIdFrom } = require('../shared/crx');
 const UBLOCK_IDS = ['cjpalhdlnbpafiamejdnhcphjbkeiagm', 'ddkjiahejlhfcafbddmgiahcphecmpfh'];
 const UBLOCK_NAMES = /^(ublock|ubo|ublock[ -]?origin|ublock0)$/i;
 
-// uBlock Origin ne tourne pas correctement dans Electron (son script de fond plante sur
-// chrome.browserAction absent) : « ext add ublock » active plutôt le bloqueur intégré.
-const isUblock = (source) => UBLOCK_NAMES.test(String(source).trim()) || UBLOCK_IDS.includes(extensionIdFrom(String(source)));
-
 // Gère les extensions Chrome : installation depuis le Chrome Web Store ou un dossier,
 // activation, désactivation et popups. La liste est gardée dans settings.extensions.
 class Extensions {
@@ -28,6 +24,40 @@ class Extensions {
 
   get list() {
     return this.settings.data.extensions;
+  }
+
+  // uBlock Origin livré avec l'appli : copié au premier lancement, puis à chaque nouvelle version.
+  // Si on l'a supprimé avec « ext rm », il n'est pas réinstallé.
+  installBundledUblock(src) {
+    if (!src || !fs.existsSync(path.join(src, 'manifest.json'))) return null;
+    const dir = path.join(this.dir, 'ublock-origin');
+    const version = this.readManifest(src).version;
+    const data = this.settings.data;
+    let entry = this.list.find((e) => e.path === dir);
+    if (!entry && data.ublockBundled) return null;
+    if (entry && fs.existsSync(path.join(dir, 'manifest.json'))) {
+      // Déjà installé : on ne remplace que par une version plus récente (« ext add ublock » a pu en mettre une).
+      const newer = (a, b) => {
+        const x = a.split('.').map(Number);
+        const y = b.split('.').map(Number);
+        for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
+        return false;
+      };
+      if (!newer(version, this.readManifest(dir).version)) {
+        data.ublockBundled = version;
+        return null;
+      }
+    }
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.mkdirSync(this.dir, { recursive: true });
+    fs.cpSync(src, dir, { recursive: true });
+    if (!entry) {
+      entry = { path: dir, enabled: true, alias: 'ublock' };
+      this.list.unshift(entry);
+    }
+    data.ublockBundled = version;
+    this.settings.save();
+    return version;
   }
 
   async loadAll() {
@@ -104,14 +134,19 @@ class Extensions {
     return alias;
   }
 
-  // ext add <id | lien du Chrome Web Store | dossier décompressé>
+  // ext add <id | lien du Chrome Web Store | dossier décompressé | ublock>
   async add(source) {
     let dir;
     const id = extensionIdFrom(source);
-    if (fs.existsSync(source) && fs.statSync(source).isDirectory()) {
+    if (UBLOCK_NAMES.test(source.trim()) || UBLOCK_IDS.includes(id)) {
+      // Déjà là : on la remplace par la dernière version.
+      const old = this.list.findIndex((e) => e.path === path.join(this.dir, 'ublock-origin'));
+      if (old >= 0) this.remove(old + 1);
+      dir = await this.downloadUblock();
+    } else if (fs.existsSync(source) && fs.statSync(source).isDirectory()) {
       dir = path.resolve(source);
     } else {
-      if (!id) throw new Error('donne un lien du Chrome Web Store, un identifiant ou un dossier');
+      if (!id) throw new Error('donne un lien du Chrome Web Store, un identifiant, un dossier ou « ublock »');
       dir = await this.download(id);
     }
     if (this.list.some((e) => e.path === dir)) throw new Error('extension déjà installée');
@@ -129,6 +164,17 @@ class Extensions {
     const res = await net.fetch(url);
     if (!res.ok) throw new Error(`téléchargement refusé (${res.status})`);
     return this.unpack(new AdmZip(crxToZip(Buffer.from(await res.arrayBuffer()))), id);
+  }
+
+  // Dernière version de uBlock Origin pour Chromium, depuis github.com/gorhill/uBlock.
+  async downloadUblock() {
+    const rel = await net.fetch('https://api.github.com/repos/gorhill/uBlock/releases/latest', { headers: { accept: 'application/vnd.github+json' } });
+    if (!rel.ok) throw new Error(`GitHub ne répond pas (${rel.status})`);
+    const asset = ((await rel.json()).assets || []).find((a) => /chromium\.zip$/.test(a.name));
+    if (!asset) throw new Error('pas de version Chromium de uBlock Origin dans la dernière Release');
+    const res = await net.fetch(asset.browser_download_url);
+    if (!res.ok) throw new Error(`téléchargement refusé (${res.status})`);
+    return this.unpack(new AdmZip(Buffer.from(await res.arrayBuffer())), 'ublock-origin');
   }
 
   unpack(zip, name) {
@@ -203,10 +249,9 @@ class Extensions {
       enabled: e.enabled,
       popup: !!e.popup,
       dnrOnly: !!e.dnrOnly,
-      ublock: !e.dnrOnly && /^ublock origin$/i.test(e.name || ''),
       error: e.error || null,
     }));
   }
 }
 
-module.exports = { Extensions, isUblock };
+module.exports = { Extensions };

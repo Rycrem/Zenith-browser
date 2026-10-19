@@ -5,13 +5,14 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { JsonStore } = require('./store');
-const { Extensions, isUblock } = require('./extensions');
+const { Extensions } = require('./extensions');
 const { AdBlock } = require('./adblock');
 const { ElectronChromeExtensions } = require('electron-chrome-extensions');
 const ai = require('./ai');
 const updater = require('./updater');
 const fav = require('../shared/favorites');
 const C = require('../shared/commands');
+const { notesFor } = require('../shared/changelog');
 const { storeExtensionId } = require('../shared/crx');
 const { parseDuckDuckGoHtml, parseNextPage, shortUrl } = require('../shared/search');
 
@@ -426,7 +427,7 @@ function showHome(tab) {
   const recent = fav.recent(favorites.data.tree, 6);
   setScreen(
     tab,
-    { kind: 'home', user: os.userInfo().username, recent: recent.map((r, i) => ({ n: i + 1, path: r.path, url: r.url })) },
+    { kind: 'home', user: os.userInfo().username, recent: recent.map((r, i) => ({ n: i + 1, path: r.path, url: r.url })), changes: notesFor(app.getVersion()) },
     recent.map((r) => ({ kind: 'url', url: r.url })),
   );
 }
@@ -679,14 +680,23 @@ function showContextMenu(tab, p) {
       { label: 'Ouvrir le lien dans un nouvel onglet', click: () => createTab({ url: p.linkURL, background: true }) },
       { label: 'Ouvrir le lien dans l\'autre écran', click: () => openInOtherPane(p.linkURL) },
       { label: 'Copier l\'adresse du lien', click: () => clipboard.writeText(p.linkURL) },
+      { label: 'Télécharger le lien', click: () => wc.downloadURL(p.linkURL) },
       { type: 'separator' },
     );
   }
   if (p.mediaType === 'image' && p.srcURL) {
     items.push(
+      { label: 'Enregistrer l\'image (dans Téléchargements)', click: () => wc.downloadURL(p.srcURL) },
       { label: 'Ouvrir l\'image dans un nouvel onglet', click: () => createTab({ url: p.srcURL, background: true }) },
       { label: 'Copier l\'image', click: () => wc.copyImageAt(p.x, p.y) },
       { label: 'Copier l\'adresse de l\'image', click: () => clipboard.writeText(p.srcURL) },
+      { type: 'separator' },
+    );
+  }
+  if ((p.mediaType === 'video' || p.mediaType === 'audio') && p.srcURL && !p.srcURL.startsWith('blob:')) {
+    items.push(
+      { label: `Enregistrer ${p.mediaType === 'video' ? 'la vidéo' : 'le son'} (dans Téléchargements)`, click: () => wc.downloadURL(p.srcURL) },
+      { label: `Copier l'adresse ${p.mediaType === 'video' ? 'de la vidéo' : 'du son'}`, click: () => clipboard.writeText(p.srcURL) },
       { type: 'separator' },
     );
   }
@@ -1181,16 +1191,15 @@ async function extCommand(tab, args, say) {
     case 'add': {
       // Sans argument, installe l'extension de la page du Chrome Web Store ouverte.
       const source = args[1] ? args.slice(1).join(' ') : storeExtensionId(tab.url || '');
-      if (!source) throw new Error('ext add <lien du Chrome Web Store | identifiant | dossier>, ou « ext add » seul sur la page de l\'extension');
-      if (isUblock(source)) {
-        say('  uBlock Origin ne fonctionne pas dans Electron ; dev-brows a son propre bloqueur de pub (mêmes listes EasyList)', 'dim');
-        await adblockCommand('on', say);
-        break;
-      }
+      if (!source) throw new Error('ext add <lien du Chrome Web Store | identifiant | dossier | ublock>, ou « ext add » seul sur la page de l\'extension');
       print([{ t: '  installation de l\'extension…', c: 'dim' }]);
       const ext = await exts.add(source);
       say(`  ✓ ${ext.name} installée, alias « ${ext.alias} »${ext.popup ? '' : ' (pas de popup)'}`, 'ok');
-      if (ext.dnrOnly) say('  ⚠ cette extension bloque avec declarativeNetRequest, qu\'Electron ne gère pas : elle ne bloquera rien. Le bloqueur de pub intégré s\'en charge (« adblock »).', 'warn');
+      if (ext.dnrOnly) say('  ⚠ cette extension bloque avec declarativeNetRequest, qu\'Electron ne gère pas : elle ne bloquera rien. Pour bloquer les pubs : uBlock Origin (« ext add ublock »).', 'warn');
+      if (/ublock origin/i.test(ext.name || '') && adblock.on) {
+        // Electron n'accepte qu'un filtre de requêtes : le bloqueur intégré empêcherait uBlock de filtrer.
+        await adblockCommand('off', say);
+      }
       break;
     }
     case 'on':
@@ -1222,7 +1231,7 @@ async function extCommand(tab, args, say) {
 
 async function adblockCommand(arg, say) {
   if (arg === 'on') {
-    settings.data.adblock = true;
+    settings.data.builtinAdblock = true;
     settings.save();
     say('  chargement des listes de blocage…', 'dim');
     try {
@@ -1231,12 +1240,13 @@ async function adblockCommand(arg, say) {
       throw new Error(`listes non téléchargées : ${err.message}`);
     }
   } else if (arg === 'off') {
-    settings.data.adblock = false;
+    settings.data.builtinAdblock = false;
     settings.save();
     adblock.disable();
   } else if (arg) throw new Error('adblock [on | off]');
-  if (adblock.on) say(`  ✓ bloqueur de pub actif : ${adblock.blocked} requête${adblock.blocked > 1 ? 's' : ''} bloquée${adblock.blocked > 1 ? 's' : ''} depuis le démarrage`, 'ok');
-  else say('  bloqueur de pub en pause (« adblock on » pour le relancer) ; les extensions de blocage reprennent la main', 'dim');
+  if (adblock.on) say(`  ✓ bloqueur de pub intégré actif : ${adblock.blocked} requête${adblock.blocked > 1 ? 's' : ''} bloquée${adblock.blocked > 1 ? 's' : ''} depuis le démarrage`, 'ok');
+  if (adblock.on) say('  ⚠ tant qu\'il est actif, uBlock Origin et les autres extensions de blocage ne filtrent plus les requêtes', 'warn');
+  else say('  bloqueur de pub intégré éteint : uBlock Origin s\'occupe des pubs (« adblock on » pour le bloqueur de secours)', 'dim');
   sendState();
 }
 
@@ -1783,17 +1793,19 @@ app.whenReady().then(async () => {
   const dir = app.getPath('userData');
   favorites = new JsonStore(path.join(dir, 'favoris.json'), { tree: fav.emptyTree() });
   history = new JsonStore(path.join(dir, 'historique.json'), { entries: [] });
-  settings = new JsonStore(path.join(dir, 'reglages.json'), { engine: 'ddg', theme: 'ambre', aliases: {}, extensions: [], adblock: true });
+  settings = new JsonStore(path.join(dir, 'reglages.json'), { engine: 'ddg', theme: 'ambre', aliases: {}, extensions: [], builtinAdblock: false });
   ai.migrate(settings);
   setupChromeApi(); // avant le chargement des extensions, pour lire leurs manifestes
+  ses.registerPreloadScript({ id: 'dev-brows-browser-alias', type: 'frame', filePath: path.join(__dirname, 'ext-preload.js') });
   exts = new Extensions(ses, settings, path.join(dir, 'extensions'));
+  exts.installBundledUblock(app.isPackaged ? path.join(process.resourcesPath, 'ublock-origin') : path.join(__dirname, '..', '..', 'vendor', 'ublock-origin'));
   await exts.loadAll();
   setupIpc();
   setupDownloads();
   setupPermissions();
   setupGoogleLogin();
   adblock = new AdBlock(ses, path.join(dir, 'adblock.bin'));
-  if (settings.data.adblock) adblock.enable().catch((err) => print([{ t: `  bloqueur de pub : listes non téléchargées (${err.message}), « adblock on » pour réessayer`, c: 'err' }]));
+  if (settings.data.builtinAdblock) adblock.enable().catch((err) => print([{ t: `  bloqueur de pub : listes non téléchargées (${err.message}), « adblock on » pour réessayer`, c: 'err' }]));
   buildMenu();
   createWindow();
   createTab();

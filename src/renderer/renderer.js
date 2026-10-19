@@ -431,6 +431,9 @@ const screens = {
           s.recent.length ? h('div', { class: 'hint' }, 'Tape un numéro pour ouvrir.') : null,
         ),
       ),
+      s.changes ? h('div', { class: 'changes' },
+        h('h3', {}, `Nouveautés de la version ${s.changes.version}`),
+        h('ul', {}, s.changes.notes.map((n) => h('li', {}, n)))) : null,
     ];
   },
 
@@ -559,13 +562,13 @@ const screens = {
           h('td', {}, r.name),
           h('td', {}, h('button', { type: 'button', class: `pill ${r.enabled ? 'ok' : 'dim'}`, onclick: () => run(`ext ${r.enabled ? 'off' : 'on'} ${r.n}`) }, r.enabled ? 'actif' : 'pause')),
           h('td', { class: 'dim' }, `Alt+${r.n}`),
-          h('td', {}, r.popup ? h('button', { type: 'button', class: 'pill', onclick: () => run(`ext ${r.n}`) }, 'popup') : null, r.error ? h('span', { class: 'err' }, ` ${r.error}`) : null, r.dnrOnly ? h('span', { class: 'warn' }, ' ne bloque rien ici (le bloqueur intégré « adblock » s\'en charge)') : null, r.ublock ? h('span', { class: 'warn' }, ' ne fonctionne pas dans Electron, à supprimer (le bloqueur intégré « adblock » la remplace)') : null),
+          h('td', {}, r.popup ? h('button', { type: 'button', class: 'pill', onclick: () => run(`ext ${r.n}`) }, 'popup') : null, r.error ? h('span', { class: 'err' }, ` ${r.error}`) : null, r.dnrOnly ? h('span', { class: 'warn' }, ' ne bloque rien ici (ext add ublock)') : null),
         )),
       ) : h('div', { class: 'dim' }, 'Aucune extension.'),
       h(
         'div',
         { class: 'hint' },
-        h('b', {}, 'ext add'), ' lien du Chrome Web Store, identifiant ou dossier · ',
+        h('b', {}, 'ext add'), ' lien du Chrome Web Store, identifiant, dossier ou « ublock » · ',
         h('b', {}, 'ext off|on|rm'), ' n · ', h('b', {}, 'ext alias'), ' n nom · ', h('b', {}, 'ext n'), ' ou Alt+n ouvre la popup',
       ),
     ];

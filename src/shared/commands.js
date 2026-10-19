@@ -68,7 +68,7 @@ const COMMANDS = [
   ['ext', '[add | on | off | rm | alias | n]', 'gérer les extensions'],
   ['dl', '[n]', 'téléchargements ; n ouvre le fichier'],
   ['alias', '[nom = commande]', 'créer un raccourci ; « unalias nom » le supprime'],
-  ['adblock', '[on | off]', 'bloqueur de pub intégré (actif par défaut)'],
+  ['adblock', '[on | off]', 'bloqueur de pub de secours, éteint par défaut (uBlock Origin est préinstallé)'],
   ['engine', '[ddg | google | bing | qwant]', 'moteur de recherche'],
   ['theme', '[ambre | vert | cyan | rose | violet]', 'couleur d\'accent'],
   ['perm', '[reset [site]]', 'autorisations accordées aux sites (caméra, micro, position…)'],
