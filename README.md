@@ -74,7 +74,7 @@ Sur le Chrome Web Store, le bouton « Ajouter à Chrome » est grisé hors de Ch
 | IA | Modèle par défaut | Prix |
 | --- | --- | --- |
 | Claude (Anthropic) | `claude-opus-5-5`, avec recherche web et sources numérotées | payant à l'usage |
-| Gemini (Google AI Studio) | `gemini-2.5-flash` | gratuit, avec une limite par jour |
+| Gemini (Google AI Studio) | `gemini-3.8-flash` | gratuit, avec une limite par jour |
 | ChatGPT (OpenAI) | `gpt-5-mini` | payant à l'usage |
 | Mistral AI | `mistral-small-latest` | gratuit (offre Experiment) |
 | Groq | `openai/gpt-oss-120b` | gratuit, avec une limite par jour |
