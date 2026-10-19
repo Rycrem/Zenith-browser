@@ -53,7 +53,7 @@ Pour seulement Windows, lancer plutôt le workflow « Installateur Windows » (o
 | `engine ddg\|google\|bing\|qwant`, `theme ambre\|vert\|cyan\|rose\|violet` | réglages |
 | `perm`, `perm reset [site]` | autorisations données aux sites |
 | `update`, `update install`, `update electron` | mises à jour (voir plus bas) |
-| `devtools [detach\|close]`, `term`, `help`, `clear` | divers (DevTools : à côté de la page, dans une fenêtre, ou fermées ; boutons aussi dans la barre d'état) |
+| `devtools [detach\|close]`, `term`, `quit` (ou `exit`, `q`), `help`, `clear` | divers (DevTools : à côté de la page, dans une fenêtre, ou fermées ; boutons aussi dans la barre d'état ; `quit` ferme le navigateur) |
 
 Tout ce qui n'est ni une commande, ni un alias, ni une adresse lance une recherche ; une adresse (`exemple.fr`, `localhost:3000`) s'ouvre directement. Une commande suivie de mots qu'elle n'attend pas (« home depot », « close friends ») est aussi une recherche.
 

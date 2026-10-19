@@ -1035,6 +1035,11 @@ async function exec(raw, depth = 0) {
       case 'term':
         result.hideTerminal = true;
         break;
+      case 'quit':
+      case 'exit':
+      case 'q':
+        setTimeout(() => app.quit(), 50);
+        break;
       default:
         if (C.looksLikeUrl(input)) navigate(tab, C.normalizeUrl(input));
         else {

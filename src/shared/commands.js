@@ -73,6 +73,7 @@ const COMMANDS = [
   ['perm', '[reset [site]]', 'autorisations accordées aux sites (caméra, micro, position…)'],
   ['devtools', '[detach | close]', 'outils de développement : ouvrir, détacher dans une fenêtre, fermer'],
   ['term', '', 'cacher le terminal (Ctrl+J pour le rappeler)'],
+  ['quit / exit', '', 'quitter le navigateur'],
   ['update', '[install | electron]', 'vérifier ou installer les mises à jour (appli et Electron)'],
   ['help', '', 'cette aide'],
 ];
@@ -80,7 +81,7 @@ const COMMANDS = [
 const COMMAND_NAMES = [
   'brows', 'ia', 'go', 'links', 'back', 'fwd', 'reload', 'home', 'tab', 'close', 'split', 'focus',
   'fav', 'add', 'undo', 'hist', 'clean', 'find', 'ext', 'dl', 'alias', 'unalias', 'engine',
-  'theme', 'perm', 'update', 'devtools', 'term', 'help', 'clear',
+  'theme', 'perm', 'update', 'devtools', 'term', 'quit', 'exit', 'help', 'clear',
 ];
 
 const SUBCOMMANDS = {
@@ -100,7 +101,7 @@ const SUBCOMMANDS = {
 // Commandes qui n'acceptent pas de texte libre : ce qu'elles acceptent après leur nom.
 const ARG_SHAPES = {
   help: null, '?': null, clear: null, home: null, accueil: null, back: null, b: null, fwd: null, f: null,
-  reload: null, r: null, n: null, next: null, p: null, prev: null, links: null, l: null, term: null,
+  reload: null, r: null, n: null, next: null, p: null, prev: null, links: null, l: null, term: null, quit: null, exit: null, q: null,
   undo: null, focus: null,
   tab: /^(\d+|new|save)$/i, tabs: /^(\d+|new|save)$/i, close: /^\d+$/, dl: /^\d+$/, split: /^(off|close)$/i,
   devtools: /^(detach|detacher|attach|rattacher|close|off)$/i, dev: /^(detach|detacher|attach|rattacher|close|off)$/i,
