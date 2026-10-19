@@ -1,6 +1,6 @@
 {
   "name": "dev-brows",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Navigateur basé sur Chromium qui se pilote comme un terminal",
   "main": "src/main/main.js",
   "scripts": {
