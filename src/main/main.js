@@ -550,11 +550,13 @@ function openDevtools(tab, x, y) {
     // Avec une vue DevTools à nous, isDevToolsOpened() reste faux : on suit l'état nous-mêmes.
     wc.on('devtools-closed', () => {
       tab.devOpen = false;
+      tab.devStarted = false;
       layout();
     });
   }
   if (tab.screen) tab.screen = null;
-  if (!tab.devOpen) wc.openDevTools({ mode: 'detach', activate: false });
+  if (!tab.devStarted) wc.openDevTools({ mode: 'detach', activate: false });
+  tab.devStarted = true;
   tab.devOpen = true;
   if (x !== undefined) wc.inspectElement(x, y);
   layout();
@@ -563,8 +565,9 @@ function openDevtools(tab, x, y) {
 
 function toggleDevtools(tab) {
   if (tab.devOpen) {
+    // On cache la vue sans fermer les DevTools : une fois fermées, Electron les rouvre vides
+    // dans une vue à nous.
     tab.devOpen = false;
-    tab.view.webContents.closeDevTools();
     layout();
     return false;
   }
