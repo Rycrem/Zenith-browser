@@ -39,7 +39,7 @@ Pour seulement Windows, lancer plutôt le workflow « Installateur Windows » (o
 | `go <url>` | ouvre une adresse (taper directement une adresse marche aussi) |
 | `links` | numérote les liens et boutons de la page, puis tape un numéro |
 | `back`, `fwd`, `reload`, `home` | navigation |
-| `tab`, `tab <n>`, `tab new [url]`, `close [n]` | onglets |
+| `tab`, `tab <n>`, `tab new [url…]`, `tab save <nom>`, `close [n]` | onglets (`tab new` avec plusieurs adresses ouvre un onglet pour chacune) |
 | `split`, `split off [1\|2]`, `focus` | deux écrans côte à côte, fermer un écran (l'autre par défaut, ou le ✕ en haut de l'écran), changer d'écran |
 | `fav [dossier]` | favoris en arbre |
 | `add [dossier/]nom` | ajoute la page, crée les dossiers manquants |
@@ -49,13 +49,17 @@ Pour seulement Windows, lancer plutôt le workflow « Installateur Windows » (o
 | `find [texte]` | chercher dans la page |
 | `ext`, `ext add <lien store \| id \| dossier>`, `ext on/off/rm <n>`, `ext alias <n> <nom>`, `ext <n>` | extensions |
 | `dl [n]` | téléchargements (enregistrés directement dans Téléchargements) |
-| `alias nom = commande`, `unalias nom` | raccourcis perso |
+| `alias nom = commande [; commande…]`, `unalias nom` | raccourcis perso, qui peuvent enchaîner des commandes |
 | `engine ddg\|google\|bing\|qwant`, `theme ambre\|vert\|cyan\|rose\|violet` | réglages |
 | `perm`, `perm reset [site]` | autorisations données aux sites |
 | `update`, `update install`, `update electron` | mises à jour (voir plus bas) |
-| `devtools [detach\|close]`, `term`, `help`, `clear` | divers (DevTools : à côté de la page, dans une fenêtre, ou fermées ; boutons aussi dans la barre d'état) |
+| `devtools [detach\|close]`, `term`, `quit` (ou `exit`, `q`), `help`, `clear` | divers (DevTools : à côté de la page, dans une fenêtre, ou fermées ; boutons aussi dans la barre d'état ; `quit` ferme le navigateur) |
 
 Tout ce qui n'est ni une commande, ni un alias, ni une adresse lance une recherche ; une adresse (`exemple.fr`, `localhost:3000`) s'ouvre directement. Une commande suivie de mots qu'elle n'attend pas (« home depot », « close friends ») est aussi une recherche.
+
+**Groupes d'onglets :** `tab save travail` crée l'alias `travail`, qui rouvre tous les onglets ouverts. À la main : `alias travail = tab new gmail.com github.com`, ou avec plusieurs commandes séparées par `;` (`alias matin = tab new meteo.fr ; split ; ia actus`).
+
+Les questions oui/non répondent oui quand on appuie sur Entrée (`(O/n)`), sauf `clean all`, qui efface cookies et cache sans retour possible (`(o/N)`). Taper une autre commande vaut non.
 
 Chaque onglet a son propre terminal ; l'historique des commandes (↑ ↓) est commun à tous.
 
@@ -112,7 +116,7 @@ L'appli se ferme, la mise à jour se fait avec le `node` du système (sous Windo
 ## Sécurité
 
 - Chaque site tourne dans le bac à sable de Chromium, sans accès à Node ni à l'ordinateur.
-- Caméra, micro, position, notifications, presse-papier, partage d'écran, ouverture d'applications externes : chaque demande d'un site pose la question dans le terminal (`o` oui, `t` toujours, `j` jamais, `N` non). `perm` liste les choix enregistrés.
+- Caméra, micro, position, notifications, presse-papier, partage d'écran, ouverture d'applications externes : chaque demande d'un site pose la question dans le terminal (Entrée ou `o` oui, `t` toujours, `j` jamais, `n` non). `perm` liste les choix enregistrés.
 - La version de Chromium est celle d'Electron : faire `update install` quand l'appli le signale pour recevoir les correctifs de sécurité.
 - Connexion Google : Google refuse les navigateurs basés sur Electron (« Ce navigateur ou cette application ne sont peut-être pas sécurisés »). Sur `accounts.google.com` uniquement, dev-brows se présente donc comme Firefox ; pendant cette connexion, les bloqueurs de pub sont en pause (Electron ne laisse pas les deux filtrer les requêtes en même temps). Google peut bloquer cette parade à tout moment.
 - Pas de protection anti-hameçonnage (navigation sécurisée de Google) comme dans Chrome.

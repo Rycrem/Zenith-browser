@@ -9,7 +9,7 @@ const scrollback = $('#scrollback');
 const panesEl = [...document.querySelectorAll('.pane')];
 
 let state = null;
-let awaiting = false; // une question oui/non attend une réponse
+let awaiting = false; // « (O/n) » ou « (o/N) » quand une question oui/non attend une réponse
 const cmdHistory = load('cmdHistory', []);
 let histIndex = cmdHistory.length;
 
@@ -90,7 +90,7 @@ function showTerm(id, alive) {
 function print(lines, el = term()) {
   for (const l of lines) {
     el.append(h('div', { class: l.c || '' }, l.t));
-    if (l.c === 'warn' && l.t.trim().startsWith('?')) awaiting = true;
+    if (l.c === 'warn' && l.t.trim().startsWith('?')) awaiting = /\(o\/N\)$/.test(l.t) ? '(o/N)' : '(O/n)';
   }
   while (el.childElementCount > 600) el.firstElementChild.remove();
   scrollback.scrollTop = scrollback.scrollHeight;
@@ -115,7 +115,7 @@ async function run(line, { echo = true } = {}) {
 function renderPs1() {
   const ps1 = $('#ps1');
   if (awaiting) {
-    ps1.replaceChildren(h('span', { class: 'warn' }, '(o/N)'), ' ', h('span', { class: 'acc' }, '❯'));
+    ps1.replaceChildren(h('span', { class: 'warn' }, awaiting), ' ', h('span', { class: 'acc' }, '❯'));
     return;
   }
   const host = state ? state.status.host || 'accueil' : '…';

@@ -748,15 +748,16 @@ function enqueue(question, answer) {
   return prompts.length === 1 ? [{ t: `  ? ${question}`, c: 'warn' }] : [];
 }
 
-function confirm(question, run) {
-  return enqueue(`${question} (o/N)`, async (input, say) => {
-    if (YES.test(input)) await run(say);
+// Entrée vide répond oui, sauf pour une question irréversible (yes = false).
+function confirm(question, run, yes = true) {
+  return enqueue(`${question} ${yes ? '(O/n)' : '(o/N)'}`, async (input, say) => {
+    if (YES.test(input) || (yes && !input)) await run(say);
     else say('  annulé', 'dim');
   });
 }
 
-function ask(say, question, run) {
-  for (const l of confirm(question, run)) say(l.t, l.c);
+function ask(say, question, run, yes) {
+  for (const l of confirm(question, run, yes)) say(l.t, l.c);
 }
 
 async function runCommand(line) {
@@ -764,7 +765,7 @@ async function runCommand(line) {
   print([{ t: `❯ ${line}`, c: 'cmd' }, ...lines.lines]);
 }
 
-async function exec(raw) {
+async function exec(raw, depth = 0) {
   const out = [];
   const say = (t, c = '') => out.push({ t, c });
   const result = { lines: out };
@@ -782,6 +783,22 @@ async function exec(raw) {
   if (!input) return result;
 
   const line = C.expandAlias(input, settings.data.aliases);
+  // La définition d'un alias garde ses « ; » : ils s'exécutent quand on lance l'alias.
+  const parts = /^alias\s/i.test(line) ? [line] : C.splitCommands(line);
+  if (parts.length > 1) {
+    // Un alias peut enchaîner des commandes : « alias work = tab new gmail.com ; tab new github.com ».
+    if (depth > 4) {
+      say('  alias en boucle', 'err');
+      return result;
+    }
+    for (const part of parts) {
+      const r = await exec(part, depth + 1);
+      out.push(...r.lines);
+      if (r.clear) result.clear = true;
+      if (r.hideTerminal) result.hideTerminal = true;
+    }
+    return result;
+  }
   const args = C.tokenize(line);
   const name = args.shift().toLowerCase();
   const rest = line.slice(line.indexOf(' ') + 1 || line.length).trim();
@@ -864,8 +881,19 @@ async function exec(raw) {
       case 'tabs':
         if (!args.length) showTabs(tab);
         else if (args[0] === 'new') {
-          const url = args[1] ? C.normalizeUrl(args.slice(1).join(' ')) : undefined;
-          createTab({ url });
+          const urls = args.slice(1);
+          // Plusieurs adresses : un onglet pour chacune (groupe d'onglets) ; sinon une adresse ou une recherche.
+          if (urls.length > 1 && urls.every((u) => C.looksLikeUrl(u))) for (const u of urls) createTab({ url: C.normalizeUrl(u) });
+          else createTab({ url: urls.length ? C.normalizeUrl(urls.join(' ')) : undefined });
+        } else if (args[0] === 'save') {
+          const key = args[1];
+          if (!key) throw new Error('tab save <nom>');
+          if (C.COMMAND_NAMES.includes(key)) throw new Error(`« ${key} » est déjà une commande`);
+          const urls = tabs.map((t) => t.url).filter((u) => u && /^https?:|^file:/.test(u));
+          if (!urls.length) throw new Error('aucun onglet avec une page à enregistrer');
+          settings.data.aliases[key] = `tab new ${urls.join(' ')}`;
+          settings.save();
+          say(`  ✓ alias ${key} : rouvre ${urls.length} onglet${urls.length > 1 ? 's' : ''}`, 'ok');
         } else {
           const t = tabs[Number(args[0]) - 1];
           if (!t) throw new Error(`pas d'onglet numéro ${args[0]}`);
@@ -933,7 +961,7 @@ async function exec(raw) {
             await ses.clearStorageData({ storages: ['cookies'] });
             await ses.clearCache();
             s('  ✓ historique, cookies et cache vidés', 'ok');
-          }));
+          }, false));
         } else {
           history.data.entries = [];
           history.save();
@@ -1006,6 +1034,11 @@ async function exec(raw) {
         break;
       case 'term':
         result.hideTerminal = true;
+        break;
+      case 'quit':
+      case 'exit':
+      case 'q':
+        setTimeout(() => app.quit(), 50);
         break;
       default:
         if (C.looksLikeUrl(input)) navigate(tab, C.normalizeUrl(input));
@@ -1414,9 +1447,9 @@ function setupPermissions() {
     if (known.every((v) => v !== undefined)) return callback(known.every(Boolean));
     const label = [...new Set(keys.map((k) => PERMISSION_LABELS[k] || k))].join(' et ');
     const extra = permission === 'openExternal' && details.externalURL ? ` (${details.externalURL.slice(0, 60)})` : '';
-    const lines = enqueue(`${origin} demande ${label}${extra} : o = oui, t = toujours, j = jamais, N = non`, async (input, say) => {
+    const lines = enqueue(`${origin} demande ${label}${extra} : O = oui, t = toujours, j = jamais, n = non (O/n)`, async (input, say) => {
       const a = input.toLowerCase();
-      const ok = /^(o|oui|y|yes|t|toujours)$/.test(a);
+      const ok = /^(|o|oui|y|yes|t|toujours)$/.test(a);
       if (/^(t|toujours|j|jamais)$/.test(a)) {
         saved[origin] = saved[origin] || {};
         for (const k of keys) saved[origin][k] = ok;
