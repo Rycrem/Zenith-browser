@@ -1,0 +1,181 @@
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const { net } = require('electron');
+const AdmZip = require('adm-zip');
+const { crxToZip, extensionIdFrom } = require('../shared/crx');
+
+// Gère les extensions Chrome : installation depuis le Chrome Web Store ou un dossier,
+// activation, désactivation et popups. La liste est gardée dans settings.extensions.
+class Extensions {
+  constructor(ses, settings, dir) {
+    this.ses = ses;
+    this.api = ses.extensions || ses; // ses.extensions depuis Electron 35
+    this.settings = settings;
+    this.dir = dir;
+    if (!Array.isArray(settings.data.extensions)) settings.data.extensions = [];
+  }
+
+  get list() {
+    return this.settings.data.extensions;
+  }
+
+  async loadAll() {
+    for (const ext of this.list) {
+      if (!ext.enabled) continue;
+      try {
+        await this.load(ext);
+      } catch (err) {
+        ext.error = err.message;
+      }
+    }
+  }
+
+  async load(ext) {
+    const loaded = await this.api.loadExtension(ext.path, { allowFileAccess: true });
+    ext.id = loaded.id;
+    ext.name = this.readName(ext.path, loaded.name);
+    ext.popup = this.readPopup(ext.path);
+    delete ext.error;
+    return ext;
+  }
+
+  readManifest(dir) {
+    return JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'));
+  }
+
+  // Les noms du type __MSG_appName__ sont traduits via _locales.
+  readName(dir, fallback) {
+    try {
+      const manifest = this.readManifest(dir);
+      const m = String(manifest.name || '').match(/^__MSG_(\w+)__$/);
+      if (!m) return manifest.name || fallback;
+      for (const locale of ['fr', manifest.default_locale, 'en']) {
+        if (!locale) continue;
+        const file = path.join(dir, '_locales', locale, 'messages.json');
+        if (!fs.existsSync(file)) continue;
+        const messages = JSON.parse(fs.readFileSync(file, 'utf8'));
+        const key = Object.keys(messages).find((k) => k.toLowerCase() === m[1].toLowerCase());
+        if (key) return messages[key].message;
+      }
+    } catch {
+      // nom illisible : on garde celui d'Electron
+    }
+    return fallback;
+  }
+
+  readPopup(dir) {
+    try {
+      const manifest = this.readManifest(dir);
+      const action = manifest.action || manifest.browser_action || manifest.page_action || {};
+      return action.default_popup || null;
+    } catch {
+      return null;
+    }
+  }
+
+  makeAlias(name) {
+    const base = String(name || 'ext').toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '').slice(0, 8) || 'ext';
+    let alias = base;
+    let i = 2;
+    while (this.list.some((e) => e.alias === alias)) alias = `${base}${i++}`;
+    return alias;
+  }
+
+  // ext add <id | lien du Chrome Web Store | dossier décompressé>
+  async add(source) {
+    let dir;
+    if (fs.existsSync(source) && fs.statSync(source).isDirectory()) {
+      dir = path.resolve(source);
+    } else {
+      const id = extensionIdFrom(source);
+      if (!id) throw new Error('donne un lien du Chrome Web Store, un identifiant ou un dossier');
+      dir = await this.download(id);
+    }
+    if (this.list.some((e) => e.path === dir)) throw new Error('extension déjà installée');
+    const ext = { path: dir, enabled: true };
+    await this.load(ext);
+    ext.alias = this.makeAlias(ext.name);
+    this.list.push(ext);
+    this.settings.save();
+    return ext;
+  }
+
+  async download(id) {
+    const url = 'https://clients2.google.com/service/update2/crx?response=redirect'
+      + `&prodversion=${process.versions.chrome}&acceptformat=crx2,crx3&x=id%3D${id}%26uc`;
+    const res = await net.fetch(url);
+    if (!res.ok) throw new Error(`téléchargement refusé (${res.status})`);
+    const zip = new AdmZip(crxToZip(Buffer.from(await res.arrayBuffer())));
+    const dir = path.join(this.dir, id);
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.mkdirSync(dir, { recursive: true });
+    for (const entry of zip.getEntries()) {
+      // Pas de chemins qui sortent du dossier de l'extension.
+      const target = path.resolve(dir, entry.entryName);
+      if (!target.startsWith(dir + path.sep)) continue;
+      if (entry.isDirectory) fs.mkdirSync(target, { recursive: true });
+      else {
+        fs.mkdirSync(path.dirname(target), { recursive: true });
+        fs.writeFileSync(target, entry.getData());
+      }
+    }
+    // Chrome refuse les dossiers commençant par « _ » sauf _locales ; on retire _metadata.
+    fs.rmSync(path.join(dir, '_metadata'), { recursive: true, force: true });
+    return dir;
+  }
+
+  get(n) {
+    const ext = this.list[n - 1];
+    if (!ext) throw new Error(`pas d'extension numéro ${n}`);
+    return ext;
+  }
+
+  async setEnabled(n, enabled) {
+    const ext = this.get(n);
+    if (ext.enabled === enabled) return ext;
+    if (enabled) await this.load(ext);
+    else if (ext.id) this.api.removeExtension(ext.id);
+    ext.enabled = enabled;
+    this.settings.save();
+    return ext;
+  }
+
+  remove(n) {
+    const ext = this.get(n);
+    if (ext.id && ext.enabled) this.api.removeExtension(ext.id);
+    this.list.splice(n - 1, 1);
+    if (ext.path.startsWith(this.dir + path.sep)) fs.rmSync(ext.path, { recursive: true, force: true });
+    this.settings.save();
+    return ext;
+  }
+
+  rename(n, alias) {
+    if (!/^[\w-]{1,12}$/.test(alias || '')) throw new Error('alias invalide (lettres, chiffres, 12 max)');
+    const ext = this.get(n);
+    ext.alias = alias;
+    this.settings.save();
+    return ext;
+  }
+
+  popupUrl(n) {
+    const ext = this.get(n);
+    if (!ext.enabled) throw new Error(`${ext.alias} est désactivée (ext on ${n})`);
+    if (!ext.popup) throw new Error(`${ext.alias} n'a pas de popup`);
+    return `chrome-extension://${ext.id}/${ext.popup.replace(/^\//, '')}`;
+  }
+
+  summary() {
+    return this.list.map((e, i) => ({
+      n: i + 1,
+      alias: e.alias,
+      name: e.name,
+      enabled: e.enabled,
+      popup: !!e.popup,
+      error: e.error || null,
+    }));
+  }
+}
+
+module.exports = { Extensions };

@@ -1,0 +1,109 @@
+'use strict';
+
+// Découpe une ligne en mots, en respectant les guillemets.
+function tokenize(line) {
+  const out = [];
+  const re = /"([^"]*)"|'([^']*)'|(\S+)/g;
+  let m;
+  while ((m = re.exec(line))) out.push(m[1] ?? m[2] ?? m[3]);
+  return out;
+}
+
+// Remplace un alias en tête de ligne par sa commande ; les arguments suivent.
+function expandAlias(line, aliases) {
+  const trimmed = line.trim();
+  const first = trimmed.split(/\s+/)[0];
+  if (!first || !aliases || !Object.prototype.hasOwnProperty.call(aliases, first)) return trimmed;
+  const rest = trimmed.slice(first.length).trim();
+  return rest ? `${aliases[first]} ${rest}` : aliases[first];
+}
+
+const SCHEMES = /^(https?|file|about|chrome-extension|view-source):/i;
+
+function looksLikeUrl(text) {
+  const s = text.trim();
+  if (!s || /\s/.test(s)) return false;
+  if (SCHEMES.test(s)) return true;
+  if (/^localhost(:\d+)?(\/.*)?$/i.test(s)) return true;
+  if (/^\d{1,3}(\.\d{1,3}){3}(:\d+)?(\/.*)?$/.test(s)) return true;
+  return /^[\w-]+(\.[\w-]+)*\.[a-z]{2,}(:\d+)?([/?#].*)?$/i.test(s);
+}
+
+function normalizeUrl(text) {
+  const s = text.trim();
+  if (SCHEMES.test(s)) return s;
+  if (/^(localhost|\d{1,3}(\.\d{1,3}){3})/i.test(s)) return `http://${s}`;
+  return `https://${s}`;
+}
+
+const ENGINES = {
+  ddg: { label: 'DuckDuckGo', url: (q) => `https://duckduckgo.com/?q=${encodeURIComponent(q)}` },
+  google: { label: 'Google', url: (q) => `https://www.google.com/search?q=${encodeURIComponent(q)}` },
+  bing: { label: 'Bing', url: (q) => `https://www.bing.com/search?q=${encodeURIComponent(q)}` },
+  qwant: { label: 'Qwant', url: (q) => `https://www.qwant.com/?q=${encodeURIComponent(q)}` },
+};
+
+// Liste des commandes, utilisée pour l'aide et l'autocomplétion.
+const COMMANDS = [
+  ['brows', '<recherche>', 'lancer une recherche (résultats numérotés)'],
+  ['go', '<url>', 'ouvrir une adresse'],
+  ['<n>', '', 'ouvrir l\'élément numéro n de la liste affichée ; « nt » dans un nouvel onglet'],
+  ['links', '', 'numéroter les liens de la page'],
+  ['back / fwd / reload', '', 'précédent, suivant, recharger'],
+  ['home', '', 'revenir à l\'accueil'],
+  ['tab', '[n | new [url]]', 'lister, changer ou ouvrir un onglet'],
+  ['close', '[n]', 'fermer l\'onglet courant ou le numéro n'],
+  ['split', '[off]', 'deux écrans côte à côte ; « focus » change d\'écran'],
+  ['fav', '[dossier]', 'liste des favoris'],
+  ['add', '[dossier/]nom', 'ajouter la page aux favoris (crée le dossier si besoin)'],
+  ['fav rm', '<chemin | n>', 'supprimer un favori ou un dossier'],
+  ['fav mv', '<chemin> <destination>', 'déplacer un favori'],
+  ['fav rename', '<chemin> <nom>', 'renommer un favori'],
+  ['undo', '', 'annuler la dernière suppression de favori'],
+  ['hist', '[texte]', 'historique, filtré si besoin'],
+  ['clean', '[all]', 'vider l\'historique ; « all » vide aussi les cookies et le cache'],
+  ['find', '[texte]', 'chercher dans la page (« find » seul efface)'],
+  ['ext', '[add | on | off | rm | alias | n]', 'gérer les extensions'],
+  ['dl', '[n]', 'téléchargements ; n ouvre le fichier'],
+  ['alias', '[nom = commande]', 'créer un raccourci ; « unalias nom » le supprime'],
+  ['engine', '[ddg | google | bing | qwant]', 'moteur de recherche'],
+  ['theme', '[ambre | vert | cyan | rose]', 'couleur d\'accent'],
+  ['devtools', '', 'ouvrir ou fermer les outils de développement'],
+  ['term', '', 'cacher le terminal (Ctrl+J pour le rappeler)'],
+  ['help', '', 'cette aide'],
+];
+
+const COMMAND_NAMES = [
+  'brows', 'go', 'links', 'back', 'fwd', 'reload', 'home', 'tab', 'close', 'split', 'focus',
+  'fav', 'add', 'undo', 'hist', 'clean', 'find', 'ext', 'dl', 'alias', 'unalias', 'engine',
+  'theme', 'devtools', 'term', 'help', 'clear',
+];
+
+const SUBCOMMANDS = {
+  fav: ['rm', 'mv', 'rename'],
+  ext: ['add', 'on', 'off', 'rm', 'alias'],
+  tab: ['new'],
+  split: ['off'],
+  clean: ['all'],
+  engine: Object.keys(ENGINES),
+  theme: ['ambre', 'vert', 'cyan', 'rose'],
+};
+
+function commonPrefix(words) {
+  if (!words.length) return '';
+  let p = words[0];
+  for (const w of words) while (!w.startsWith(p)) p = p.slice(0, -1);
+  return p;
+}
+
+module.exports = {
+  tokenize,
+  expandAlias,
+  looksLikeUrl,
+  normalizeUrl,
+  ENGINES,
+  COMMANDS,
+  COMMAND_NAMES,
+  SUBCOMMANDS,
+  commonPrefix,
+};
