@@ -50,14 +50,25 @@ const isGoogleLogin = (url) => {
   }
 };
 
-function setupGoogleLogin() {
-  const ua = firefoxUserAgent();
-  ses.webRequest.onBeforeSendHeaders({ urls: [`https://${GOOGLE_LOGIN}/*`] }, (details, callback) => {
-    const headers = details.requestHeaders;
-    for (const name of Object.keys(headers)) if (/^sec-ch-ua/i.test(name)) delete headers[name];
-    headers['User-Agent'] = ua;
-    callback({ requestHeaders: headers });
-  });
+// Le filtre d'en-têtes n'est posé que pendant une connexion Google : tant qu'un filtre
+// session.webRequest existe, Electron ignore le chrome.webRequest des extensions (uBlock Origin).
+const onGoogleLogin = new Set();
+
+function setGoogleFilter(id, on) {
+  const before = onGoogleLogin.size;
+  if (on) onGoogleLogin.add(id);
+  else onGoogleLogin.delete(id);
+  if (!before && onGoogleLogin.size) {
+    const ua = firefoxUserAgent();
+    ses.webRequest.onBeforeSendHeaders({ urls: [`https://${GOOGLE_LOGIN}/*`] }, (details, callback) => {
+      const headers = details.requestHeaders;
+      for (const name of Object.keys(headers)) if (/^sec-ch-ua/i.test(name)) delete headers[name];
+      headers['User-Agent'] = ua;
+      callback({ requestHeaders: headers });
+    });
+  } else if (before && !onGoogleLogin.size) {
+    ses.webRequest.onBeforeSendHeaders(null);
+  }
 }
 
 function matchUserAgent(wc, url) {
@@ -65,7 +76,18 @@ function matchUserAgent(wc, url) {
   if (wc.getUserAgent() !== ua) wc.setUserAgent(ua);
 }
 
-const THEMES = { ambre: '#F2A541', vert: '#7FD18B', cyan: '#6CC5D9', rose: '#E07AA8' };
+// Onglets et fenêtres de connexion (popups OAuth comprises).
+function setupGoogleLogin() {
+  app.on('web-contents-created', (e, wc) => {
+    const id = wc.id;
+    const follow = (url) => setGoogleFilter(id, isGoogleLogin(url));
+    wc.on('did-start-navigation', (d) => d.isMainFrame && follow(d.url));
+    wc.on('will-redirect', (d) => d.isMainFrame && follow(d.url));
+    wc.once('destroyed', () => setGoogleFilter(id, false));
+  });
+}
+
+const THEMES = { ambre: '#F2A541', vert: '#7FD18B', cyan: '#6CC5D9', rose: '#E07AA8', violet: '#B48CF2' };
 const HISTORY_MAX = 5000;
 const DEVTOOLS_RATIO = 0.4;
 
@@ -121,6 +143,8 @@ function ensureView(tab) {
   tab.view = view;
   wireWebContents(tab, view.webContents);
   chromeApi.addTab(view.webContents, win);
+  // L'onglet peut déjà être affiché (page d'accueil qui charge un site) : les extensions doivent le savoir actif.
+  if (panes[activePane] && panes[activePane].tabId === tab.id) chromeApi.selectTab(view.webContents);
   return view;
 }
 
@@ -222,6 +246,8 @@ function wireWebContents(tab, wc) {
   wc.once('destroyed', () => {
     if (win && !win.isDestroyed()) closeTab(tab);
   });
+  // Ctrl+molette : Electron le signale sans zoomer lui-même.
+  wc.on('zoom-changed', (e, dir) => wc.setZoomLevel(wc.getZoomLevel() + (dir === 'in' ? 0.5 : -0.5)));
   wc.on('found-in-page', (e, r) => {
     if (r.finalUpdate) print([{ t: `  ${r.matches ? `${r.activeMatchOrdinal}/${r.matches}` : 'aucun résultat'}`, c: 'dim' }]);
   });
@@ -264,6 +290,7 @@ function closePane(idx) {
 }
 
 function destroyTab(tab) {
+  if (tab.devWin) attachDevtools(tab);
   for (const v of [tab.view, tab.dev]) {
     if (!v) continue;
     win.contentView.removeChildView(v);
@@ -316,9 +343,9 @@ function layout() {
     const p = paneOf(tab);
     const r = rects[p];
     const visible = p >= 0 && r && !tab.screen && !dragging && r.width > 0 && r.height > 0;
-    const devOpen = visible && tab.dev && tab.devOpen;
+    const devOpen = visible && tab.dev && tab.devOpen && !tab.devWin;
     if (tab.view) tab.view.setVisible(!!visible);
-    if (tab.dev) tab.dev.setVisible(!!devOpen);
+    if (tab.dev && !tab.devWin) tab.dev.setVisible(!!devOpen);
     if (!visible) return;
     if (devOpen) {
       const devW = Math.round(r.width * DEVTOOLS_RATIO);
@@ -351,6 +378,7 @@ function sendState() {
       url: tab.screen ? '' : tab.url,
       fav: favHere ? favHere.path : null,
       split: panes.length > 1,
+      devtools: tab.devOpen ? (tab.devWin ? 'detached' : 'docked') : null,
     },
     exts: exts.summary(),
     downloads: downloads.filter((d) => d.state === 'progressing').length,
@@ -563,12 +591,58 @@ function openDevtools(tab, x, y) {
   sendState();
 }
 
+function closeDevtools(tab) {
+  if (tab.devWin) attachDevtools(tab);
+  tab.devOpen = false;
+  layout();
+  sendState();
+}
+
+// Détache la vue DevTools dans sa propre fenêtre : on déplace la vue, la connexion à la page reste.
+function detachDevtools(tab) {
+  if (!tab.dev || !tab.devOpen || tab.devWin) return;
+  const b = win.getBounds();
+  const dw = new BrowserWindow({ width: Math.round(b.width * 0.45), height: b.height, x: b.x + b.width - Math.round(b.width * 0.45), y: b.y, title: `DevTools · ${tabTitle(tab)}`, autoHideMenuBar: true });
+  win.contentView.removeChildView(tab.dev);
+  dw.contentView.addChildView(tab.dev);
+  tab.dev.setVisible(true);
+  const fit = () => {
+    const [w, h] = dw.getContentSize();
+    tab.dev.setBounds({ x: 0, y: 0, width: w, height: h });
+  };
+  fit();
+  dw.on('resize', fit);
+  // Fermer la fenêtre ferme les DevTools : la vue revient dans la fenêtre principale, cachée.
+  dw.on('close', () => {
+    if (tab.devWin !== dw) return;
+    attachDevtools(tab);
+    tab.devOpen = false;
+    layout();
+    sendState();
+  });
+  tab.devWin = dw;
+  layout();
+  sendState();
+}
+
+function attachDevtools(tab) {
+  const dw = tab.devWin;
+  if (!dw) return;
+  tab.devWin = null;
+  if (!dw.isDestroyed()) {
+    dw.contentView.removeChildView(tab.dev);
+    dw.destroy();
+  }
+  win.contentView.addChildView(tab.dev);
+  layout();
+  sendState();
+}
+
 function toggleDevtools(tab) {
   if (tab.devOpen) {
     // On cache la vue sans fermer les DevTools : une fois fermées, Electron les rouvre vides
     // dans une vue à nous.
-    tab.devOpen = false;
-    layout();
+    closeDevtools(tab);
     return false;
   }
   openDevtools(tab);
@@ -719,6 +793,13 @@ async function exec(raw) {
       await select(tab, Number(num[1]), num[2] === 't', say);
       return result;
     }
+    // Une commande suivie de mots qu'elle n'attend pas (« home depot », « close friends »)
+    // est une recherche, pas une erreur.
+    if (args.length && !C.acceptsArgs(name, args)) {
+      say(`  → brows ${input}`, 'dim');
+      out.push(...(await runSearch(tab, input)));
+      return result;
+    }
     switch (name) {
       case 'help':
       case '?':
@@ -777,10 +858,7 @@ async function exec(raw) {
         break;
       case 'reload':
       case 'r':
-        if (!tab.view) throw new Error('aucune page ouverte');
-        tab.screen = null;
-        tab.view.webContents.reload();
-        layout();
+        reloadTab(tab);
         break;
       case 'tab':
       case 'tabs':
@@ -919,7 +997,12 @@ async function exec(raw) {
         break;
       case 'devtools':
       case 'dev':
-        toggleDevtools(tab);
+        if (args[0] === 'detach' || args[0] === 'detacher') {
+          if (!tab.devOpen) openDevtools(tab);
+          detachDevtools(tab);
+        } else if (args[0] === 'attach' || args[0] === 'rattacher') attachDevtools(tab);
+        else if (args[0] === 'close' || args[0] === 'off') closeDevtools(tab);
+        else toggleDevtools(tab);
         break;
       case 'term':
         result.hideTerminal = true;
@@ -1038,10 +1121,11 @@ async function extCommand(tab, args, say) {
     case 'add': {
       // Sans argument, installe l'extension de la page du Chrome Web Store ouverte.
       const source = args[1] ? args.slice(1).join(' ') : storeExtensionId(tab.url || '');
-      if (!source) throw new Error('ext add <lien du Chrome Web Store | identifiant | dossier>, ou « ext add » seul sur la page de l\'extension');
+      if (!source) throw new Error('ext add <lien du Chrome Web Store | identifiant | dossier | ublock>, ou « ext add » seul sur la page de l\'extension');
       print([{ t: '  installation de l\'extension…', c: 'dim' }]);
       const ext = await exts.add(source);
       say(`  ✓ ${ext.name} installée, alias « ${ext.alias} »${ext.popup ? '' : ' (pas de popup)'}`, 'ok');
+      if (ext.dnrOnly) say('  ⚠ cette extension bloque avec declarativeNetRequest, qu\'Electron ne gère pas : elle ne bloquera rien. Pour bloquer les pubs : « ext add ublock » (uBlock Origin complet).', 'warn');
       break;
     }
     case 'on':
@@ -1418,6 +1502,15 @@ const SHORTCUTS = [
   ['↑ ↓ / Tab', 'historique des commandes / autocomplétion'],
 ];
 
+// Recharge la page et retire l'écran du terminal (résultats, aide…) qui pouvait la cacher.
+function reloadTab(tab) {
+  if (!tab.view) throw new Error('aucune page ouverte');
+  tab.screen = null;
+  tab.view.webContents.reload();
+  layout();
+  sendState();
+}
+
 function zoom(delta) {
   const tab = activeTab();
   if (!tab.view) return;
@@ -1452,8 +1545,8 @@ function buildMenu() {
         })),
         { label: 'Précédent', accelerator: 'Alt+Left', click: nav((wc) => wc.navigationHistory.canGoBack() && wc.navigationHistory.goBack()) },
         { label: 'Suivant', accelerator: 'Alt+Right', click: nav((wc) => wc.navigationHistory.canGoForward() && wc.navigationHistory.goForward()) },
-        { label: 'Recharger', accelerator: 'F5', click: nav((wc) => wc.reload()) },
-        { label: 'Recharger', accelerator: 'CmdOrCtrl+R', visible: false, click: nav((wc) => wc.reload()) },
+        { label: 'Recharger', accelerator: 'F5', click: act(() => reloadTab(activeTab())) },
+        { label: 'Recharger', accelerator: 'CmdOrCtrl+R', visible: false, click: act(() => reloadTab(activeTab())) },
         { label: 'Chercher', accelerator: 'CmdOrCtrl+F', click: () => focusTerminal('find ') },
         { label: 'Ajouter aux favoris', accelerator: 'CmdOrCtrl+D', click: () => focusTerminal('add ') },
         { label: 'Split', accelerator: 'CmdOrCtrl+Shift+S', click: () => runCommand(panes.length > 1 ? 'split off' : 'split') },
@@ -1516,6 +1609,8 @@ function setupIpc() {
   });
   ipcMain.handle('ui:exec', (e, line) => exec(String(line)));
   ipcMain.handle('ui:complete', (e, line) => complete(String(line)));
+  ipcMain.handle('ui:clipboard-read', () => clipboard.readText());
+  ipcMain.on('ui:clipboard-write', (e, text) => clipboard.writeText(String(text)));
   let started = false;
   ipcMain.on('ui:ready', () => {
     sendState();
@@ -1536,6 +1631,19 @@ function setupIpc() {
   ipcMain.on('ui:tab', (e, id) => {
     const t = getTab(id);
     if (t) showInPane(t, activePane);
+  });
+  ipcMain.on('ui:tab-move', (e, id, targetId) => {
+    const from = tabs.findIndex((t) => t.id === id);
+    const to = tabs.findIndex((t) => t.id === targetId);
+    if (from < 0 || to < 0 || from === to) return;
+    tabs.splice(to, 0, tabs.splice(from, 1)[0]);
+    sendState();
+  });
+  ipcMain.on('ui:devtools', (e, action) => {
+    const tab = activeTab();
+    if (action === 'detach') detachDevtools(tab);
+    else if (action === 'attach') attachDevtools(tab);
+    else closeDevtools(tab);
   });
   ipcMain.on('ui:tab-close', (e, id) => {
     const t = getTab(id);

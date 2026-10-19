@@ -68,9 +68,9 @@ const COMMANDS = [
   ['dl', '[n]', 'téléchargements ; n ouvre le fichier'],
   ['alias', '[nom = commande]', 'créer un raccourci ; « unalias nom » le supprime'],
   ['engine', '[ddg | google | bing | qwant]', 'moteur de recherche'],
-  ['theme', '[ambre | vert | cyan | rose]', 'couleur d\'accent'],
+  ['theme', '[ambre | vert | cyan | rose | violet]', 'couleur d\'accent'],
   ['perm', '[reset [site]]', 'autorisations accordées aux sites (caméra, micro, position…)'],
-  ['devtools', '', 'ouvrir ou fermer les outils de développement'],
+  ['devtools', '[detach | close]', 'outils de développement : ouvrir, détacher dans une fenêtre, fermer'],
   ['term', '', 'cacher le terminal (Ctrl+J pour le rappeler)'],
   ['update', '[install | electron]', 'vérifier ou installer les mises à jour (appli et Electron)'],
   ['help', '', 'cette aide'],
@@ -92,8 +92,25 @@ const SUBCOMMANDS = {
   ia: ['use', 'connect', 'key', 'logout', 'model'],
   update: ['install', 'electron'],
   engine: Object.keys(ENGINES),
-  theme: ['ambre', 'vert', 'cyan', 'rose'],
+  theme: ['ambre', 'vert', 'cyan', 'rose', 'violet'],
+  devtools: ['detach', 'close'],
 };
+
+// Commandes qui n'acceptent pas de texte libre : ce qu'elles acceptent après leur nom.
+const ARG_SHAPES = {
+  help: null, '?': null, clear: null, home: null, accueil: null, back: null, b: null, fwd: null, f: null,
+  reload: null, r: null, n: null, next: null, p: null, prev: null, links: null, l: null, term: null,
+  undo: null, focus: null,
+  tab: /^(\d+|new)$/i, tabs: /^(\d+|new)$/i, close: /^\d+$/, dl: /^\d+$/, split: /^(off|close)$/i,
+  devtools: /^(detach|detacher|attach|rattacher|close|off)$/i, dev: /^(detach|detacher|attach|rattacher|close|off)$/i,
+};
+
+// Faux si « name args » ne peut pas être cette commande (à chercher plutôt).
+function acceptsArgs(name, args) {
+  if (!Object.prototype.hasOwnProperty.call(ARG_SHAPES, name)) return true;
+  const shape = ARG_SHAPES[name];
+  return !!shape && shape.test(args[0]);
+}
 
 function commonPrefix(words) {
   if (!words.length) return '';
@@ -107,6 +124,7 @@ module.exports = {
   expandAlias,
   looksLikeUrl,
   normalizeUrl,
+  acceptsArgs,
   ENGINES,
   COMMANDS,
   COMMAND_NAMES,

@@ -6,6 +6,11 @@ const { net } = require('electron');
 const AdmZip = require('adm-zip');
 const { crxToZip, extensionIdFrom } = require('../shared/crx');
 
+// uBlock Origin complet (MV2) n'est plus sur le Chrome Web Store : on le prend dans ses Releases GitHub.
+// uBlock Origin Lite (MV3) bloque avec declarativeNetRequest, qu'Electron ne gère pas.
+const UBLOCK_IDS = ['cjpalhdlnbpafiamejdnhcphjbkeiagm', 'ddkjiahejlhfcafbddmgiahcphecmpfh'];
+const UBLOCK_NAMES = /^(ublock|ubo|ublock[ -]?origin|ublock0)$/i;
+
 // Gère les extensions Chrome : installation depuis le Chrome Web Store ou un dossier,
 // activation, désactivation et popups. La liste est gardée dans settings.extensions.
 class Extensions {
@@ -37,6 +42,7 @@ class Extensions {
     ext.id = loaded.id;
     ext.name = this.readName(ext.path, loaded.name);
     ext.popup = this.readPopup(ext.path);
+    ext.dnrOnly = this.blocksWithDnrOnly(ext.path);
     delete ext.error;
     return ext;
   }
@@ -65,6 +71,17 @@ class Extensions {
     return fallback;
   }
 
+  // Une extension MV3 qui bloque seulement avec declarativeNetRequest ne bloque rien dans Electron.
+  blocksWithDnrOnly(dir) {
+    try {
+      const m = this.readManifest(dir);
+      const perms = [...(m.permissions || []), ...(m.optional_permissions || [])];
+      return perms.some((p) => String(p).startsWith('declarativeNetRequest')) && !perms.includes('webRequestBlocking');
+    } catch {
+      return false;
+    }
+  }
+
   readPopup(dir) {
     try {
       const manifest = this.readManifest(dir);
@@ -83,14 +100,19 @@ class Extensions {
     return alias;
   }
 
-  // ext add <id | lien du Chrome Web Store | dossier décompressé>
+  // ext add <id | lien du Chrome Web Store | dossier décompressé | ublock>
   async add(source) {
     let dir;
-    if (fs.existsSync(source) && fs.statSync(source).isDirectory()) {
+    const id = extensionIdFrom(source);
+    if (UBLOCK_NAMES.test(source.trim()) || UBLOCK_IDS.includes(id)) {
+      // Déjà là : on la remplace par la dernière version.
+      const old = this.list.findIndex((e) => e.path === path.join(this.dir, 'ublock-origin'));
+      if (old >= 0) this.remove(old + 1);
+      dir = await this.downloadUblock();
+    } else if (fs.existsSync(source) && fs.statSync(source).isDirectory()) {
       dir = path.resolve(source);
     } else {
-      const id = extensionIdFrom(source);
-      if (!id) throw new Error('donne un lien du Chrome Web Store, un identifiant ou un dossier');
+      if (!id) throw new Error('donne un lien du Chrome Web Store, un identifiant, un dossier ou « ublock »');
       dir = await this.download(id);
     }
     if (this.list.some((e) => e.path === dir)) throw new Error('extension déjà installée');
@@ -107,13 +129,32 @@ class Extensions {
       + `&prodversion=${process.versions.chrome}&acceptformat=crx2,crx3&x=id%3D${id}%26uc`;
     const res = await net.fetch(url);
     if (!res.ok) throw new Error(`téléchargement refusé (${res.status})`);
-    const zip = new AdmZip(crxToZip(Buffer.from(await res.arrayBuffer())));
-    const dir = path.join(this.dir, id);
+    return this.unpack(new AdmZip(crxToZip(Buffer.from(await res.arrayBuffer()))), id);
+  }
+
+  // Dernière version de uBlock Origin pour Chromium, depuis github.com/gorhill/uBlock.
+  async downloadUblock() {
+    const rel = await net.fetch('https://api.github.com/repos/gorhill/uBlock/releases/latest', { headers: { accept: 'application/vnd.github+json' } });
+    if (!rel.ok) throw new Error(`GitHub ne répond pas (${rel.status})`);
+    const asset = ((await rel.json()).assets || []).find((a) => /chromium\.zip$/.test(a.name));
+    if (!asset) throw new Error('pas de version Chromium de uBlock Origin dans la dernière Release');
+    const res = await net.fetch(asset.browser_download_url);
+    if (!res.ok) throw new Error(`téléchargement refusé (${res.status})`);
+    return this.unpack(new AdmZip(Buffer.from(await res.arrayBuffer())), 'ublock-origin');
+  }
+
+  unpack(zip, name) {
+    const dir = path.join(this.dir, name);
     fs.rmSync(dir, { recursive: true, force: true });
     fs.mkdirSync(dir, { recursive: true });
-    for (const entry of zip.getEntries()) {
+    const entries = zip.getEntries();
+    // Certaines archives mettent tout dans un dossier (« uBlock0.chromium/manifest.json ») : on l'enlève.
+    const manifest = entries.find((e) => /(^|\/)manifest\.json$/.test(e.entryName) && e.entryName.split('/').length <= 2);
+    const prefix = manifest ? manifest.entryName.replace(/manifest\.json$/, '') : '';
+    for (const entry of entries) {
+      if (!entry.entryName.startsWith(prefix)) continue;
       // Pas de chemins qui sortent du dossier de l'extension.
-      const target = path.resolve(dir, entry.entryName);
+      const target = path.resolve(dir, entry.entryName.slice(prefix.length));
       if (!target.startsWith(dir + path.sep)) continue;
       if (entry.isDirectory) fs.mkdirSync(target, { recursive: true });
       else {
@@ -173,6 +214,7 @@ class Extensions {
       name: e.name,
       enabled: e.enabled,
       popup: !!e.popup,
+      dnrOnly: !!e.dnrOnly,
       error: e.error || null,
     }));
   }
