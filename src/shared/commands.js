@@ -68,6 +68,7 @@ const COMMANDS = [
   ['alias', '[nom = commande]', 'créer un raccourci ; « unalias nom » le supprime'],
   ['engine', '[ddg | google | bing | qwant]', 'moteur de recherche'],
   ['theme', '[ambre | vert | cyan | rose]', 'couleur d\'accent'],
+  ['perm', '[reset [site]]', 'autorisations accordées aux sites (caméra, micro, position…)'],
   ['devtools', '', 'ouvrir ou fermer les outils de développement'],
   ['term', '', 'cacher le terminal (Ctrl+J pour le rappeler)'],
   ['help', '', 'cette aide'],
@@ -76,7 +77,7 @@ const COMMANDS = [
 const COMMAND_NAMES = [
   'brows', 'go', 'links', 'back', 'fwd', 'reload', 'home', 'tab', 'close', 'split', 'focus',
   'fav', 'add', 'undo', 'hist', 'clean', 'find', 'ext', 'dl', 'alias', 'unalias', 'engine',
-  'theme', 'devtools', 'term', 'help', 'clear',
+  'theme', 'perm', 'devtools', 'term', 'help', 'clear',
 ];
 
 const SUBCOMMANDS = {
@@ -85,6 +86,7 @@ const SUBCOMMANDS = {
   tab: ['new'],
   split: ['off'],
   clean: ['all'],
+  perm: ['reset'],
   engine: Object.keys(ENGINES),
   theme: ['ambre', 'vert', 'cyan', 'rose'],
 };

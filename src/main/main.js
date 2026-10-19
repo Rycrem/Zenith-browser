@@ -32,7 +32,7 @@ const panes = [{ tabId: null }];
 let activePane = 0;
 let rects = [];
 let dragging = false;
-let pending = null; // question oui/non en attente
+const prompts = []; // questions oui/non en attente, la première est affichée
 let lastUndo = null;
 const downloads = [];
 let popupWin = null;
@@ -541,9 +541,20 @@ function openExtPopup(n, x) {
 
 // ---------------------------------------------------------------- commandes
 
+const YES = /^(o|oui|y|yes)$/i;
+const ANSWER = /^(o|oui|y|yes|n|non|no|t|toujours|j|jamais)?$/i;
+
+// Met une question en file ; renvoie les lignes à afficher si c'est la seule en attente.
+function enqueue(question, answer) {
+  prompts.push({ question, answer });
+  return prompts.length === 1 ? [{ t: `  ? ${question}`, c: 'warn' }] : [];
+}
+
 function confirm(question, run) {
-  pending = run;
-  return [{ t: `  ? ${question} (o/N)`, c: 'warn' }];
+  return enqueue(`${question} (o/N)`, async (input, say) => {
+    if (YES.test(input)) await run(say);
+    else say('  annulé', 'dim');
+  });
 }
 
 function ask(say, question, run) {
@@ -562,12 +573,13 @@ async function exec(raw) {
   const input = raw.trim();
   const tab = activeTab();
 
-  if (pending) {
-    const run = pending;
-    pending = null;
-    if (/^(o|oui|y|yes)$/i.test(input)) await run(say);
-    else say('  annulé', 'dim');
-    return result;
+  if (prompts.length) {
+    // Une réponse répond à la question ; une autre commande vaut « non » puis s'exécute.
+    const isAnswer = ANSWER.test(input);
+    const p = prompts.shift();
+    await p.answer(isAnswer ? input : 'non', say);
+    if (prompts.length) say(`  ? ${prompts[0].question}`, 'warn');
+    if (isAnswer) return result;
   }
   if (!input) return result;
 
@@ -772,6 +784,9 @@ async function exec(raw) {
           sendState();
         }
         break;
+      case 'perm':
+        permCommand(args, say);
+        break;
       case 'devtools':
       case 'dev':
         toggleDevtools(tab);
@@ -939,6 +954,101 @@ function aliasCommand(tab, text, say) {
   aliases[key] = value;
   settings.save();
   say(`  ✓ alias ${key} = ${value}`, 'ok');
+}
+
+// ---------------------------------------------------------------- autorisations des sites
+
+// Sans réglage, Electron accorde tout (caméra, micro, position…) sans demander.
+// Ici, chaque demande passe par une question dans le terminal.
+const SAFE_PERMISSIONS = new Set(['fullscreen', 'pointerLock', 'keyboardLock', 'clipboard-sanitized-write', 'mediaKeySystem']);
+
+const PERMISSION_LABELS = {
+  camera: 'la caméra',
+  microphone: 'le micro',
+  geolocation: 'ta position',
+  notifications: 'les notifications',
+  'clipboard-read': 'la lecture du presse-papier',
+  'display-capture': 'le partage d\'écran',
+  midi: 'les appareils MIDI',
+  midiSysex: 'les appareils MIDI',
+  openExternal: 'l\'ouverture d\'une application externe',
+  'idle-detection': 'la détection d\'inactivité',
+  'storage-access': 'ses cookies sur d\'autres sites',
+  'top-level-storage-access': 'ses cookies sur d\'autres sites',
+  'window-management': 'la gestion des fenêtres et écrans',
+  'speaker-selection': 'le choix de la sortie audio',
+};
+
+function originOf(url) {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return url || 'ce site';
+  }
+}
+
+// Une demande « media » couvre la caméra et/ou le micro.
+function permissionKeys(permission, details) {
+  if (permission !== 'media') return [permission];
+  const types = details.mediaTypes && details.mediaTypes.length ? details.mediaTypes : ['audio', 'video'];
+  return types.map((t) => (t === 'video' ? 'camera' : 'microphone'));
+}
+
+function setupPermissions() {
+  if (!settings.data.permissions) settings.data.permissions = {};
+  const saved = settings.data.permissions;
+  ses.setPermissionRequestHandler((wc, permission, callback, details) => {
+    if (SAFE_PERMISSIONS.has(permission)) return callback(true);
+    if (win && wc === win.webContents) return callback(false); // l'interface n'a besoin de rien
+    const origin = originOf(details.requestingUrl || (wc && wc.getURL()));
+    const keys = permissionKeys(permission, details);
+    const known = keys.map((k) => saved[origin] && saved[origin][k]);
+    if (known.every((v) => v !== undefined)) return callback(known.every(Boolean));
+    const label = [...new Set(keys.map((k) => PERMISSION_LABELS[k] || k))].join(' et ');
+    const extra = permission === 'openExternal' && details.externalURL ? ` (${details.externalURL.slice(0, 60)})` : '';
+    const lines = enqueue(`${origin} demande ${label}${extra} : o = oui, t = toujours, j = jamais, N = non`, async (input, say) => {
+      const a = input.toLowerCase();
+      const ok = /^(o|oui|y|yes|t|toujours)$/.test(a);
+      if (/^(t|toujours|j|jamais)$/.test(a)) {
+        saved[origin] = saved[origin] || {};
+        for (const k of keys) saved[origin][k] = ok;
+        settings.save();
+      }
+      callback(ok);
+      say(ok ? `  ✓ ${label} : autorisé pour ${origin}` : `  ✗ ${label} : refusé à ${origin}`, ok ? 'ok' : 'dim');
+    });
+    if (lines.length) {
+      print(lines);
+      focusTerminal();
+    }
+    return undefined;
+  });
+  ses.setPermissionCheckHandler((wc, permission, requestingOrigin, details) => {
+    if (SAFE_PERMISSIONS.has(permission)) return true;
+    if (wc && win && wc === win.webContents) return false;
+    const origin = originOf(requestingOrigin);
+    const key = permission === 'media' ? (details.mediaType === 'video' ? 'camera' : 'microphone') : permission;
+    return !!(saved[origin] && saved[origin][key] === true);
+  });
+}
+
+function permCommand(args, say) {
+  const saved = settings.data.permissions;
+  if (args[0] === 'reset') {
+    const origin = args[1] ? originOf(C.normalizeUrl(args[1])) : null;
+    if (origin) delete saved[origin];
+    else for (const k of Object.keys(saved)) delete saved[k];
+    settings.save();
+    say(`  ✓ autorisations ${origin ? `de ${origin} ` : ''}effacées`, 'ok');
+    return;
+  }
+  const entries = Object.entries(saved);
+  if (!entries.length) say('  aucune autorisation enregistrée', 'dim');
+  for (const [origin, perms] of entries) {
+    const list = Object.entries(perms).map(([k, v]) => `${v ? '✓' : '✗'} ${PERMISSION_LABELS[k] || k}`).join(', ');
+    say(`  ${origin} : ${list}`);
+  }
+  say('  perm reset [site] pour effacer', 'dim');
 }
 
 // Autocomplétion avec Tab.
@@ -1145,6 +1255,7 @@ app.whenReady().then(async () => {
   await exts.loadAll();
   setupIpc();
   setupDownloads();
+  setupPermissions();
   buildMenu();
   createWindow();
   createTab();

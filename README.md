@@ -32,6 +32,7 @@ Tests de la logique (favoris, alias, lecture des résultats, extensions) : `npm 
 | `dl [n]` | téléchargements (enregistrés directement dans Téléchargements) |
 | `alias nom = commande`, `unalias nom` | raccourcis perso |
 | `engine ddg\|google\|bing\|qwant`, `theme ambre\|vert\|cyan\|rose` | réglages |
+| `perm`, `perm reset [site]` | autorisations données aux sites |
 | `devtools`, `term`, `help`, `clear` | divers |
 
 Tout ce qui n'est ni une commande ni une adresse lance une recherche.
@@ -45,6 +46,13 @@ Ctrl+L terminal · Ctrl+J cacher/montrer le terminal · Échap rendre la main à
 ## Extensions
 
 `ext add` accepte un lien du Chrome Web Store, un identifiant d'extension ou un dossier d'extension décompressée. Chaque extension a une pastille numérotée dans la barre d'état ; un clic ou Alt+n ouvre sa popup. Electron ne gère qu'une partie des API d'extensions Chrome : les bloqueurs de pub et scripts de contenu fonctionnent bien, certaines extensions plus poussées peuvent ne pas marcher.
+
+## Sécurité
+
+- Chaque site tourne dans le bac à sable de Chromium, sans accès à Node ni à l'ordinateur.
+- Caméra, micro, position, notifications, presse-papier, partage d'écran, ouverture d'applications externes : chaque demande d'un site pose la question dans le terminal (`o` oui, `t` toujours, `j` jamais, `N` non). `perm` liste les choix enregistrés.
+- La version de Chromium est celle d'Electron : lancer `npm update` régulièrement pour recevoir les correctifs de sécurité.
+- Pas de protection anti-hameçonnage (navigation sécurisée de Google) comme dans Chrome.
 
 ## Données
 
