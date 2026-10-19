@@ -1,6 +1,6 @@
 {
   "name": "dev-brows",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Navigateur basé sur Chromium qui se pilote comme un terminal",
   "main": "src/main/main.js",
   "scripts": {
@@ -12,6 +12,7 @@
   "license": "GPL-3.0-or-later",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",
+    "@ghostery/adblocker-electron": "^2.20.1",
     "adm-zip": "^0.6.1",
     "electron-chrome-extensions": "^4.9.0",
     "electron-updater": "^6.8.9"

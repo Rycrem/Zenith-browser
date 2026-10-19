@@ -93,7 +93,7 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
 #new-tab { width: 26px; height: 26px; border-radius: 4px; color: var(--dim); font-size: 16px; }
 #new-tab:hover { background: var(--bg-raised); color: var(--text); }
 
-.url { margin-left: auto; color: var(--green); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 45%; }
+.url { margin-left: auto; cursor: copy; color: var(--green); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 45%; }
 
 /* ------------------------------------------------ écrans */
 
@@ -117,6 +117,11 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
 
 .viewport { flex: 1; min-height: 0; position: relative; }
 .viewport.page { background: #fff; }
+.devbar { position: absolute; top: 0; right: 0; width: 40%; height: 26px; z-index: 2; display: flex; align-items: center; gap: 4px; padding: 0 4px 0 10px; background: var(--bg-deep); border-bottom: 1px solid var(--line); font-size: 12px; }
+.devbar[hidden] { display: none; }
+.devbar .grow { flex: 1; }
+.devbar button { width: 22px; height: 20px; border-radius: 3px; color: var(--dim); }
+.devbar button:hover { background: var(--line); color: var(--text); }
 .viewport.page::after { content: 'chargement…'; position: absolute; inset: 0; display: grid; place-items: center; color: #59626E; }
 
 .screen { position: absolute; inset: 0; overflow: auto; padding: 32px 48px; display: none; }
@@ -223,6 +228,7 @@ th { color: var(--dim); }
 #status .addr { overflow: hidden; text-overflow: ellipsis; }
 #status .dev .pill { background: var(--bg); color: var(--text); font-size: 12px; }
 #status .dev .pill:hover { color: var(--accent); }
+#status .pill.zoom { background: var(--bg); color: var(--text); font-size: 12px; }
 .chip { padding: 2px 8px; border-radius: 3px; background: var(--bg); color: var(--green); font-size: 12px; font-weight: 600; }
 .chip.off { color: var(--dim); }
 .chip:hover { outline: 2px solid var(--bg); outline-offset: 1px; }

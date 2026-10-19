@@ -50,6 +50,7 @@ Pour seulement Windows, lancer plutôt le workflow « Installateur Windows » (o
 | `ext`, `ext add <lien store \| id \| dossier>`, `ext on/off/rm <n>`, `ext alias <n> <nom>`, `ext <n>` | extensions |
 | `dl [n]` | téléchargements (enregistrés directement dans Téléchargements) |
 | `alias nom = commande [; commande…]`, `unalias nom` | raccourcis perso, qui peuvent enchaîner des commandes |
+| `adblock [on\|off]` | bloqueur de pub intégré, actif par défaut |
 | `engine ddg\|google\|bing\|qwant`, `theme ambre\|vert\|cyan\|rose\|violet` | réglages |
 | `perm`, `perm reset [site]` | autorisations données aux sites |
 | `update`, `update install`, `update electron` | mises à jour (voir plus bas) |
@@ -61,20 +62,23 @@ Tout ce qui n'est ni une commande, ni un alias, ni une adresse lance une recherc
 
 Les questions oui/non répondent oui quand on appuie sur Entrée (`(O/n)`), sauf `clean all`, qui efface cookies et cache sans retour possible (`(o/N)`). Taper une autre commande vaut non.
 
+Après une commande, le clavier reste dans le terminal, même quand une page se charge ; Échap ou un clic dans la page lui donne la main.
+
 Chaque onglet a son propre terminal ; l'historique des commandes (↑ ↓) est commun à tous.
 
 ## Raccourcis
 
 Ctrl+L terminal · Ctrl+J cacher/montrer le terminal · Échap rendre la main à la page · Ctrl+T / Ctrl+W onglets · Ctrl+Tab, Ctrl+1…9 · Alt+←/→ · F5 · Ctrl+F chercher · Ctrl+D favori · Ctrl+Maj+S split · F6 changer d'écran · F12 ou clic droit › Inspecter pour les DevTools · Alt+1…9 popup d'extension · ↑/↓ historique des commandes · Tab autocomplétion.
 
-À la souris : la barre entre la page et le terminal se glisse pour changer sa hauteur (double-clic pour revenir à la taille par défaut), la barre entre les deux écrans du split aussi. Les onglets, résultats, favoris et pastilles d'extensions sont cliquables (Ctrl+clic pour un nouvel onglet). Clic molette sur un onglet pour le fermer, glisser-déposer pour changer leur ordre. Dans le terminal, le clic droit copie le texte sélectionné, ou colle le presse-papier dans la ligne de commande s'il n'y a pas de sélection.
+À la souris : un clic sur l'adresse en haut à droite la copie, le + ouvre un onglet, le zoom s'affiche dans la barre d'état quand il n'est pas à 100 % (clic pour revenir à 100 %), et la barre au-dessus des DevTools les détache (⇱) ou les ferme (✕). La barre entre la page et le terminal se glisse pour changer sa hauteur (double-clic pour revenir à la taille par défaut), la barre entre les deux écrans du split aussi. Les onglets, résultats, favoris et pastilles d'extensions sont cliquables (Ctrl+clic pour un nouvel onglet). Clic molette sur un onglet pour le fermer, glisser-déposer pour changer leur ordre. Dans le terminal, le clic droit copie le texte sélectionné, ou colle le presse-papier dans la ligne de commande s'il n'y a pas de sélection.
 
 ## Extensions
 
 Sur le Chrome Web Store, le bouton « Ajouter à Chrome » est grisé hors de Chrome : sur la page de l'extension, tape simplement `ext add` (le terminal le rappelle). `ext add` accepte aussi un lien du Chrome Web Store, un identifiant d'extension ou un dossier d'extension décompressée. Chaque extension a une pastille numérotée dans la barre d'état ; un clic ou Alt+n ouvre sa popup. Electron ne gère qu'une partie des API d'extensions Chrome ; la bibliothèque [electron-chrome-extensions](https://github.com/samuelmaddock/electron-browser-shell/tree/master/packages/electron-chrome-extensions) ajoute les onglets, fenêtres, notifications, cookies et permissions (une extension peut par exemple ouvrir un onglet). Les bloqueurs de pub et scripts de contenu fonctionnent bien ; certaines extensions plus poussées peuvent encore ne pas marcher.
 
 
-**Bloqueur de pub :** tape `ext add ublock` pour installer uBlock Origin complet, pris dans ses [Releases GitHub](https://github.com/gorhill/uBlock/releases) (le relancer le met à jour). uBlock Origin Lite, la version du Chrome Web Store, bloque avec `declarativeNetRequest`, qu'Electron ne gère pas : elle ne bloque rien ici, et `ext` le signale.
+**Bloqueur de pub :** dev-brows bloque pubs et pisteurs tout seul, avec le moteur de [Ghostery](https://github.com/ghostery/adblocker) et les listes EasyList et EasyPrivacy (retéléchargées chaque semaine). `adblock` affiche le nombre de requêtes bloquées, `adblock off` le met en pause. uBlock Origin ne fonctionne pas dans Electron (son script de fond plante sur une API absente) et uBlock Origin Lite bloque avec `declarativeNetRequest`, qu'Electron ne gère pas : `ext add ublock` active donc le bloqueur intégré. Tant qu'il est actif, les extensions qui bloquent avec `chrome.webRequest` ne filtrent rien (Electron n'accepte qu'un seul filtre de requêtes).
+
 ## IA
 
 `ia <question>` affiche une réponse de quelques phrases écrite par l'IA choisie. `ia` tout seul affiche la liste des IA : tape un numéro pour en choisir une. Si elle n'a pas encore de clé, la page où la créer s'ouvre ; copie la clé puis tape `ia key <clé>`.
@@ -118,7 +122,7 @@ L'appli se ferme, la mise à jour se fait avec le `node` du système (sous Windo
 - Chaque site tourne dans le bac à sable de Chromium, sans accès à Node ni à l'ordinateur.
 - Caméra, micro, position, notifications, presse-papier, partage d'écran, ouverture d'applications externes : chaque demande d'un site pose la question dans le terminal (Entrée ou `o` oui, `t` toujours, `j` jamais, `n` non). `perm` liste les choix enregistrés.
 - La version de Chromium est celle d'Electron : faire `update install` quand l'appli le signale pour recevoir les correctifs de sécurité.
-- Connexion Google : Google refuse les navigateurs basés sur Electron (« Ce navigateur ou cette application ne sont peut-être pas sécurisés »). Sur `accounts.google.com` uniquement, dev-brows se présente donc comme Firefox ; pendant cette connexion, les bloqueurs de pub sont en pause (Electron ne laisse pas les deux filtrer les requêtes en même temps). Google peut bloquer cette parade à tout moment.
+- Connexion Google : Google refuse les navigateurs basés sur Electron (« Ce navigateur ou cette application ne sont peut-être pas sécurisés »). Sur `accounts.google.com` uniquement, dev-brows se présente donc comme Firefox ; pendant cette connexion, les extensions de blocage sont en pause (le bloqueur intégré, lui, continue). Google peut bloquer cette parade à tout moment.
 - Pas de protection anti-hameçonnage (navigation sécurisée de Google) comme dans Chrome.
 
 ## Données

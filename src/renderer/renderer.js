@@ -110,6 +110,7 @@ async function run(line, { echo = true } = {}) {
   if (res.clear) el.replaceChildren();
   print(res.lines, el.isConnected ? el : term());
   if (res.hideTerminal) setTerminalHidden(true);
+  else input.focus();
 }
 
 function renderPs1() {
@@ -127,6 +128,16 @@ function renderPs1() {
     h('span', { class: 'acc' }, '❯'),
   );
 }
+
+$('#new-tab').addEventListener('click', () => api.newTab());
+
+// Un clic sur l'adresse la copie.
+$('#url').addEventListener('click', () => {
+  const url = $('#url').textContent;
+  if (!url) return;
+  api.writeClipboard(url);
+  print([{ t: `  ✓ adresse copiée : ${url}`, c: 'ok' }]);
+});
 
 $('#prompt').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -297,6 +308,17 @@ function renderPanes() {
     pane.classList.toggle('active', i === state.activePane);
     viewport.classList.toggle('has-screen', !!p.screen);
     viewport.classList.toggle('page', !p.screen && p.page);
+    // Barre au-dessus des DevTools collées à la page : on peut les détacher ou les fermer à la souris.
+    let bar = $('.devbar', viewport);
+    if (!bar) {
+      bar = h('div', { class: 'devbar' },
+        h('span', { class: 'dim' }, 'DevTools'),
+        h('span', { class: 'grow' }),
+        h('button', { type: 'button', title: 'Détacher dans une fenêtre (devtools detach)', onclick: () => api.devtools('detach') }, '⇱'),
+        h('button', { type: 'button', title: 'Fermer les DevTools (F12)', onclick: () => api.devtools('close') }, '✕'));
+      viewport.append(bar);
+    }
+    bar.hidden = !p.dev;
     fill($('.pane-bar', pane), state.panes.length > 1 ? [
       h('span', { class: 'pane-title' }, `écran ${i + 1} · ${p.title}`),
       h('button', { type: 'button', class: 'pane-close', title: `Fermer l'écran ${i + 1} (split off ${i + 1})`, onclick: (ev) => { ev.stopPropagation(); run(`split off ${i + 1}`); } }, '✕'),
@@ -333,6 +355,7 @@ function renderStatus() {
         : h('button', { type: 'button', class: 'pill', title: 'Remettre à côté de la page', onclick: () => api.devtools('attach') }, '⇲ rattacher'),
       ' ',
       h('button', { type: 'button', class: 'pill', title: 'Fermer les DevTools (F12)', onclick: () => api.devtools('close') }, '✕ fermer')) : null,
+    s.zoom !== 100 ? h('button', { type: 'button', class: 'pill zoom', title: 'Revenir à 100 % (Ctrl+0)', onclick: () => api.resetZoom() }, `zoom ${s.zoom} %`) : null,
     h('span', { class: 'grow' }),
     state.downloads ? h('span', {}, `↓ ${state.downloads}`) : null,
     chips,
@@ -536,13 +559,13 @@ const screens = {
           h('td', {}, r.name),
           h('td', {}, h('button', { type: 'button', class: `pill ${r.enabled ? 'ok' : 'dim'}`, onclick: () => run(`ext ${r.enabled ? 'off' : 'on'} ${r.n}`) }, r.enabled ? 'actif' : 'pause')),
           h('td', { class: 'dim' }, `Alt+${r.n}`),
-          h('td', {}, r.popup ? h('button', { type: 'button', class: 'pill', onclick: () => run(`ext ${r.n}`) }, 'popup') : null, r.error ? h('span', { class: 'err' }, ` ${r.error}`) : null, r.dnrOnly ? h('span', { class: 'warn' }, ' ne bloque rien ici (ext add ublock)') : null),
+          h('td', {}, r.popup ? h('button', { type: 'button', class: 'pill', onclick: () => run(`ext ${r.n}`) }, 'popup') : null, r.error ? h('span', { class: 'err' }, ` ${r.error}`) : null, r.dnrOnly ? h('span', { class: 'warn' }, ' ne bloque rien ici (le bloqueur intégré « adblock » s\'en charge)') : null, r.ublock ? h('span', { class: 'warn' }, ' ne fonctionne pas dans Electron, à supprimer (le bloqueur intégré « adblock » la remplace)') : null),
         )),
       ) : h('div', { class: 'dim' }, 'Aucune extension.'),
       h(
         'div',
         { class: 'hint' },
-        h('b', {}, 'ext add'), ' lien du Chrome Web Store, identifiant, dossier ou « ublock » · ',
+        h('b', {}, 'ext add'), ' lien du Chrome Web Store, identifiant ou dossier · ',
         h('b', {}, 'ext off|on|rm'), ' n · ', h('b', {}, 'ext alias'), ' n nom · ', h('b', {}, 'ext n'), ' ou Alt+n ouvre la popup',
       ),
     ];
