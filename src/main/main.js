@@ -1146,7 +1146,7 @@ function aiCommand(tab, args, rest, say) {
   }
   if (sub === 'model' && args.length <= 2) {
     const id = ai.current(settings);
-    if (args[1]) ai.setModel(settings, id, args[1] === 'default' ? ai.PROVIDERS[id].model : args[1]);
+    if (args[1]) ai.setModel(settings, id, args[1] === 'default' ? null : args[1]);
     say(`  modèle ${ai.PROVIDERS[id].name} : ${ai.model(settings, id)}`);
     return;
   }
@@ -1169,6 +1169,7 @@ function aiCommand(tab, args, rest, say) {
     screen.text = r.text || (r.refused ? '' : '(pas de réponse)');
     screen.sources = r.sources.map((src, i) => ({ n: i + 1, ...src, short: shortUrl(src.url) }));
     if (r.refused) screen.error = `${screen.provider} a refusé de répondre à cette question.`;
+    if (r.switched) say(`  le modèle ${r.switched.from} a été retiré : ${screen.provider} utilise maintenant ${r.switched.to}`);
     screen.done = true;
     refresh(true);
   }).catch((err) => {

@@ -82,7 +82,7 @@ Sur le Chrome Web Store, le bouton « Ajouter à Chrome » est grisé hors de Ch
 | Ollama | `llama3.2`, sur ton ordinateur | gratuit, sans clé ([ollama.com](https://ollama.com), puis `ollama pull llama3.2`) |
 
 - `ia connect <ia> <clé>` choisit l'IA et enregistre sa clé en une fois.
-- `ia model <id>` change le modèle de l'IA actuelle (`ia model default` revient au modèle par défaut).
+- `ia model <id>` change le modèle de l'IA actuelle (`ia model default` revient au modèle par défaut). Quand une IA retire un modèle, dev-brows passe tout seul à son modèle actuel (celui que conseille l'IA, sinon la version la plus récente de la même famille) et s'en souvient.
 - `ia logout [ia]` supprime la clé enregistrée, par exemple avant de prêter l'ordinateur.
 
 Chaque clé reste sur cet ordinateur, chiffrée par le système quand c'est possible, et n'apparaît ni à l'écran ni dans l'historique des commandes. Personne d'autre qui installe l'appli n'utilise ta clé. Les variables `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, `MISTRAL_API_KEY`, `GROQ_API_KEY` et `OPENROUTER_API_KEY` marchent aussi. Seul Claude fait des recherches web ; les autres répondent avec ce qu'ils savent.
