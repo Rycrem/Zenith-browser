@@ -477,13 +477,13 @@ const screens = {
           h('td', {}, r.name),
           h('td', {}, h('button', { type: 'button', class: `pill ${r.enabled ? 'ok' : 'dim'}`, onclick: () => run(`ext ${r.enabled ? 'off' : 'on'} ${r.n}`) }, r.enabled ? 'actif' : 'pause')),
           h('td', { class: 'dim' }, `Alt+${r.n}`),
-          h('td', {}, r.popup ? h('button', { type: 'button', class: 'pill', onclick: () => run(`ext ${r.n}`) }, 'popup') : null, r.error ? h('span', { class: 'err' }, ` ${r.error}`) : null),
+          h('td', {}, r.popup ? h('button', { type: 'button', class: 'pill', onclick: () => run(`ext ${r.n}`) }, 'popup') : null, r.error ? h('span', { class: 'err' }, ` ${r.error}`) : null, r.dnrOnly ? h('span', { class: 'warn' }, ' ne bloque rien ici (ext add ublock)') : null),
         )),
       ) : h('div', { class: 'dim' }, 'Aucune extension.'),
       h(
         'div',
         { class: 'hint' },
-        h('b', {}, 'ext add'), ' lien du Chrome Web Store, identifiant ou dossier · ',
+        h('b', {}, 'ext add'), ' lien du Chrome Web Store, identifiant, dossier ou « ublock » · ',
         h('b', {}, 'ext off|on|rm'), ' n · ', h('b', {}, 'ext alias'), ' n nom · ', h('b', {}, 'ext n'), ' ou Alt+n ouvre la popup',
       ),
     ];
@@ -545,3 +545,20 @@ renderPs1();
 print([{ t: 'dev-brows prêt. Ctrl+L revient ici, Ctrl+J cache le terminal, Échap rend la main à la page.', c: 'dim' }]);
 api.ready();
 input.focus();
+
+// Clic droit dans le terminal, comme dans le Terminal Windows : copie le texte sélectionné,
+// sinon colle le presse-papier dans la ligne de commande.
+$('#terminal').addEventListener('contextmenu', async (e) => {
+  e.preventDefault();
+  const inInput = document.activeElement === input && input.selectionStart !== input.selectionEnd;
+  const selected = inInput ? input.value.slice(input.selectionStart, input.selectionEnd) : String(window.getSelection());
+  if (selected) {
+    api.writeClipboard(selected);
+    window.getSelection().removeAllRanges();
+    input.focus();
+    return;
+  }
+  const text = (await api.readClipboard()).replace(/\r?\n/g, ' ').trim();
+  input.focus();
+  if (text) input.setRangeText(text, input.selectionStart, input.selectionEnd, 'end');
+});

@@ -50,19 +50,41 @@ const isGoogleLogin = (url) => {
   }
 };
 
-function setupGoogleLogin() {
-  const ua = firefoxUserAgent();
-  ses.webRequest.onBeforeSendHeaders({ urls: [`https://${GOOGLE_LOGIN}/*`] }, (details, callback) => {
-    const headers = details.requestHeaders;
-    for (const name of Object.keys(headers)) if (/^sec-ch-ua/i.test(name)) delete headers[name];
-    headers['User-Agent'] = ua;
-    callback({ requestHeaders: headers });
-  });
+// Le filtre d'en-têtes n'est posé que pendant une connexion Google : tant qu'un filtre
+// session.webRequest existe, Electron ignore le chrome.webRequest des extensions (uBlock Origin).
+const onGoogleLogin = new Set();
+
+function setGoogleFilter(id, on) {
+  const before = onGoogleLogin.size;
+  if (on) onGoogleLogin.add(id);
+  else onGoogleLogin.delete(id);
+  if (!before && onGoogleLogin.size) {
+    const ua = firefoxUserAgent();
+    ses.webRequest.onBeforeSendHeaders({ urls: [`https://${GOOGLE_LOGIN}/*`] }, (details, callback) => {
+      const headers = details.requestHeaders;
+      for (const name of Object.keys(headers)) if (/^sec-ch-ua/i.test(name)) delete headers[name];
+      headers['User-Agent'] = ua;
+      callback({ requestHeaders: headers });
+    });
+  } else if (before && !onGoogleLogin.size) {
+    ses.webRequest.onBeforeSendHeaders(null);
+  }
 }
 
 function matchUserAgent(wc, url) {
   const ua = isGoogleLogin(url) ? firefoxUserAgent() : app.userAgentFallback;
   if (wc.getUserAgent() !== ua) wc.setUserAgent(ua);
+}
+
+// Onglets et fenêtres de connexion (popups OAuth comprises).
+function setupGoogleLogin() {
+  app.on('web-contents-created', (e, wc) => {
+    const id = wc.id;
+    const follow = (url) => setGoogleFilter(id, isGoogleLogin(url));
+    wc.on('did-start-navigation', (d) => d.isMainFrame && follow(d.url));
+    wc.on('will-redirect', (d) => d.isMainFrame && follow(d.url));
+    wc.once('destroyed', () => setGoogleFilter(id, false));
+  });
 }
 
 const THEMES = { ambre: '#F2A541', vert: '#7FD18B', cyan: '#6CC5D9', rose: '#E07AA8' };
@@ -121,6 +143,8 @@ function ensureView(tab) {
   tab.view = view;
   wireWebContents(tab, view.webContents);
   chromeApi.addTab(view.webContents, win);
+  // L'onglet peut déjà être affiché (page d'accueil qui charge un site) : les extensions doivent le savoir actif.
+  if (panes[activePane] && panes[activePane].tabId === tab.id) chromeApi.selectTab(view.webContents);
   return view;
 }
 
@@ -1038,10 +1062,11 @@ async function extCommand(tab, args, say) {
     case 'add': {
       // Sans argument, installe l'extension de la page du Chrome Web Store ouverte.
       const source = args[1] ? args.slice(1).join(' ') : storeExtensionId(tab.url || '');
-      if (!source) throw new Error('ext add <lien du Chrome Web Store | identifiant | dossier>, ou « ext add » seul sur la page de l\'extension');
+      if (!source) throw new Error('ext add <lien du Chrome Web Store | identifiant | dossier | ublock>, ou « ext add » seul sur la page de l\'extension');
       print([{ t: '  installation de l\'extension…', c: 'dim' }]);
       const ext = await exts.add(source);
       say(`  ✓ ${ext.name} installée, alias « ${ext.alias} »${ext.popup ? '' : ' (pas de popup)'}`, 'ok');
+      if (ext.dnrOnly) say('  ⚠ cette extension bloque avec declarativeNetRequest, qu\'Electron ne gère pas : elle ne bloquera rien. Pour bloquer les pubs : « ext add ublock » (uBlock Origin complet).', 'warn');
       break;
     }
     case 'on':
@@ -1516,6 +1541,8 @@ function setupIpc() {
   });
   ipcMain.handle('ui:exec', (e, line) => exec(String(line)));
   ipcMain.handle('ui:complete', (e, line) => complete(String(line)));
+  ipcMain.handle('ui:clipboard-read', () => clipboard.readText());
+  ipcMain.on('ui:clipboard-write', (e, text) => clipboard.writeText(String(text)));
   let started = false;
   ipcMain.on('ui:ready', () => {
     sendState();
