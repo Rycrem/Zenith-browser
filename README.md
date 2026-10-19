@@ -63,7 +63,7 @@ Ctrl+L terminal · Ctrl+J cacher/montrer le terminal · Échap rendre la main à
 
 ## Extensions
 
-Sur le Chrome Web Store, le bouton « Ajouter à Chrome » est grisé hors de Chrome : sur la page de l'extension, tape simplement `ext add` (le terminal le rappelle). `ext add` accepte aussi un lien du Chrome Web Store, un identifiant d'extension ou un dossier d'extension décompressée. Chaque extension a une pastille numérotée dans la barre d'état ; un clic ou Alt+n ouvre sa popup. Electron ne gère qu'une partie des API d'extensions Chrome : les bloqueurs de pub et scripts de contenu fonctionnent bien, certaines extensions plus poussées peuvent ne pas marcher.
+Sur le Chrome Web Store, le bouton « Ajouter à Chrome » est grisé hors de Chrome : sur la page de l'extension, tape simplement `ext add` (le terminal le rappelle). `ext add` accepte aussi un lien du Chrome Web Store, un identifiant d'extension ou un dossier d'extension décompressée. Chaque extension a une pastille numérotée dans la barre d'état ; un clic ou Alt+n ouvre sa popup. Electron ne gère qu'une partie des API d'extensions Chrome ; la bibliothèque [electron-chrome-extensions](https://github.com/samuelmaddock/electron-browser-shell/tree/master/packages/electron-chrome-extensions) ajoute les onglets, fenêtres, notifications, cookies et permissions (une extension peut par exemple ouvrir un onglet). Les bloqueurs de pub et scripts de contenu fonctionnent bien ; certaines extensions plus poussées peuvent encore ne pas marcher.
 
 ## IA
 
@@ -116,3 +116,7 @@ L'appli se ferme, la mise à jour se fait avec le `node` du système (sous Windo
 Favoris, historique et réglages sont des fichiers JSON dans le dossier de données d'Electron (`~/.config/dev-brows` sous Linux, `%APPDATA%\dev-brows` sous Windows, `~/Library/Application Support/dev-brows` sous macOS).
 
 Lancée depuis le code, l'appli utilise un dossier à part, `dev-brows-dev` (copié depuis `dev-brows` la première fois) : l'appli installée chiffre ses cookies avec une clé que la version de développement ne peut pas relire.
+
+## Licence
+
+GPL-3.0 ou ultérieure (voir [LICENSE](LICENSE)), à cause de la bibliothèque electron-chrome-extensions, distribuée sous GPL-3.0.

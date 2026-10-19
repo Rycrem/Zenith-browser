@@ -6,6 +6,7 @@ const os = require('os');
 const path = require('path');
 const { JsonStore } = require('./store');
 const { Extensions } = require('./extensions');
+const { ElectronChromeExtensions } = require('electron-chrome-extensions');
 const ai = require('./ai');
 const updater = require('./updater');
 const fav = require('../shared/favorites');
@@ -70,6 +71,7 @@ const DEVTOOLS_RATIO = 0.4;
 
 let win = null;
 let ses = null;
+let chromeApi = null; // API d'extensions Chrome (onglets, fenêtres…) qu'Electron ne fournit pas
 let favorites = null; // JsonStore { tree }
 let history = null; // JsonStore { entries }
 let settings = null; // JsonStore { engine, theme, aliases, extensions }
@@ -118,7 +120,47 @@ function ensureView(tab) {
   win.contentView.addChildView(view);
   tab.view = view;
   wireWebContents(tab, view.webContents);
+  chromeApi.addTab(view.webContents, win);
   return view;
+}
+
+const tabOfContents = (wc) => tabs.find((t) => t.view && t.view.webContents === wc);
+
+// chrome.tabs / chrome.windows des extensions, branchés sur les onglets de dev-brows.
+function setupChromeApi() {
+  chromeApi = new ElectronChromeExtensions({
+    license: 'GPL-3.0',
+    session: ses,
+    createTab(details) {
+      const tab = createTab({ url: details.url || undefined, background: details.active === false });
+      return [ensureView(tab).webContents, win];
+    },
+    selectTab(wc) {
+      const tab = tabOfContents(wc);
+      if (tab) showInPane(tab, activePane);
+    },
+    removeTab(wc) {
+      const tab = tabOfContents(wc);
+      if (tab) closeTab(tab);
+    },
+    // Les extensions ouvrent parfois une petite fenêtre (connexion, déverrouillage…).
+    createWindow(details) {
+      const popup = new BrowserWindow({
+        width: details.width || 480,
+        height: details.height || 640,
+        parent: details.type === 'popup' ? win : undefined,
+        title: 'dev-brows',
+        webPreferences: { session: ses, sandbox: true, contextIsolation: true },
+      });
+      popup.setMenuBarVisibility(false);
+      const url = [].concat(details.url || [])[0];
+      if (url) popup.loadURL(url);
+      return popup;
+    },
+    removeWindow(w) {
+      if (!w.isDestroyed()) w.close();
+    },
+  });
 }
 
 // Le Chrome Web Store grise « Ajouter à Chrome » hors de Chrome : on propose « ext add » à la place.
@@ -171,6 +213,7 @@ function wireWebContents(tab, wc) {
     const p = paneOf(tab);
     if (p >= 0 && p !== activePane) {
       activePane = p;
+      chromeApi.selectTab(wc);
       sendState();
     }
   });
@@ -201,6 +244,7 @@ function showInPane(tab, idx) {
   if (other >= 0) panes[other].tabId = panes[idx].tabId; // échange si l'onglet est déjà dans l'autre écran
   panes[idx].tabId = tab.id;
   activePane = idx;
+  if (tab.view) chromeApi.selectTab(tab.view.webContents);
   layout();
   sendState();
 }
@@ -1531,6 +1575,7 @@ app.whenReady().then(async () => {
   history = new JsonStore(path.join(dir, 'historique.json'), { entries: [] });
   settings = new JsonStore(path.join(dir, 'reglages.json'), { engine: 'ddg', theme: 'ambre', aliases: {}, extensions: [] });
   ai.migrate(settings);
+  setupChromeApi(); // avant le chargement des extensions, pour lire leurs manifestes
   exts = new Extensions(ses, settings, path.join(dir, 'extensions'));
   await exts.loadAll();
   setupIpc();

@@ -9,10 +9,11 @@
     "dist": "electron-builder --publish never",
     "release": "electron-builder --publish always"
   },
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",
     "adm-zip": "^0.6.1",
+    "electron-chrome-extensions": "^4.9.0",
     "electron-updater": "^6.8.9"
   },
   "devDependencies": {
