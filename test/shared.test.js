@@ -106,3 +106,14 @@ test('crx3 vers zip et identifiant d\'extension', () => {
   assert.strictEqual(crx.storeExtensionId(`https://example.com/detail/${id}`), null);
   assert.strictEqual(crx.storeExtensionId('https://chromewebstore.google.com/'), null);
 });
+
+test('une commande suivie de mots inattendus devient une recherche', () => {
+  assert.strictEqual(cmd.acceptsArgs('home', ['depot']), false);
+  assert.strictEqual(cmd.acceptsArgs('close', ['friends']), false);
+  assert.strictEqual(cmd.acceptsArgs('close', ['2']), true);
+  assert.strictEqual(cmd.acceptsArgs('tab', ['new']), true);
+  assert.strictEqual(cmd.acceptsArgs('split', ['off']), true);
+  assert.strictEqual(cmd.acceptsArgs('split', ['pea']), false);
+  assert.strictEqual(cmd.acceptsArgs('brows', ['chat']), true);
+  assert.strictEqual(cmd.acceptsArgs('devtools', ['detach']), true);
+});

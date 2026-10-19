@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld('brows', {
   focusPage: () => ipcRenderer.send('ui:focus-page'),
   tab: (id) => ipcRenderer.send('ui:tab', id),
   closeTab: (id) => ipcRenderer.send('ui:tab-close', id),
+  moveTab: (id, targetId) => ipcRenderer.send('ui:tab-move', id, targetId),
+  devtools: (action) => ipcRenderer.send('ui:devtools', action),
   newTab: () => ipcRenderer.send('ui:tab-new'),
   pane: (i) => ipcRenderer.send('ui:pane', i),
   extPopup: (n, x) => ipcRenderer.send('ui:ext-popup', n, x),

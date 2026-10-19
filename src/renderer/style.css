@@ -88,6 +88,7 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
 .tab .close { width: 18px; height: 18px; border-radius: 3px; color: var(--dim); }
 .tab .close:hover { background: var(--line); color: var(--text); }
 .tab .spin { color: var(--accent); }
+.tab.drop { box-shadow: inset 2px 0 0 var(--accent); }
 
 #new-tab { width: 26px; height: 26px; border-radius: 4px; color: var(--dim); font-size: 16px; }
 #new-tab:hover { background: var(--bg-raised); color: var(--text); }
@@ -220,6 +221,8 @@ th { color: var(--dim); }
 
 #status .grow { flex: 1; }
 #status .addr { overflow: hidden; text-overflow: ellipsis; }
+#status .dev .pill { background: var(--bg); color: var(--text); font-size: 12px; }
+#status .dev .pill:hover { color: var(--accent); }
 .chip { padding: 2px 8px; border-radius: 3px; background: var(--bg); color: var(--green); font-size: 12px; font-weight: 600; }
 .chip.off { color: var(--dim); }
 .chip:hover { outline: 2px solid var(--bg); outline-offset: 1px; }

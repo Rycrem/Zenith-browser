@@ -50,18 +50,20 @@ Pour seulement Windows, lancer plutôt le workflow « Installateur Windows » (o
 | `ext`, `ext add <lien store \| id \| dossier>`, `ext on/off/rm <n>`, `ext alias <n> <nom>`, `ext <n>` | extensions |
 | `dl [n]` | téléchargements (enregistrés directement dans Téléchargements) |
 | `alias nom = commande`, `unalias nom` | raccourcis perso |
-| `engine ddg\|google\|bing\|qwant`, `theme ambre\|vert\|cyan\|rose` | réglages |
+| `engine ddg\|google\|bing\|qwant`, `theme ambre\|vert\|cyan\|rose\|violet` | réglages |
 | `perm`, `perm reset [site]` | autorisations données aux sites |
 | `update`, `update install`, `update electron` | mises à jour (voir plus bas) |
-| `devtools`, `term`, `help`, `clear` | divers |
+| `devtools [detach\|close]`, `term`, `help`, `clear` | divers (DevTools : à côté de la page, dans une fenêtre, ou fermées ; boutons aussi dans la barre d'état) |
 
-Tout ce qui n'est ni une commande ni une adresse lance une recherche.
+Tout ce qui n'est ni une commande, ni un alias, ni une adresse lance une recherche ; une adresse (`exemple.fr`, `localhost:3000`) s'ouvre directement. Une commande suivie de mots qu'elle n'attend pas (« home depot », « close friends ») est aussi une recherche.
+
+Chaque onglet a son propre terminal ; l'historique des commandes (↑ ↓) est commun à tous.
 
 ## Raccourcis
 
 Ctrl+L terminal · Ctrl+J cacher/montrer le terminal · Échap rendre la main à la page · Ctrl+T / Ctrl+W onglets · Ctrl+Tab, Ctrl+1…9 · Alt+←/→ · F5 · Ctrl+F chercher · Ctrl+D favori · Ctrl+Maj+S split · F6 changer d'écran · F12 ou clic droit › Inspecter pour les DevTools · Alt+1…9 popup d'extension · ↑/↓ historique des commandes · Tab autocomplétion.
 
-À la souris : la barre entre la page et le terminal se glisse pour changer sa hauteur (double-clic pour revenir à la taille par défaut), la barre entre les deux écrans du split aussi. Les onglets, résultats, favoris et pastilles d'extensions sont cliquables (Ctrl+clic pour un nouvel onglet). Dans le terminal, le clic droit copie le texte sélectionné, ou colle le presse-papier dans la ligne de commande s'il n'y a pas de sélection.
+À la souris : la barre entre la page et le terminal se glisse pour changer sa hauteur (double-clic pour revenir à la taille par défaut), la barre entre les deux écrans du split aussi. Les onglets, résultats, favoris et pastilles d'extensions sont cliquables (Ctrl+clic pour un nouvel onglet). Clic molette sur un onglet pour le fermer, glisser-déposer pour changer leur ordre. Dans le terminal, le clic droit copie le texte sélectionné, ou colle le presse-papier dans la ligne de commande s'il n'y a pas de sélection.
 
 ## Extensions
 

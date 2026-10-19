@@ -53,12 +53,46 @@ function fill(el, children) {
 
 // ------------------------------------------------ terminal
 
-function print(lines) {
+// Un terminal par onglet ; l'historique des commandes (↑ ↓) reste commun.
+const terms = new Map(); // id d'onglet → div du terminal
+let termId = null;
+
+function term(id = termId) {
+  let el = terms.get(id);
+  if (!el) {
+    el = h('div', { class: 'term' });
+    el.hidden = id !== termId;
+    terms.set(id, el);
+    scrollback.append(el);
+  }
+  return el;
+}
+
+function showTerm(id, alive) {
+  for (const [k, el] of terms) {
+    if (k !== null && !alive.has(k)) {
+      el.remove();
+      terms.delete(k);
+    }
+  }
+  if (id === termId) return;
+  // Les messages d'avant le premier état vont au premier onglet.
+  if (termId === null && terms.has(null) && !terms.has(id)) {
+    terms.set(id, terms.get(null));
+    terms.delete(null);
+  }
+  termId = id;
+  for (const [k, el] of terms) el.hidden = k !== id;
+  term(id);
+  scrollback.scrollTop = scrollback.scrollHeight;
+}
+
+function print(lines, el = term()) {
   for (const l of lines) {
-    scrollback.append(h('div', { class: l.c || '' }, l.t));
+    el.append(h('div', { class: l.c || '' }, l.t));
     if (l.c === 'warn' && l.t.trim().startsWith('?')) awaiting = true;
   }
-  while (scrollback.childElementCount > 600) scrollback.firstElementChild.remove();
+  while (el.childElementCount > 600) el.firstElementChild.remove();
   scrollback.scrollTop = scrollback.scrollHeight;
   renderPs1();
 }
@@ -68,12 +102,13 @@ const SECRET = /^(\s*(?:ia|ai)\s+(?:key|connect\s+\S+)\s+)\S+/i;
 const masked = (line) => line.replace(SECRET, '$1••••••••');
 
 async function run(line, { echo = true } = {}) {
-  if (echo) print([{ t: `❯ ${masked(line)}`, c: 'cmd' }]);
+  const el = term();
+  if (echo) print([{ t: `❯ ${masked(line)}`, c: 'cmd' }], el);
   awaiting = false;
   renderPs1();
   const res = await api.exec(line);
-  if (res.clear) scrollback.replaceChildren();
-  print(res.lines);
+  if (res.clear) el.replaceChildren();
+  print(res.lines, el.isConnected ? el : term());
   if (res.hideTerminal) setTerminalHidden(true);
 }
 
@@ -219,6 +254,7 @@ window.addEventListener('resize', sendRects);
 api.on('state', (s) => {
   state = s;
   document.documentElement.style.setProperty('--accent', s.accent);
+  showTerm(s.panes[s.activePane].tabId, new Set(s.tabs.map((t) => t.id)));
   renderTabs();
   renderPanes();
   renderStatus();
@@ -230,7 +266,23 @@ function renderTabs() {
   const activeId = state.panes[state.activePane].tabId;
   fill($('#tabs'), state.tabs.map((t) => h(
     'div',
-    { class: `tab${t.id === activeId ? ' active' : ''}${t.pane >= 0 && t.id !== activeId ? ' other-pane' : ''}` },
+    {
+      class: `tab${t.id === activeId ? ' active' : ''}${t.pane >= 0 && t.id !== activeId ? ' other-pane' : ''}`,
+      draggable: 'true',
+      // Clic molette : ferme l'onglet.
+      onmousedown: (e) => { if (e.button === 1) e.preventDefault(); },
+      onauxclick: (e) => { if (e.button === 1) api.closeTab(t.id); },
+      // Glisser-déposer pour changer l'ordre des onglets.
+      ondragstart: (e) => { e.dataTransfer.setData('text/x-tab', String(t.id)); e.dataTransfer.effectAllowed = 'move'; },
+      ondragover: (e) => { if (e.dataTransfer.types.includes('text/x-tab')) { e.preventDefault(); e.currentTarget.classList.add('drop'); } },
+      ondragleave: (e) => e.currentTarget.classList.remove('drop'),
+      ondrop: (e) => {
+        e.preventDefault();
+        e.currentTarget.classList.remove('drop');
+        const id = Number(e.dataTransfer.getData('text/x-tab'));
+        if (id && id !== t.id) api.moveTab(id, t.id);
+      },
+    },
     h('button', { type: 'button', class: 'label', title: t.title, onclick: () => api.tab(t.id) }, `[${t.n}] `, t.loading ? h('span', { class: 'spin' }, '◌ ') : null, t.title),
     h('button', { type: 'button', class: 'close', 'aria-label': `Fermer l'onglet ${t.n}`, onclick: () => api.closeTab(t.id) }, '×'),
   )));
@@ -274,6 +326,13 @@ function renderStatus() {
     h('span', { class: 'addr' }, s.host),
     s.fav ? h('span', {}, `★ ${s.fav}`) : null,
     s.split ? h('span', {}, `split · écran ${state.activePane + 1}`) : null,
+    s.devtools ? h('span', { class: 'dev' },
+      'DevTools ',
+      s.devtools === 'docked'
+        ? h('button', { type: 'button', class: 'pill', title: 'Détacher dans une fenêtre (devtools detach)', onclick: () => api.devtools('detach') }, '⇱ détacher')
+        : h('button', { type: 'button', class: 'pill', title: 'Remettre à côté de la page', onclick: () => api.devtools('attach') }, '⇲ rattacher'),
+      ' ',
+      h('button', { type: 'button', class: 'pill', title: 'Fermer les DevTools (F12)', onclick: () => api.devtools('close') }, '✕ fermer')) : null,
     h('span', { class: 'grow' }),
     state.downloads ? h('span', {}, `↓ ${state.downloads}`) : null,
     chips,
