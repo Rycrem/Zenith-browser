@@ -65,7 +65,7 @@ jobs:
             echo "::error::la Release $TAG existe déjà : augmente la version dans package.json"
             exit 1
           fi
-          gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "dev-brows $TAG" --generate-notes
+          gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "dev-brows $TAG" --notes-file .github/release-notes.md --generate-notes
       - run: npm ci
       - run: npm test
       - name: Télécharger uBlock Origin (livré préinstallé)
@@ -95,6 +95,8 @@ jobs:
           signing-policy-slug: ${{ vars.SIGNPATH_POLICY_SLUG || 'release-signing' }}
           artifact-configuration-slug: app
           github-artifact-id: ${{ steps.unsigned-app.outputs.artifact-id }}
+          parameters: |
+            version: "${{ steps.version.outputs.version }}"
           wait-for-completion: true
           wait-for-completion-timeout-in-seconds: 18000
           output-artifact-directory: dist/win-unpacked
@@ -120,6 +122,8 @@ jobs:
           signing-policy-slug: ${{ vars.SIGNPATH_POLICY_SLUG || 'release-signing' }}
           artifact-configuration-slug: installer
           github-artifact-id: ${{ steps.unsigned-installer.outputs.artifact-id }}
+          parameters: |
+            version: "${{ steps.version.outputs.version }}"
           wait-for-completion: true
           wait-for-completion-timeout-in-seconds: 18000
           output-artifact-directory: dist
