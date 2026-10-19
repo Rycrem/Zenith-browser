@@ -5,9 +5,28 @@ const { execFile, spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
+// Deux façons de se mettre à jour :
+// - appli installée (installateur des Releases GitHub) : electron-updater compare la version
+//   installée avec la dernière Release, télécharge le nouvel installateur et l'applique ;
+// - appli lancée depuis le code (npm start) : git pull + npm, via scripts/update.js.
+
+const RELEASES_URL = 'https://github.com/Rycrem/dev-brows/releases/latest';
 const win = process.platform === 'win32';
 const appDir = app.getAppPath();
 const reportFile = () => path.join(app.getPath('userData'), 'mise-a-jour.json');
+
+let autoUpdater = null;
+function releaseUpdater() {
+  if (!autoUpdater) {
+    ({ autoUpdater } = require('electron-updater'));
+    autoUpdater.autoDownload = false;
+    autoUpdater.autoInstallOnAppQuit = false;
+    autoUpdater.logger = null;
+  }
+  return autoUpdater;
+}
+
+const installed = () => app.isPackaged;
 
 function sh(cmd, args) {
   return new Promise((resolve) => {
@@ -19,9 +38,15 @@ function major(v) {
   return Number(String(v).split('.')[0]);
 }
 
-// Compare la version installée d'Electron avec la dernière de la même version majeure
-// (correctifs de sécurité, sans risque de casse) et la toute dernière.
-async function check() {
+// Appli installée : y a-t-il une Release GitHub plus récente que la version installée ?
+async function checkRelease() {
+  const result = await releaseUpdater().checkForUpdates();
+  const latest = result && result.updateInfo ? result.updateInfo.version : app.getVersion();
+  return { installed: true, current: app.getVersion(), latest, available: !!(result && result.isUpdateAvailable) };
+}
+
+// Code source : correctifs d'Electron dans la même version majeure, dernière majeure, commits en attente.
+async function checkSource() {
   const current = process.versions.electron;
   const [sameMajorJson, latest] = await Promise.all([
     sh('npm', ['view', `electron@^${major(current)}`, 'version', '--json']),
@@ -40,11 +65,31 @@ async function check() {
     const n = await sh('git', ['rev-list', '--count', 'HEAD..@{u}']);
     behind = n === null ? null : Number(n);
   }
-  return { current, sameMajor, latest, behind, git: behind !== null };
+  return { installed: false, current, sameMajor, latest, behind };
 }
 
-// Lance scripts/update.js avec le node du système puis ferme l'appli ; le script la relance.
-function launch(mode) {
+function check() {
+  return installed() ? checkRelease() : checkSource();
+}
+
+// Appli installée : télécharge le nouvel installateur (onProgress reçoit un pourcentage) puis relance.
+async function installRelease(onProgress) {
+  const updater = releaseUpdater();
+  const result = await updater.checkForUpdates();
+  if (!result || !result.isUpdateAvailable) return false;
+  const progress = (p) => onProgress(Math.round(p.percent));
+  updater.on('download-progress', progress);
+  try {
+    await updater.downloadUpdate();
+  } finally {
+    updater.removeListener('download-progress', progress);
+  }
+  updater.quitAndInstall();
+  return true;
+}
+
+// Code source : lance scripts/update.js avec le node du système puis ferme l'appli ; le script la relance.
+function launchSource(mode) {
   return new Promise((resolve, reject) => {
     const child = spawn('node', [path.join(appDir, 'scripts', 'update.js'), appDir, String(process.pid), mode, reportFile()], {
       cwd: appDir,
@@ -60,7 +105,7 @@ function launch(mode) {
   });
 }
 
-// Compte rendu de la dernière mise à jour, affiché une fois au démarrage suivant.
+// Compte rendu de la dernière mise à jour depuis le code, affiché une fois au démarrage suivant.
 function lastReport() {
   const file = reportFile();
   if (!fs.existsSync(file)) return null;
@@ -73,4 +118,4 @@ function lastReport() {
   }
 }
 
-module.exports = { check, launch, lastReport, major };
+module.exports = { check, installed, installRelease, launchSource, lastReport, major, RELEASES_URL };

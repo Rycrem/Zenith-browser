@@ -12,6 +12,16 @@ const fav = require('../shared/favorites');
 const C = require('../shared/commands');
 const { parseDuckDuckGoHtml, parseNextPage, shortUrl } = require('../shared/search');
 
+// Lancée depuis le code, l'appli garde ses données à part : la version installée chiffre
+// ses cookies (fuse Electron), et un Electron sans ce réglage ne saurait plus les lire.
+if (!app.isPackaged) {
+  const shared = app.getPath('userData');
+  const dev = `${shared}-dev`;
+  // Les données créées avant cette séparation suivent la version lancée depuis le code.
+  if (fs.existsSync(shared) && !fs.existsSync(dev)) fs.cpSync(shared, dev, { recursive: true });
+  app.setPath('userData', dev);
+}
+
 // Sans les mentions Electron et dev-brows, les sites voient un Chrome ordinaire.
 app.userAgentFallback = app.userAgentFallback
   .replace(/ Electron\/\S+/, '')
@@ -1020,12 +1030,43 @@ function aiCommand(tab, args, rest, say) {
 
 async function updateCommand(args, say) {
   const sub = args[0];
-  if (sub === 'install' || sub === 'electron') {
+  if (updater.installed()) {
+    if (sub === 'electron') {
+      say('  Electron est inclus dans l\'installateur : « update install » installe la dernière version publiée', 'dim');
+      return;
+    }
+    if (sub === 'install') {
+      // Sans signature Apple, macOS refuse l'installation automatique : on ouvre la page de téléchargement.
+      if (process.platform === 'darwin') {
+        createTab({ url: updater.RELEASES_URL });
+        say('  page des installateurs ouverte : télécharge le .dmg de la dernière version', 'dim');
+        return;
+      }
+      ask(say, 'télécharger et installer la dernière version ? l\'appli redémarrera', async (s) => {
+        print([{ t: '  téléchargement de l\'installateur…', c: 'dim' }]);
+        let last = -10;
+        try {
+          const started = await updater.installRelease((pct) => {
+            if (pct - last >= 10 || pct === 100) {
+              last = pct;
+              print([{ t: `  ↓ ${pct} %`, c: 'dim' }]);
+            }
+          });
+          if (!started) s('  ✓ déjà à jour', 'ok');
+        } catch (err) {
+          s(`  mise à jour impossible : ${err.message}`, 'err');
+          createTab({ url: updater.RELEASES_URL });
+          s('  page des installateurs ouverte pour la faire à la main', 'dim');
+        }
+      });
+      return;
+    }
+  } else if (sub === 'install' || sub === 'electron') {
     const what = sub === 'electron'
       ? 'passer à la dernière version majeure d\'Electron (peut casser des choses, à tester)'
       : 'mettre à jour l\'appli et Electron dans sa version actuelle';
     ask(say, `${what} ? l'appli va se fermer puis se relancer`, async (s) => {
-      await updater.launch(sub === 'electron' ? 'electron' : 'app');
+      await updater.launchSource(sub === 'electron' ? 'electron' : 'app');
       s('  mise à jour lancée, l\'appli redémarre…', 'ok');
       setTimeout(() => app.quit(), 600);
     });
@@ -1039,7 +1080,13 @@ async function updateCommand(args, say) {
 }
 
 function updateLines(r) {
-  const lines = [{ t: `  Electron ${r.current} (Chromium ${process.versions.chrome})` }];
+  if (r.installed) {
+    const lines = [{ t: `  dev-brows ${r.current} (Electron ${process.versions.electron}, Chromium ${process.versions.chrome})` }];
+    if (r.available) lines.push({ t: `  ↑ nouvelle version publiée sur GitHub : ${r.latest} → « update install »`, c: 'warn' });
+    else lines.push({ t: '  ✓ à jour', c: 'ok' });
+    return lines;
+  }
+  const lines = [{ t: `  Electron ${r.current} (Chromium ${process.versions.chrome}), lancé depuis le code` }];
   const patch = r.sameMajor !== r.current;
   if (patch) lines.push({ t: `  ↑ correctifs disponibles : Electron ${r.sameMajor} → « update install »`, c: 'warn' });
   if (updater.major(r.latest) > updater.major(r.current)) {
@@ -1058,13 +1105,18 @@ function startupUpdateNotes() {
     print([{ t: `  ${report.ok ? '✓ mise à jour terminée' : '✗ mise à jour incomplète'}${versions}`, c: report.ok ? 'ok' : 'err' }]);
     for (const step of report.steps.filter((st) => !st.ok)) print([{ t: `    ${step.cmd} : ${step.output}`, c: 'err' }]);
   }
+  if (updater.installed() && settings.data.lastVersion && settings.data.lastVersion !== app.getVersion()) {
+    print([{ t: `  ✓ dev-brows mis à jour en ${app.getVersion()}`, c: 'ok' }]);
+  }
+  settings.data.lastVersion = app.getVersion();
+  settings.save();
   if (Date.now() - (settings.data.lastUpdateCheck || 0) < 24 * 3600 * 1000) return;
   setTimeout(async () => {
     try {
       const r = await updater.check();
       settings.data.lastUpdateCheck = Date.now();
       settings.save();
-      if (r.sameMajor !== r.current || r.behind) print(updateLines(r).filter((l) => l.c === 'warn'));
+      print(updateLines(r).filter((l) => l.c === 'warn'));
     } catch {
       // hors ligne : on réessaiera au prochain démarrage
     }

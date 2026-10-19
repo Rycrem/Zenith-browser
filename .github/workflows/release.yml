@@ -1,0 +1,72 @@
+# Construit les installateurs Windows, macOS et Linux et les publie dans une Release GitHub.
+# Se lance en poussant un tag vX.Y.Z (égal à la version de package.json), ou à la main
+# depuis l'onglet Actions. L'appli installée détecte ensuite la nouvelle Release avec « update ».
+name: Installateurs
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        name: Lire la version
+        shell: bash
+        run: |
+          tag="v$(node -p "require('./package.json').version")"
+          if [[ "$GITHUB_REF" == refs/tags/* && "$GITHUB_REF_NAME" != "$tag" ]]; then
+            echo "::error::le tag $GITHUB_REF_NAME ne correspond pas à la version de package.json ($tag)"
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: Créer la Release en brouillon
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::la Release $TAG existe déjà : augmente la version dans package.json"
+            exit 1
+          fi
+          gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "dev-brows $TAG" --generate-notes
+
+  build:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Construire et envoyer les installateurs
+        run: npx electron-builder --publish always
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Pas de certificat de signature : installateurs non signés.
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+  publish:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publier la Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest

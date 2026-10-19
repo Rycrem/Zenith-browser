@@ -2,14 +2,29 @@
 
 Un navigateur basé sur Chromium (Electron) qui se pilote comme un terminal. Les sites s'affichent normalement et restent cliquables à la souris ; le terminal reste en dessous pour taper des commandes.
 
-## Lancer
+## Installer
+
+Les installateurs sont sur la page [Releases](https://github.com/Rycrem/dev-brows/releases/latest) :
+
+- Windows : `dev-brows-Setup-x.y.z.exe`. L'appli n'est pas signée : Windows SmartScreen affiche « Windows a protégé votre ordinateur », cliquer sur « Informations complémentaires » › « Exécuter quand même ».
+- macOS : `.dmg` (`arm64` pour les Mac Apple Silicon, `x64` pour les Mac Intel). L'appli n'est pas signée : au premier lancement, clic droit sur l'appli › Ouvrir.
+- Linux : `.AppImage` (le rendre exécutable puis le lancer) ou `.deb`.
+
+## Lancer depuis le code
 
 ```bash
 npm install
 npm start
 ```
 
-Tests de la logique (favoris, alias, lecture des résultats, extensions) : `npm test`.
+Tests de la logique (favoris, alias, lecture des résultats, extensions) : `npm test`. `npm run dist` construit l'installateur du système courant dans `dist/`.
+
+## Publier une version
+
+1. Changer `version` dans `package.json` (par exemple `0.2.0`) et pousser sur `main`.
+2. Lancer le workflow GitHub Actions « Installateurs » (onglet Actions › Installateurs › Run workflow), ou pousser le tag correspondant (`git tag v0.2.0 && git push origin v0.2.0`).
+
+Le workflow construit les installateurs Windows, macOS et Linux, les joint à une Release `v0.2.0` puis la publie. C'est cette Release que l'appli installée détecte avec `update`.
 
 ## Commandes
 
@@ -57,7 +72,17 @@ Il faut une clé API Anthropic (console.anthropic.com, facturée à l'usage, ind
 
 ## Mises à jour
 
-- `update` vérifie la version d'Electron (et donc de Chromium) et les nouveaux commits du dépôt. Une vérification se fait aussi toute seule une fois par jour au démarrage.
+Une vérification se fait toute seule une fois par jour au démarrage ; `update` la lance à la demande.
+
+**Appli installée** (depuis un installateur des Releases) :
+
+- `update` compare la version installée avec la dernière Release GitHub et signale quand un nouvel installateur est publié.
+- `update install` télécharge le nouvel installateur, l'applique et relance l'appli. Sur macOS (appli non signée, la mise à jour automatique y est impossible), il ouvre la page de la Release pour télécharger le `.dmg`.
+- Electron et Chromium sont livrés avec l'installateur : chaque nouvelle Release les met à jour.
+
+**Lancée depuis le code** (`npm start`) :
+
+- `update` vérifie la version d'Electron (et donc de Chromium) et les nouveaux commits du dépôt.
 - `update install` récupère le code (`git pull`), puis met à jour les dépendances sans changer de version majeure d'Electron : ce sont les correctifs de sécurité, sans risque de casse.
 - `update electron` passe à la toute dernière version majeure d'Electron, à tester.
 
@@ -72,4 +97,6 @@ L'appli se ferme, la mise à jour se fait avec le `node` du système (sous Windo
 
 ## Données
 
-Favoris, historique et réglages sont des fichiers JSON dans le dossier de données d'Electron (`~/.config/dev-brows` sous Linux, `%APPDATA%\dev-brows` sous Windows).
+Favoris, historique et réglages sont des fichiers JSON dans le dossier de données d'Electron (`~/.config/dev-brows` sous Linux, `%APPDATA%\dev-brows` sous Windows, `~/Library/Application Support/dev-brows` sous macOS).
+
+Lancée depuis le code, l'appli utilise un dossier à part, `dev-brows-dev` (copié depuis `dev-brows` la première fois) : l'appli installée chiffre ses cookies avec une clé que la version de développement ne peut pas relire.
