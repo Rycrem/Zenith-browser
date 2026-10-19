@@ -1,14 +1,24 @@
 # dev-brows
 
+[English](README.md) · **Français**
+
 Un navigateur basé sur Chromium (Electron) qui se pilote comme un terminal. Les sites s'affichent normalement et restent cliquables à la souris ; le terminal reste en dessous pour taper des commandes.
+
+![Écran d'accueil](docs/screenshots/home-fr.png)
 
 ## Installer
 
 Les installateurs sont sur la page [Releases](https://github.com/Rycrem/dev-brows/releases/latest) :
 
-- Windows : `dev-brows-Setup-x.y.z.exe`. Sans signature (voir « Signer l'installateur Windows »), Windows SmartScreen affiche « Windows a protégé votre ordinateur » : cliquer sur « Informations complémentaires » › « Exécuter quand même ». Le Contrôle intelligent des applications de Windows 11, lui, bloque l'installateur non signé sans proposer d'exception.
+- Windows : `dev-brows-Setup-x.y.z.exe`. L'installateur demande la langue de l'appli (français ou anglais) et, sur sa page Confidentialité, si l'appli peut chercher les mises à jour toute seule. Si l'installateur n'est pas signé (voir « Signer l'installateur Windows »), Windows SmartScreen affiche « Windows a protégé votre ordinateur » : cliquer sur « Informations complémentaires » › « Exécuter quand même ». Le Contrôle intelligent des applications de Windows 11, lui, bloque un installateur non signé sans proposer d'exception.
 - macOS : `.dmg` (`arm64` pour les Mac Apple Silicon, `x64` pour les Mac Intel). L'appli n'est pas signée : au premier lancement, clic droit sur l'appli › Ouvrir.
 - Linux : `.AppImage` (le rendre exécutable puis le lancer) ou `.deb`.
+
+**Désinstaller :** sous Windows, Paramètres › Applications › Applications installées › dev-brows › Désinstaller. Sous macOS, glisser dev-brows des Applications vers la Corbeille. Sous Linux, supprimer le `.AppImage`, ou `sudo apt remove dev-brows` pour le `.deb`. Tes données restent dans le dossier indiqué dans « Données » tant que tu ne le supprimes pas.
+
+## Langue
+
+dev-brows parle français et anglais. `lang` affiche la langue, `lang fr` ou `lang en` la change tout de suite. La première fois, l'appli prend la langue choisie dans l'installateur Windows, sinon celle du système (français si le système est en français, anglais sinon).
 
 ## Lancer depuis le code
 
@@ -21,7 +31,7 @@ Tests de la logique (favoris, alias, lecture des résultats, extensions) : `npm 
 
 ## Publier une version
 
-1. Changer `version` dans `package.json` (par exemple `0.2.0`), ajouter ses notes en tête de `src/shared/changelog.js` (affichées sur l'écran d'accueil ; `npm test` le vérifie) et pousser sur `main`.
+1. Changer `version` dans `package.json` (par exemple `0.2.0`), ajouter ses notes en français et en anglais en tête de `src/shared/changelog.js` (affichées sur l'écran d'accueil ; `npm test` le vérifie) et pousser sur `main`.
 2. Lancer le workflow GitHub Actions « Installateurs » (onglet Actions › Installateurs › Run workflow), ou pousser le tag correspondant (`git tag v0.2.0 && git push origin v0.2.0`).
 
 Le workflow construit les installateurs Windows, macOS et Linux, les joint à une Release `v0.2.0` puis la publie. C'est cette Release que l'appli installée détecte avec `update`.
@@ -30,10 +40,7 @@ Pour seulement Windows, lancer plutôt le workflow « Installateur Windows » (o
 
 ### Signer l'installateur Windows
 
-Les workflows signent l'installateur Windows avec [Azure Artifact Signing](https://learn.microsoft.com/azure/artifact-signing/) quand ces réglages existent dans le dépôt (Settings › Secrets and variables › Actions) ; sinon il reste non signé.
-
-- Secrets : `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` (une application Entra ID qui a le rôle « Artifact Signing Certificate Profile Signer » sur le compte de signature).
-- Variables : `AZURE_ENDPOINT` (par exemple `https://weu.codesigning.azure.net`), `AZURE_ACCOUNT` (nom du compte de signature), `AZURE_PROFILE` (nom du profil de certificat), `AZURE_PUBLISHER` (le nom du certificat, exactement celui de l'identité validée).
+Le workflow « Installateur Windows » fait signer l'appli puis l'installateur par [SignPath](https://signpath.io) quand le dépôt a le secret `SIGNPATH_API_TOKEN` et la variable `SIGNPATH_ORGANIZATION_ID` (Settings › Secrets and variables › Actions) ; sinon l'installateur reste non signé. Variables facultatives : `SIGNPATH_PROJECT_SLUG` (`dev-brows` par défaut) et `SIGNPATH_POLICY_SLUG` (`release-signing` par défaut). Dans SignPath, le projet a deux configurations d'artefact, `app` et `installer`, à copier depuis [.signpath/artifact-configurations](.signpath/artifact-configurations). Chaque signature attend l'approbation dans SignPath avant que le workflow continue. Pour tester la construction sans publier, lancer le workflow en décochant « Publier » : l'installateur est alors un artefact du workflow.
 
 ## Commandes
 
@@ -58,9 +65,9 @@ Les workflows signent l'installateur Windows avec [Azure Artifact Signing](https
 | `dl [n]` | téléchargements (enregistrés directement dans Téléchargements) |
 | `alias nom = commande [; commande…]`, `unalias nom` | raccourcis perso, qui peuvent enchaîner des commandes |
 | `adblock [on\|off]` | bloqueur de pub de secours, éteint par défaut (uBlock Origin est préinstallé) |
-| `engine ddg\|google\|bing\|qwant`, `theme ambre\|vert\|cyan\|rose\|violet` | réglages |
+| `engine ddg\|google\|bing\|qwant`, `theme ambre\|vert\|cyan\|rose\|violet`, `lang [fr\|en]` | réglages |
 | `perm`, `perm reset [site]` | autorisations données aux sites |
-| `update`, `update install`, `update electron` | mises à jour (voir plus bas) |
+| `update`, `update install`, `update electron`, `update auto [on\|off]` | mises à jour (voir plus bas) |
 | `devtools [detach\|close]`, `term`, `fullscreen [on\|off]`, `quit` (ou `exit`, `q`), `help`, `clear` | divers (DevTools : à côté de la page, dans une fenêtre, ou fermées ; boutons aussi dans la barre d'état ; `quit` ferme le navigateur) |
 
 Tout ce qui n'est ni une commande, ni un alias, ni une adresse lance une recherche ; une adresse (`exemple.fr`, `localhost:3000`) s'ouvre directement. Une commande suivie de mots qu'elle n'attend pas (« home depot », « close friends ») est aussi une recherche.
@@ -110,7 +117,7 @@ Chaque clé reste sur cet ordinateur, chiffrée par le système quand c'est poss
 
 ## Mises à jour
 
-Une vérification se fait à chaque lancement ; `update` la lance à la demande. Au même moment, les extensions installées depuis le Chrome Web Store et uBlock Origin sont mises à jour toutes seules quand une nouvelle version existe (le terminal l'affiche). Les extensions ajoutées depuis un dossier ne sont pas touchées.
+Une vérification se fait à chaque lancement (`update auto off` la coupe) ; `update` la lance à la demande. Au même moment, les extensions installées depuis le Chrome Web Store et uBlock Origin sont mises à jour toutes seules quand une nouvelle version existe (le terminal l'affiche). Les extensions ajoutées depuis un dossier ne sont pas touchées.
 
 **Appli installée** (depuis un installateur des Releases) :
 
@@ -140,6 +147,26 @@ L'appli se ferme, la mise à jour se fait avec le `node` du système (sous Windo
 Favoris, historique et réglages sont des fichiers JSON dans le dossier de données d'Electron (`~/.config/dev-brows` sous Linux, `%APPDATA%\dev-brows` sous Windows, `~/Library/Application Support/dev-brows` sous macOS).
 
 Lancée depuis le code, l'appli utilise un dossier à part, `dev-brows-dev` (copié depuis `dev-brows` la première fois) : l'appli installée chiffre ses cookies avec une clé que la version de développement ne peut pas relire.
+
+## Politique de signature (Code signing policy)
+
+Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
+
+- Committers and reviewers : [Rycrem](https://github.com/Rycrem) (chaque pull request d'une autre personne est relue avant d'être mergée)
+- Approvers : [Rycrem](https://github.com/Rycrem) (approuve chaque demande de signature)
+
+Seuls `dev-brows.exe` et l'installateur Windows, construits depuis ce dépôt par GitHub Actions, sont signés. Les autres fichiers de l'appli (les DLL d'Electron) viennent de projets amont et sont livrés tels quels.
+
+## Confidentialité
+
+dev-brows ne collecte aucune donnée sur toi et n'a pas de télémétrie. En dehors des sites que tu ouvres, il ne se connecte tout seul qu'à :
+
+- GitHub (`github.com`, `api.github.com`), à chaque lancement, pour chercher une nouvelle version de dev-brows et de uBlock Origin ;
+- le service de mise à jour du Chrome Web Store (`clients2.google.com`), à chaque lancement, pour les extensions installées depuis le store.
+
+Ces vérifications se coupent dans l'installateur Windows (case de la page Confidentialité, affichée pendant l'installation) ou à tout moment avec `update auto off` ; `update` marche toujours à la demande.
+
+Le reste ne se fait que quand tu le demandes, vers un service que tu as choisi et selon sa propre politique de confidentialité : le moteur de recherche (`engine`), l'IA choisie (`ia <question>`, avec ta question), les serveurs des listes de filtres de [uBlock Origin](https://github.com/gorhill/uBlock/wiki/Privacy-policy) et du bloqueur de secours, et les extensions que tu installes.
 
 ## Licence
 

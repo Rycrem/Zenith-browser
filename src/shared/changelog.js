@@ -1,11 +1,20 @@
 'use strict';
 
 // Notes de mise à jour affichées en bas de l'écran d'accueil (la version installée).
-// Ajouter une entrée en tête à chaque nouvelle version.
+// Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
     version: '0.1.13',
-    notes: ['L\'installateur Windows peut être signé, pour que le Contrôle intelligent des applications de Windows 11 ne le bloque plus.'],
+    notes: [
+      'Option anglais : commande « lang en », et choix de la langue dans l\'installateur Windows.',
+      'L\'installateur Windows peut être signé (SignPath), pour que le Contrôle intelligent des applications de Windows 11 ne le bloque plus.',
+      '« update auto off » coupe la vérification automatique des mises à jour au lancement (aussi proposé dans l\'installateur Windows).',
+    ],
+    en: [
+      'English option: “lang en” command, and language choice in the Windows installer.',
+      'The Windows installer can be signed (SignPath), so that Windows 11 Smart App Control no longer blocks it.',
+      '“update auto off” turns off the automatic update check at launch (also offered in the Windows installer).',
+    ],
   },
   {
     version: '0.1.12',
@@ -13,6 +22,11 @@ const CHANGELOG = [
       'Les mises à jour sont vérifiées à chaque lancement (et plus une fois par jour).',
       'Les extensions du Chrome Web Store et uBlock Origin se mettent à jour toutes seules au lancement.',
       'Clés de sécurité (YubiKey) : quand la clé garde plusieurs comptes pour un site, le terminal demande lequel utiliser (avant, la connexion était annulée).',
+    ],
+    en: [
+      'Updates are checked at every launch (no longer once a day).',
+      'Chrome Web Store extensions and uBlock Origin update themselves at launch.',
+      'Security keys (YubiKey): when the key holds several accounts for a site, the terminal asks which one to use (sign-in used to be cancelled).',
     ],
   },
   {
@@ -23,14 +37,22 @@ const CHANGELOG = [
       'Clic droit sur une image : « Enregistrer l\'image » ; aussi pour les liens, vidéos et sons.',
       'Ces notes de mise à jour en bas de l\'écran d\'accueil.',
     ],
+    en: [
+      'uBlock Origin comes preinstalled and works: it blocks ads and its popup opens (Alt+1 or click its badge).',
+      'The built-in blocker becomes a fallback, off by default (“adblock on”).',
+      'Right-click on an image: “Save image”; also for links, videos and sounds.',
+      'These release notes at the bottom of the home screen.',
+    ],
   },
   {
     version: '0.1.10',
     notes: ['« fullscreen » ou F11 : plein écran.'],
+    en: ['“fullscreen” or F11: full screen.'],
   },
   {
     version: '0.1.9',
     notes: ['« find » trouve les résultats dès la première recherche.'],
+    en: ['“find” finds results on the first search.'],
   },
   {
     version: '0.1.8',
@@ -39,12 +61,18 @@ const CHANGELOG = [
       'Le bouton + ouvre un onglet ; un clic sur l\'adresse la copie.',
       'Le zoom s\'affiche dans la barre d\'état ; barre ⇱ ✕ au-dessus des DevTools.',
     ],
+    en: [
+      'The keyboard stays in the terminal after a command.',
+      'The + button opens a tab; clicking the address copies it.',
+      'Zoom is shown in the status bar; ⇱ ✕ bar above DevTools.',
+    ],
   },
 ];
 
-// Notes de la version donnée, ou de la plus récente connue.
-function notesFor(version) {
-  return CHANGELOG.find((e) => e.version === version) || CHANGELOG[0];
+// Notes de la version donnée (ou de la plus récente connue), dans la langue demandée.
+function notesFor(version, lang = 'fr') {
+  const e = CHANGELOG.find((x) => x.version === version) || CHANGELOG[0];
+  return { version: e.version, notes: lang === 'en' && e.en ? e.en : e.notes };
 }
 
 module.exports = { CHANGELOG, notesFor };

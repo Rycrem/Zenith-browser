@@ -13,6 +13,9 @@ const updater = require('./updater');
 const fav = require('../shared/favorites');
 const C = require('../shared/commands');
 const { notesFor } = require('../shared/changelog');
+const { t, mark, setLang, getLang } = require('../shared/i18n');
+
+const tr = t; // là où une variable locale « t » (un onglet) cache t()
 const { storeExtensionId } = require('../shared/crx');
 const { parseDuckDuckGoHtml, parseNextPage, shortUrl } = require('../shared/search');
 
@@ -199,7 +202,7 @@ function storeHint(tab, url) {
   if (!id || tab.storeHint === id) return;
   tab.storeHint = id;
   const installed = exts.list.some((e) => e.id === id);
-  print([{ t: installed ? '  extension déjà installée (« ext » pour la gérer)' : '  ↓ le bouton « Ajouter à Chrome » ne marche pas ici : tape « ext add » pour installer cette extension', c: installed ? 'dim' : 'warn' }]);
+  print([{ t: installed ? t('  extension déjà installée (« ext » pour la gérer)') : t('  ↓ le bouton « Ajouter à Chrome » ne marche pas ici : tape « ext add » pour installer cette extension'), c: installed ? 'dim' : 'warn' }]);
 }
 
 function wireWebContents(tab, wc) {
@@ -237,7 +240,7 @@ function wireWebContents(tab, wc) {
     sendState();
   });
   wc.on('did-fail-load', (e, code, desc, url, isMainFrame) => {
-    if (isMainFrame && code !== -3) print([{ t: `impossible de charger ${url} : ${desc}`, c: 'err' }]);
+    if (isMainFrame && code !== -3) print([{ t: t('impossible de charger {url} : {desc}', { url, desc }), c: 'err' }]);
   });
   wc.on('focus', () => {
     const p = paneOf(tab);
@@ -266,7 +269,7 @@ function wireWebContents(tab, wc) {
     if (input.type === 'mouseDown') lastCommandAt = 0;
   });
   wc.on('found-in-page', (e, r) => {
-    if (r.finalUpdate) print([{ t: `  ${r.matches ? `${r.activeMatchOrdinal}/${r.matches}` : 'aucun résultat'}`, c: 'dim' }]);
+    if (r.finalUpdate) print([{ t: `  ${r.matches ? `${r.activeMatchOrdinal}/${r.matches}` : t('aucun résultat')}`, c: 'dim' }]);
   });
   wc.on('context-menu', (e, params) => showContextMenu(tab, params));
   wc.setWindowOpenHandler(({ url, disposition }) => {
@@ -298,7 +301,7 @@ function showInPane(tab, idx) {
 }
 
 function closePane(idx) {
-  if (panes.length === 1) throw new Error('pas de split en cours');
+  if (panes.length === 1) throw new Error(t('pas de split en cours'));
   const keep = panes[1 - idx];
   panes.splice(0, panes.length, keep);
   activePane = 0;
@@ -347,9 +350,9 @@ function setScreen(tab, screen, numbered = [], kind = screen.kind) {
 }
 
 function tabTitle(tab) {
-  if (!tab.screen) return tab.title || shortUrl(tab.url) || 'nouvel onglet';
+  if (!tab.screen) return tab.title || shortUrl(tab.url) || t('nouvel onglet');
   const s = tab.screen;
-  return { home: 'accueil', ai: `ia: ${s.question}`, results: `brows: ${s.query}`, fav: 'fav', hist: 'hist', ext: 'ext', dl: 'dl', tabs: 'tab', help: 'help', alias: 'alias', aiproviders: 'ia' }[s.kind] || s.kind;
+  return { home: t('accueil'), ai: `ia: ${s.question}`, results: `brows: ${s.query}`, fav: 'fav', hist: 'hist', ext: 'ext', dl: 'dl', tabs: 'tab', help: 'help', alias: 'alias', aiproviders: 'ia' }[s.kind] || s.kind;
 }
 
 // ---------------------------------------------------------------- disposition
@@ -381,12 +384,13 @@ function sendState() {
   const favHere = tab && !tab.screen && fav.findByUrl(favorites.data.tree, tab.url);
   win.webContents.send('state', {
     user: os.userInfo().username,
+    lang: getLang(),
     accent: THEMES[settings.data.theme] || THEMES.ambre,
     engine: settings.data.engine,
     tabs: tabs.map((t, i) => ({ id: t.id, n: i + 1, title: tabTitle(t), loading: t.loading, pane: paneOf(t) })),
     panes: panes.map((p) => {
       const t = getTab(p.tabId);
-      return { tabId: p.tabId, screen: t.screen, page: !!t.view && !t.screen, dev: !!(t.dev && t.devOpen && !t.devWin && !t.screen), url: t.url, title: t.screen ? tabTitle(t) : t.title || hostOf(t.url) || 'nouvel onglet' };
+      return { tabId: p.tabId, screen: t.screen, page: !!t.view && !t.screen, dev: !!(t.dev && t.devOpen && !t.devWin && !t.screen), url: t.url, title: t.screen ? tabTitle(t) : t.title || hostOf(t.url) || tr('nouvel onglet') };
     }),
     activePane,
     status: {
@@ -427,7 +431,7 @@ function showHome(tab) {
   const recent = fav.recent(favorites.data.tree, 6);
   setScreen(
     tab,
-    { kind: 'home', user: os.userInfo().username, recent: recent.map((r, i) => ({ n: i + 1, path: r.path, url: r.url })), changes: notesFor(app.getVersion()) },
+    { kind: 'home', user: os.userInfo().username, recent: recent.map((r, i) => ({ n: i + 1, path: r.path, url: r.url })), changes: notesFor(app.getVersion(), getLang()) },
     recent.map((r) => ({ kind: 'url', url: r.url })),
   );
 }
@@ -435,7 +439,7 @@ function showHome(tab) {
 function showFav(tab, folder) {
   const tree = favorites.data.tree;
   const node = folder ? fav.getNode(tree, folder) : tree;
-  if (!node || node.type !== 'folder') throw new Error(`dossier introuvable : ${folder}`);
+  if (!node || node.type !== 'folder') throw new Error(t('dossier introuvable : {folder}', { folder }));
   const prefix = folder ? fav.splitPath(folder).join('/') : '';
   const rows = fav.flatten(node, prefix);
   const numbered = [];
@@ -497,7 +501,7 @@ async function runSearch(tab, query, form) {
   if (!form) addHistory({ url: `brows:${query}`, query, title: `brows « ${query} »` });
   if (engine !== 'ddg') {
     navigate(tab, C.ENGINES[engine].url(query));
-    return [{ t: '  page de résultats ouverte, tape « links » pour numéroter les liens', c: 'dim' }];
+    return [{ t: t('  page de résultats ouverte, tape « links » pour numéroter les liens'), c: 'dim' }];
   }
   let html;
   try {
@@ -507,16 +511,16 @@ async function runSearch(tab, query, form) {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams(form).toString(),
       })
-      : await net.fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}&kl=fr-fr`);
+      : await net.fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}&kl=${getLang() === 'en' ? 'us-en' : 'fr-fr'}`);
     html = await res.text();
   } catch (err) {
-    return [{ t: `recherche impossible : ${err.message}`, c: 'err' }];
+    return [{ t: t('recherche impossible : {error}', { error: err.message }), c: 'err' }];
   }
   const results = parseDuckDuckGoHtml(html);
   if (!results.length) {
     // DuckDuckGo a pu demander une vérification : on affiche sa page telle quelle.
     navigate(tab, C.ENGINES.ddg.url(query));
-    return [{ t: '  aucun résultat lisible, page DuckDuckGo ouverte (tape « links »)', c: 'warn' }];
+    return [{ t: t('  aucun résultat lisible, page DuckDuckGo ouverte (tape « links »)'), c: 'warn' }];
   }
   const prev = form && tab.screen && tab.screen.kind === 'results' ? tab.screen : null;
   const page = prev ? prev.page + 1 : 1;
@@ -534,7 +538,7 @@ async function runSearch(tab, query, form) {
     },
     results.map((r) => ({ kind: 'url', url: r.url })),
   );
-  return [{ t: `  ${results.length} résultats, page ${page} · n page suivante · tape un numéro`, c: 'dim' }];
+  return [{ t: t('  {count} résultats, page {page} · n page suivante · tape un numéro', { count: results.length, page }), c: 'dim' }];
 }
 
 // ---------------------------------------------------------------- liens numérotés dans la page
@@ -564,7 +568,7 @@ const LINKS_SCRIPT = `(() => {
 })()`;
 
 async function numberLinks(tab) {
-  if (!tab.view || tab.screen) throw new Error('aucune page ouverte');
+  if (!tab.view || tab.screen) throw new Error(t('aucune page ouverte'));
   const accent = THEMES[settings.data.theme] || THEMES.ambre;
   const links = await tab.view.webContents.executeJavaScript(LINKS_SCRIPT.replace('__ACCENT__', accent));
   tab.numbered = links.map((l, i) => ({ kind: 'link', i, href: l.href }));
@@ -586,7 +590,7 @@ async function clickLink(tab, i) {
 // ---------------------------------------------------------------- outils de développement
 
 function openDevtools(tab, x, y) {
-  if (!tab.view) throw new Error('aucune page ouverte');
+  if (!tab.view) throw new Error(t('aucune page ouverte'));
   const wc = tab.view.webContents;
   if (!tab.dev) {
     // Les DevTools s'affichent dans une vue à droite de la page, comme dans Chrome.
@@ -670,51 +674,51 @@ function toggleDevtools(tab) {
 function showContextMenu(tab, p) {
   const wc = tab.view.webContents;
   const items = [
-    { label: 'Précédent', enabled: wc.navigationHistory.canGoBack(), click: () => wc.navigationHistory.goBack() },
-    { label: 'Suivant', enabled: wc.navigationHistory.canGoForward(), click: () => wc.navigationHistory.goForward() },
-    { label: 'Recharger', click: () => wc.reload() },
+    { label: t('Précédent'), enabled: wc.navigationHistory.canGoBack(), click: () => wc.navigationHistory.goBack() },
+    { label: t('Suivant'), enabled: wc.navigationHistory.canGoForward(), click: () => wc.navigationHistory.goForward() },
+    { label: t('Recharger'), click: () => wc.reload() },
     { type: 'separator' },
   ];
   if (p.linkURL) {
     items.push(
-      { label: 'Ouvrir le lien dans un nouvel onglet', click: () => createTab({ url: p.linkURL, background: true }) },
-      { label: 'Ouvrir le lien dans l\'autre écran', click: () => openInOtherPane(p.linkURL) },
-      { label: 'Copier l\'adresse du lien', click: () => clipboard.writeText(p.linkURL) },
-      { label: 'Télécharger le lien', click: () => wc.downloadURL(p.linkURL) },
+      { label: t('Ouvrir le lien dans un nouvel onglet'), click: () => createTab({ url: p.linkURL, background: true }) },
+      { label: t('Ouvrir le lien dans l\'autre écran'), click: () => openInOtherPane(p.linkURL) },
+      { label: t('Copier l\'adresse du lien'), click: () => clipboard.writeText(p.linkURL) },
+      { label: t('Télécharger le lien'), click: () => wc.downloadURL(p.linkURL) },
       { type: 'separator' },
     );
   }
   if (p.mediaType === 'image' && p.srcURL) {
     items.push(
-      { label: 'Enregistrer l\'image (dans Téléchargements)', click: () => wc.downloadURL(p.srcURL) },
-      { label: 'Ouvrir l\'image dans un nouvel onglet', click: () => createTab({ url: p.srcURL, background: true }) },
-      { label: 'Copier l\'image', click: () => wc.copyImageAt(p.x, p.y) },
-      { label: 'Copier l\'adresse de l\'image', click: () => clipboard.writeText(p.srcURL) },
+      { label: t('Enregistrer l\'image (dans Téléchargements)'), click: () => wc.downloadURL(p.srcURL) },
+      { label: t('Ouvrir l\'image dans un nouvel onglet'), click: () => createTab({ url: p.srcURL, background: true }) },
+      { label: t('Copier l\'image'), click: () => wc.copyImageAt(p.x, p.y) },
+      { label: t('Copier l\'adresse de l\'image'), click: () => clipboard.writeText(p.srcURL) },
       { type: 'separator' },
     );
   }
   if ((p.mediaType === 'video' || p.mediaType === 'audio') && p.srcURL && !p.srcURL.startsWith('blob:')) {
     items.push(
-      { label: `Enregistrer ${p.mediaType === 'video' ? 'la vidéo' : 'le son'} (dans Téléchargements)`, click: () => wc.downloadURL(p.srcURL) },
-      { label: `Copier l'adresse ${p.mediaType === 'video' ? 'de la vidéo' : 'du son'}`, click: () => clipboard.writeText(p.srcURL) },
+      { label: p.mediaType === 'video' ? t('Enregistrer la vidéo (dans Téléchargements)') : t('Enregistrer le son (dans Téléchargements)'), click: () => wc.downloadURL(p.srcURL) },
+      { label: p.mediaType === 'video' ? t('Copier l\'adresse de la vidéo') : t('Copier l\'adresse du son'), click: () => clipboard.writeText(p.srcURL) },
       { type: 'separator' },
     );
   }
   if (p.isEditable) {
-    items.push({ role: 'cut', label: 'Couper' }, { role: 'copy', label: 'Copier' }, { role: 'paste', label: 'Coller' }, { type: 'separator' });
+    items.push({ role: 'cut', label: t('Couper') }, { role: 'copy', label: t('Copier') }, { role: 'paste', label: t('Coller') }, { type: 'separator' });
   } else if (p.selectionText) {
     const text = p.selectionText.trim();
     items.push(
-      { role: 'copy', label: 'Copier' },
-      { label: `Rechercher « ${text.slice(0, 30)}${text.length > 30 ? '…' : ''} »`, click: () => runCommand(`brows ${text}`) },
+      { role: 'copy', label: t('Copier') },
+      { label: t('Rechercher « {text} »', { text: `${text.slice(0, 30)}${text.length > 30 ? '…' : ''}` }), click: () => runCommand(`brows ${text}`) },
       { type: 'separator' },
     );
   }
   items.push(
-    { label: 'Ajouter aux favoris…', click: () => focusTerminal('add ') },
-    { label: 'Code source de la page', click: () => createTab({ url: `view-source:${tab.url}` }) },
+    { label: t('Ajouter aux favoris…'), click: () => focusTerminal('add ') },
+    { label: t('Code source de la page'), click: () => createTab({ url: `view-source:${tab.url}` }) },
     { type: 'separator' },
-    { label: 'Inspecter', click: () => openDevtools(tab, p.x, p.y) },
+    { label: t('Inspecter'), click: () => openDevtools(tab, p.x, p.y) },
   );
   Menu.buildFromTemplate(items).popup({ window: win });
 }
@@ -767,7 +771,7 @@ function openExtPopup(n, x) {
 // ---------------------------------------------------------------- commandes
 
 const YES = /^(o|oui|y|yes)$/i;
-const ANSWER = /^(o|oui|y|yes|n|non|no|t|toujours|j|jamais)?$/i;
+const ANSWER = /^(o|oui|y|yes|n|non|no|t|toujours|j|jamais|a|always|x|never)?$/i;
 
 // Met une question en file ; renvoie les lignes à afficher si c'est la seule en attente.
 // accept : réponses valables (les autres comptent comme « non » et s'exécutent comme commande).
@@ -778,9 +782,9 @@ function enqueue(question, answer, accept = ANSWER) {
 
 // Entrée vide répond oui, sauf pour une question irréversible (yes = false).
 function confirm(question, run, yes = true) {
-  return enqueue(`${question} ${yes ? '(O/n)' : '(o/N)'}`, async (input, say) => {
+  return enqueue(`${question} ${yes ? t('(O/n)') : t('(o/N)')}`, async (input, say) => {
     if (YES.test(input) || (yes && !input)) await run(say);
-    else say('  annulé', 'dim');
+    else say(t('  annulé'), 'dim');
   });
 }
 
@@ -816,7 +820,7 @@ async function exec(raw, depth = 0) {
   if (parts.length > 1) {
     // Un alias peut enchaîner des commandes : « alias work = tab new gmail.com ; tab new github.com ».
     if (depth > 4) {
-      say('  alias en boucle', 'err');
+      say(t('  alias en boucle'), 'err');
       return result;
     }
     for (const part of parts) {
@@ -860,28 +864,28 @@ async function exec(raw, depth = 0) {
       case 'brows':
       case 'search':
       case 's':
-        if (!rest) throw new Error('que faut-il chercher ? brows <recherche>');
+        if (!rest) throw new Error(t('que faut-il chercher ? brows <recherche>'));
         out.push(...(await runSearch(tab, rest)));
         break;
       case 'n':
       case 'next':
-        if (!tab.screen || tab.screen.kind !== 'results' || !tab.screen.next) throw new Error('pas de page suivante');
+        if (!tab.screen || tab.screen.kind !== 'results' || !tab.screen.next) throw new Error(t('pas de page suivante'));
         out.push(...(await runSearch(tab, tab.screen.query, tab.screen.next)));
         break;
       case 'p':
       case 'prev':
-        if (!tab.screen || tab.screen.kind !== 'results' || !tab.screen.prev) throw new Error('pas de page précédente');
+        if (!tab.screen || tab.screen.kind !== 'results' || !tab.screen.prev) throw new Error(t('pas de page précédente'));
         setScreen(tab, tab.screen.prev, tab.screen.prev.results.map((r) => ({ kind: 'url', url: r.url })));
         break;
       case 'go':
       case 'open':
-        if (!rest) throw new Error('quelle adresse ? go <url>');
+        if (!rest) throw new Error(t('quelle adresse ? go <url>'));
         navigate(tab, C.normalizeUrl(rest));
         break;
       case 'links':
       case 'l': {
         const count = await numberLinks(tab);
-        say(`  ${count} liens numérotés, tape un numéro (« 3t » pour un nouvel onglet)`, 'dim');
+        say(t('  {count} liens numérotés, tape un numéro (« 3t » pour un nouvel onglet)', { count }), 'dim');
         break;
       }
       case 'back':
@@ -892,11 +896,11 @@ async function exec(raw, depth = 0) {
           sendState();
         } else if (tab.view && tab.view.webContents.navigationHistory.canGoBack()) tab.view.webContents.navigationHistory.goBack();
         else if (tab.view) showHome(tab);
-        else throw new Error('rien avant');
+        else throw new Error(t('rien avant'));
         break;
       case 'fwd':
       case 'f':
-        if (!tab.view || !tab.view.webContents.navigationHistory.canGoForward()) throw new Error('rien après');
+        if (!tab.view || !tab.view.webContents.navigationHistory.canGoForward()) throw new Error(t('rien après'));
         tab.screen = null;
         tab.view.webContents.navigationHistory.goForward();
         layout();
@@ -915,22 +919,22 @@ async function exec(raw, depth = 0) {
           else createTab({ url: urls.length ? C.normalizeUrl(urls.join(' ')) : undefined });
         } else if (args[0] === 'save') {
           const key = args[1];
-          if (!key) throw new Error('tab save <nom>');
-          if (C.COMMAND_NAMES.includes(key)) throw new Error(`« ${key} » est déjà une commande`);
+          if (!key) throw new Error(t('tab save <nom>'));
+          if (C.COMMAND_NAMES.includes(key)) throw new Error(t('« {name} » est déjà une commande', { name: key }));
           const urls = tabs.map((t) => t.url).filter((u) => u && /^https?:|^file:/.test(u));
-          if (!urls.length) throw new Error('aucun onglet avec une page à enregistrer');
+          if (!urls.length) throw new Error(t('aucun onglet avec une page à enregistrer'));
           settings.data.aliases[key] = `tab new ${urls.join(' ')}`;
           settings.save();
-          say(`  ✓ alias ${key} : rouvre ${urls.length} onglet${urls.length > 1 ? 's' : ''}`, 'ok');
+          say(urls.length > 1 ? t('  ✓ alias {name} : rouvre {count} onglets', { name: key, count: urls.length }) : t('  ✓ alias {name} : rouvre 1 onglet', { name: key }), 'ok');
         } else {
           const t = tabs[Number(args[0]) - 1];
-          if (!t) throw new Error(`pas d'onglet numéro ${args[0]}`);
+          if (!t) throw new Error(tr('pas d\'onglet numéro {n}', { n: args[0] }));
           showInPane(t, activePane);
         }
         break;
       case 'close': {
         const t = args.length ? tabs[Number(args[0]) - 1] : tab;
-        if (!t) throw new Error(`pas d'onglet numéro ${args[0]}`);
+        if (!t) throw new Error(tr('pas d\'onglet numéro {n}', { n: args[0] }));
         closeTab(t);
         break;
       }
@@ -941,7 +945,7 @@ async function exec(raw, depth = 0) {
           if (n !== 1 && n !== 2) throw new Error('split off [1|2]');
           closePane(n - 1);
         } else if (panes.length > 1) {
-          say('  déjà en split : « focus » change d\'écran, « split off » ferme l\'autre écran (« split off 1|2 » pour choisir)', 'dim');
+          say(t('  déjà en split : « focus » change d\'écran, « split off » ferme l\'autre écran (« split off 1|2 » pour choisir)'), 'dim');
         } else {
           panes.push({ tabId: null });
           const t = args.length
@@ -952,7 +956,7 @@ async function exec(raw, depth = 0) {
         }
         break;
       case 'focus':
-        if (panes.length === 1) throw new Error('pas de split en cours');
+        if (panes.length === 1) throw new Error(t('pas de split en cours'));
         activePane = activePane === 0 ? 1 : 0;
         sendState();
         break;
@@ -960,20 +964,20 @@ async function exec(raw, depth = 0) {
         await favCommand(tab, args, say);
         break;
       case 'add': {
-        if (!tab.view || !tab.url) throw new Error('aucune page ouverte à ajouter');
-        if (!args.length) throw new Error('il faut un nom : add [dossier/]nom');
+        if (!tab.view || !tab.url) throw new Error(t('aucune page ouverte à ajouter'));
+        if (!args.length) throw new Error(t('il faut un nom : add [dossier/]nom'));
         const r = fav.addFavorite(favorites.data.tree, args.join(' '), tab.url, tab.view.webContents.getTitle());
         favorites.save();
-        if (r.createdFolders.length) say(`  ✓ dossier ${r.createdFolders.join('/')}/ créé`, 'ok');
-        say(`  ✓ ${r.updated ? 'favori mis à jour' : 'ajouté aux favoris'} : ${r.path}`, 'ok');
+        if (r.createdFolders.length) say(t('  ✓ dossier {folder}/ créé', { folder: r.createdFolders.join('/') }), 'ok');
+        say(r.updated ? t('  ✓ favori mis à jour : {path}', { path: r.path }) : t('  ✓ ajouté aux favoris : {path}', { path: r.path }), 'ok');
         sendState();
         break;
       }
       case 'undo':
-        if (!lastUndo) throw new Error('rien à annuler');
+        if (!lastUndo) throw new Error(t('rien à annuler'));
         fav.restoreFavorite(favorites.data.tree, lastUndo);
         favorites.save();
-        say(`  ✓ ${lastUndo.node.name} restauré`, 'ok');
+        say(t('  ✓ {name} restauré', { name: lastUndo.node.name }), 'ok');
         lastUndo = null;
         if (tab.screen && tab.screen.kind === 'fav') showFav(tab, tab.screen.folder);
         break;
@@ -983,22 +987,22 @@ async function exec(raw, depth = 0) {
         break;
       case 'clean':
         if (args[0] === 'all') {
-          out.push(...confirm('vider historique, cookies et cache ? tu seras déconnecté des sites', async (s) => {
+          out.push(...confirm(t('vider historique, cookies et cache ? tu seras déconnecté des sites'), async (s) => {
             history.data.entries = [];
             history.save();
             await ses.clearStorageData({ storages: ['cookies'] });
             await ses.clearCache();
-            s('  ✓ historique, cookies et cache vidés', 'ok');
+            s(t('  ✓ historique, cookies et cache vidés'), 'ok');
           }, false));
         } else {
           history.data.entries = [];
           history.save();
-          say('  ✓ historique vidé', 'ok');
+          say(t('  ✓ historique vidé'), 'ok');
           if (tab.screen && tab.screen.kind === 'hist') showHist(tab, '');
         }
         break;
       case 'find':
-        if (!tab.view || tab.screen) throw new Error('aucune page ouverte');
+        if (!tab.view || tab.screen) throw new Error(t('aucune page ouverte'));
         if (!rest) {
           tab.view.webContents.stopFindInPage('clearSelection');
           tab.findText = '';
@@ -1019,28 +1023,28 @@ async function exec(raw, depth = 0) {
         aliasCommand(tab, line.slice(5).trim(), say);
         break;
       case 'unalias':
-        if (!args[0] || !settings.data.aliases[args[0]]) throw new Error(`pas d'alias « ${args[0] || ''} »`);
+        if (!args[0] || !settings.data.aliases[args[0]]) throw new Error(t('pas d\'alias « {name} »', { name: args[0] || '' }));
         delete settings.data.aliases[args[0]];
         settings.save();
-        say(`  ✓ alias ${args[0]} supprimé`, 'ok');
+        say(t('  ✓ alias {name} supprimé', { name: args[0] }), 'ok');
         break;
       case 'adblock':
       case 'pub':
         await adblockCommand(args[0], say);
         break;
       case 'engine':
-        if (!args.length) say(`  moteur : ${C.ENGINES[settings.data.engine].label} (ddg | google | bing | qwant)`);
+        if (!args.length) say(t('  moteur : {engine} (ddg | google | bing | qwant)', { engine: C.ENGINES[settings.data.engine].label }));
         else {
-          if (!C.ENGINES[args[0]]) throw new Error('moteurs : ddg, google, bing, qwant');
+          if (!C.ENGINES[args[0]]) throw new Error(t('moteurs : ddg, google, bing, qwant'));
           settings.data.engine = args[0];
           settings.save();
-          say(`  ✓ moteur : ${C.ENGINES[args[0]].label}${args[0] === 'ddg' ? '' : ' (résultats affichés sur sa page, « links » pour numéroter)'}`, 'ok');
+          say(t('  ✓ moteur : {engine}', { engine: C.ENGINES[args[0]].label }) + (args[0] === 'ddg' ? '' : t(' (résultats affichés sur sa page, « links » pour numéroter)')), 'ok');
         }
         break;
       case 'theme':
-        if (!args.length) say(`  thèmes : ${Object.keys(THEMES).join(', ')} (actuel : ${settings.data.theme})`);
+        if (!args.length) say(t('  thèmes : {themes} (actuel : {theme})', { themes: Object.keys(THEMES).join(', '), theme: settings.data.theme }));
         else {
-          if (!THEMES[args[0]]) throw new Error(`thèmes : ${Object.keys(THEMES).join(', ')}`);
+          if (!THEMES[args[0]]) throw new Error(t('thèmes : {themes}', { themes: Object.keys(THEMES).join(', ') }));
           settings.data.theme = args[0];
           settings.save();
           sendState();
@@ -1048,6 +1052,10 @@ async function exec(raw, depth = 0) {
         break;
       case 'perm':
         permCommand(args, say);
+        break;
+      case 'lang':
+      case 'langue':
+        langCommand(args[0], say);
         break;
       case 'ia':
       case 'ai':
@@ -1071,7 +1079,7 @@ async function exec(raw, depth = 0) {
       case 'fullscreen':
       case 'fs':
         win.setFullScreen(args[0] === 'off' ? false : args[0] === 'on' ? true : !win.isFullScreen());
-        say(win.isFullScreen() ? '  plein écran (F11 ou « fullscreen » pour en sortir)' : '  plein écran quitté', 'dim');
+        say(win.isFullScreen() ? t('  plein écran (F11 ou « fullscreen » pour en sortir)') : t('  plein écran quitté'), 'dim');
         break;
       case 'quit':
       case 'exit':
@@ -1095,7 +1103,7 @@ async function select(tab, n, newTab, say, onlyKind) {
   const item = tab.numbered[n - 1];
   if (!item || (onlyKind && item.kind !== onlyKind)) {
     if (onlyKind === 'dl' && downloads[n - 1]) return select({ numbered: downloads.map((d) => ({ kind: 'dl', path: d.path })) }, n, newTab, say);
-    throw new Error(tab.numbered.length ? `pas de numéro ${n} ici (1 à ${tab.numbered.length})` : 'aucune liste numérotée ici (essaie « links »)');
+    throw new Error(tab.numbered.length ? t('pas de numéro {n} ici (1 à {max})', { n, max: tab.numbered.length }) : t('aucune liste numérotée ici (essaie « links »)'));
   }
   switch (item.kind) {
     case 'url':
@@ -1107,12 +1115,12 @@ async function select(tab, n, newTab, say, onlyKind) {
       break;
     case 'link':
       if (newTab && item.href) createTab({ url: item.href, background: true });
-      else if (!(await clickLink(tab, item.i))) throw new Error('ce lien n\'existe plus, relance « links »');
+      else if (!(await clickLink(tab, item.i))) throw new Error(t('ce lien n\'existe plus, relance « links »'));
       tab.numbered = [];
       break;
     case 'tab': {
       const t = getTab(item.id);
-      if (!t) throw new Error('onglet fermé');
+      if (!t) throw new Error(tr('onglet fermé'));
       showInPane(t, activePane);
       break;
     }
@@ -1123,7 +1131,7 @@ async function select(tab, n, newTab, say, onlyKind) {
       openExtPopup(item.n);
       break;
     case 'dl':
-      if (!item.path) throw new Error('fichier pas encore enregistré');
+      if (!item.path) throw new Error(t('fichier pas encore enregistré'));
       if (newTab) shell.showItemInFolder(item.path);
       else {
         const err = await shell.openPath(item.path);
@@ -1132,7 +1140,7 @@ async function select(tab, n, newTab, say, onlyKind) {
       break;
     default:
   }
-  if (newTab) say('  ouvert dans un nouvel onglet', 'dim');
+  if (newTab) say(t('  ouvert dans un nouvel onglet'), 'dim');
 }
 
 function favPathArg(tab, arg) {
@@ -1148,30 +1156,30 @@ async function favCommand(tab, args, say) {
   const tree = favorites.data.tree;
   const sub = args[0];
   if (sub === 'rm' || sub === 'del') {
-    if (!args[1]) throw new Error('fav rm <chemin | n>');
+    if (!args[1]) throw new Error(t('fav rm <chemin | n>'));
     const target = favPathArg(tab, args.slice(1).join(' '));
     const node = fav.getNode(tree, target);
-    if (!node) throw new Error(`favori introuvable : ${target}`);
-    const what = node.type === 'folder' ? `le dossier ${target}/ et son contenu` : target;
-    ask(say, `supprimer ${what} ?`, async (s) => {
+    if (!node) throw new Error(t('favori introuvable : {path}', { path: target }));
+    const question = node.type === 'folder' ? t('supprimer le dossier {path}/ et son contenu ?', { path: target }) : t('supprimer {path} ?', { path: target });
+    ask(say, question, async (s) => {
       lastUndo = fav.removeFavorite(tree, target);
       favorites.save();
-      s('  ✓ supprimé (undo pour annuler)', 'ok');
+      s(t('  ✓ supprimé (undo pour annuler)'), 'ok');
       if (tab.screen && tab.screen.kind === 'fav') showFav(tab, tab.screen.folder);
       sendState();
     });
     return;
   }
   if (sub === 'mv') {
-    if (args.length < 3) throw new Error('fav mv <chemin> <destination>');
+    if (args.length < 3) throw new Error(t('fav mv <chemin> <destination>'));
     const node = fav.moveFavorite(tree, favPathArg(tab, args[1]), args[2]);
     favorites.save();
-    say(`  ✓ ${node.name} déplacé vers ${args[2]}`, 'ok');
+    say(t('  ✓ {name} déplacé vers {dest}', { name: node.name, dest: args[2] }), 'ok');
   } else if (sub === 'rename') {
-    if (args.length < 3) throw new Error('fav rename <chemin> <nouveau nom>');
+    if (args.length < 3) throw new Error(t('fav rename <chemin> <nouveau nom>'));
     fav.renameFavorite(tree, favPathArg(tab, args[1]), args[2]);
     favorites.save();
-    say(`  ✓ renommé en ${args[2]}`, 'ok');
+    say(t('  ✓ renommé en {name}', { name: args[2] }), 'ok');
   }
   const folder = !sub || ['mv', 'rename'].includes(sub) ? (tab.screen && tab.screen.kind === 'fav' ? tab.screen.folder : '') : args.join(' ');
   showFav(tab, folder);
@@ -1192,11 +1200,11 @@ async function extCommand(tab, args, say) {
     case 'add': {
       // Sans argument, installe l'extension de la page du Chrome Web Store ouverte.
       const source = args[1] ? args.slice(1).join(' ') : storeExtensionId(tab.url || '');
-      if (!source) throw new Error('ext add <lien du Chrome Web Store | identifiant | dossier | ublock>, ou « ext add » seul sur la page de l\'extension');
-      print([{ t: '  installation de l\'extension…', c: 'dim' }]);
+      if (!source) throw new Error(t('ext add <lien du Chrome Web Store | identifiant | dossier | ublock>, ou « ext add » seul sur la page de l\'extension'));
+      print([{ t: t('  installation de l\'extension…'), c: 'dim' }]);
       const ext = await exts.add(source);
-      say(`  ✓ ${ext.name} installée, alias « ${ext.alias} »${ext.popup ? '' : ' (pas de popup)'}`, 'ok');
-      if (ext.dnrOnly) say('  ⚠ cette extension bloque avec declarativeNetRequest, qu\'Electron ne gère pas : elle ne bloquera rien. Pour bloquer les pubs : uBlock Origin (« ext add ublock »).', 'warn');
+      say(t('  ✓ {name} installée, alias « {alias} »', { name: ext.name, alias: ext.alias }) + (ext.popup ? '' : t(' (pas de popup)')), 'ok');
+      if (ext.dnrOnly) say(t('  ⚠ cette extension bloque avec declarativeNetRequest, qu\'Electron ne gère pas : elle ne bloquera rien. Pour bloquer les pubs : uBlock Origin (« ext add ublock »).'), 'warn');
       if (/ublock origin/i.test(ext.name || '') && adblock.on) {
         // Electron n'accepte qu'un filtre de requêtes : le bloqueur intégré empêcherait uBlock de filtrer.
         await adblockCommand('off', say);
@@ -1206,14 +1214,14 @@ async function extCommand(tab, args, say) {
     case 'on':
     case 'off': {
       const ext = await exts.setEnabled(n, sub === 'on');
-      say(`  ✓ ${ext.alias} ${sub === 'on' ? 'activée' : 'désactivée'}`, 'ok');
+      say(sub === 'on' ? t('  ✓ {alias} activée', { alias: ext.alias }) : t('  ✓ {alias} désactivée', { alias: ext.alias }), 'ok');
       break;
     }
     case 'rm': {
       const ext = exts.get(n);
-      ask(say, `désinstaller ${ext.name} ?`, async (s) => {
+      ask(say, t('désinstaller {name} ?', { name: ext.name }), async (s) => {
         exts.remove(n);
-        s('  ✓ extension désinstallée', 'ok');
+        s(t('  ✓ extension désinstallée'), 'ok');
         if (tab.screen && tab.screen.kind === 'ext') showExt(tab);
         sendState();
       });
@@ -1221,7 +1229,7 @@ async function extCommand(tab, args, say) {
     }
     case 'alias':
       exts.rename(n, args[2]);
-      say(`  ✓ alias : ${args[2]}`, 'ok');
+      say(t('  ✓ alias : {alias}', { alias: args[2] }), 'ok');
       break;
     default:
       throw new Error('ext [add | on | off | rm | alias | n]');
@@ -1234,20 +1242,20 @@ async function adblockCommand(arg, say) {
   if (arg === 'on') {
     settings.data.builtinAdblock = true;
     settings.save();
-    say('  chargement des listes de blocage…', 'dim');
+    say(t('  chargement des listes de blocage…'), 'dim');
     try {
       await adblock.enable();
     } catch (err) {
-      throw new Error(`listes non téléchargées : ${err.message}`);
+      throw new Error(t('listes non téléchargées : {error}', { error: err.message }));
     }
   } else if (arg === 'off') {
     settings.data.builtinAdblock = false;
     settings.save();
     adblock.disable();
   } else if (arg) throw new Error('adblock [on | off]');
-  if (adblock.on) say(`  ✓ bloqueur de pub intégré actif : ${adblock.blocked} requête${adblock.blocked > 1 ? 's' : ''} bloquée${adblock.blocked > 1 ? 's' : ''} depuis le démarrage`, 'ok');
-  if (adblock.on) say('  ⚠ tant qu\'il est actif, uBlock Origin et les autres extensions de blocage ne filtrent plus les requêtes', 'warn');
-  else say('  bloqueur de pub intégré éteint : uBlock Origin s\'occupe des pubs (« adblock on » pour le bloqueur de secours)', 'dim');
+  if (adblock.on) say(adblock.blocked > 1 ? t('  ✓ bloqueur de pub intégré actif : {count} requêtes bloquées depuis le démarrage', { count: adblock.blocked }) : t('  ✓ bloqueur de pub intégré actif : {count} requête bloquée depuis le démarrage', { count: adblock.blocked }), 'ok');
+  if (adblock.on) say(t('  ⚠ tant qu\'il est actif, uBlock Origin et les autres extensions de blocage ne filtrent plus les requêtes'), 'warn');
+  else say(t('  bloqueur de pub intégré éteint : uBlock Origin s\'occupe des pubs (« adblock on » pour le bloqueur de secours)'), 'dim');
   sendState();
 }
 
@@ -1261,14 +1269,51 @@ function aliasCommand(tab, text, say) {
   const key = m[1];
   const value = m[2].trim();
   if (!value) {
-    if (!aliases[key]) throw new Error(`pas d'alias « ${key} »`);
+    if (!aliases[key]) throw new Error(t('pas d\'alias « {name} »', { name: key }));
     say(`  ${key} = ${aliases[key]}`);
     return;
   }
-  if (C.COMMAND_NAMES.includes(key)) throw new Error(`« ${key} » est déjà une commande`);
+  if (C.COMMAND_NAMES.includes(key)) throw new Error(t('« {name} » est déjà une commande', { name: key }));
   aliases[key] = value;
   settings.save();
   say(`  ✓ alias ${key} = ${value}`, 'ok');
+}
+
+// ---------------------------------------------------------------- langue
+
+// Réglage enregistré, sinon langue choisie dans l'installateur Windows, sinon celle du système.
+function initialLang() {
+  if (settings.data.lang === 'fr' || settings.data.lang === 'en') return settings.data.lang;
+  if (app.isPackaged) {
+    try {
+      const v = fs.readFileSync(path.join(process.resourcesPath, 'default-lang'), 'utf8').trim();
+      if (v === 'fr' || v === 'en') {
+        // Gardée dans les réglages : une mise à jour silencieuse réinstalle sans ce choix.
+        settings.data.lang = v;
+        settings.save();
+        return v;
+      }
+    } catch {
+      // pas de fichier : installé autrement qu'avec l'installateur Windows
+    }
+  }
+  return /^fr/i.test(app.getLocale()) ? 'fr' : 'en';
+}
+
+function langCommand(arg, say) {
+  const lang = (arg || '').toLowerCase();
+  if (!lang) {
+    say(t('  langue : français (lang fr | en)'));
+    return;
+  }
+  if (lang !== 'fr' && lang !== 'en') throw new Error('lang fr | en');
+  settings.data.lang = lang;
+  settings.save();
+  setLang(lang);
+  buildMenu();
+  for (const tab of tabs) if (tab.screen && tab.screen.kind === 'home') showHome(tab);
+  say(t('  ✓ langue : français'), 'ok');
+  sendState();
 }
 
 // ---------------------------------------------------------------- IA
@@ -1284,12 +1329,12 @@ function aiProvidersScreen(tab) {
 function aiUse(tab, id, say) {
   const p = ai.PROVIDERS[id];
   ai.use(settings, id);
-  say(`  ✓ ia : ${p.name} · modèle ${ai.model(settings, id)}`, 'ok');
+  say(t('  ✓ ia : {name} · modèle {model}', { name: t(p.name), model: ai.model(settings, id) }), 'ok');
   if (!p.noKey && !ai.readKey(settings, id)) {
-    say(`  il faut une clé${p.free ? ' (gratuite)' : ''} : crée-la sur la page ouverte, puis tape « ia key <clé> »`, 'warn');
+    say(p.free ? t('  il faut une clé (gratuite) : crée-la sur la page ouverte, puis tape « ia key <clé> »') : t('  il faut une clé : crée-la sur la page ouverte, puis tape « ia key <clé> »'), 'warn');
     createTab({ url: p.keyUrl });
   } else if (id === 'ollama') {
-    say(`  Ollama doit tourner sur cet ordinateur avec le modèle installé (« ollama pull ${ai.model(settings, id)} »)`, 'dim');
+    say(t('  Ollama doit tourner sur cet ordinateur avec le modèle installé (« ollama pull {model} »)', { model: ai.model(settings, id) }), 'dim');
   }
   if (tab.screen && tab.screen.kind === 'aiproviders') aiProvidersScreen(tab);
 }
@@ -1307,30 +1352,30 @@ function aiCommand(tab, args, rest, say) {
     if (sub === 'connect') ai.use(settings, id);
     if (!key) {
       if (sub === 'connect') aiUse(tab, id, say);
-      else say(`  ia key <clé de ${ai.PROVIDERS[id].name}>`, 'err');
+      else say(t('  ia key <clé de {name}>', { name: ai.PROVIDERS[id].name }), 'err');
       return;
     }
     const encrypted = ai.saveKey(settings, id, key);
-    say(`  ✓ clé ${ai.PROVIDERS[id].name} enregistrée${encrypted ? ' (chiffrée par le système)' : ' (le système ne permet pas de la chiffrer)'}`, 'ok');
+    say(t('  ✓ clé {name} enregistrée', { name: ai.PROVIDERS[id].name }) + (encrypted ? t(' (chiffrée par le système)') : t(' (le système ne permet pas de la chiffrer)')), 'ok');
     if (tab.screen && tab.screen.kind === 'aiproviders') aiProvidersScreen(tab);
     return;
   }
   if (sub === 'use' && args.length === 2) {
-    if (!target) throw new Error(`IA inconnue : ${args[1]} (${Object.keys(ai.PROVIDERS).join(', ')})`);
+    if (!target) throw new Error(t('IA inconnue : {name} ({list})', { name: args[1], list: Object.keys(ai.PROVIDERS).join(', ') }));
     aiUse(tab, target, say);
     return;
   }
   if (sub === 'logout' && args.length <= 2) {
     const id = args[1] ? target : ai.current(settings);
-    if (!id) throw new Error(`IA inconnue : ${args[1]}`);
-    say(ai.removeKey(settings, id) ? `  ✓ clé ${ai.PROVIDERS[id].name} supprimée` : `  pas de clé enregistrée pour ${ai.PROVIDERS[id].name}`, 'ok');
+    if (!id) throw new Error(t('IA inconnue : {name}', { name: args[1] }));
+    say(ai.removeKey(settings, id) ? t('  ✓ clé {name} supprimée', { name: ai.PROVIDERS[id].name }) : t('  pas de clé enregistrée pour {name}', { name: ai.PROVIDERS[id].name }), 'ok');
     if (tab.screen && tab.screen.kind === 'aiproviders') aiProvidersScreen(tab);
     return;
   }
   if (sub === 'model' && args.length <= 2) {
     const id = ai.current(settings);
     if (args[1]) ai.setModel(settings, id, args[1] === 'default' ? null : args[1]);
-    say(`  modèle ${ai.PROVIDERS[id].name} : ${ai.model(settings, id)}`);
+    say(t('  modèle {name} : {model}', { name: ai.PROVIDERS[id].name, model: ai.model(settings, id) }));
     return;
   }
   const id = ++aiRequest;
@@ -1349,10 +1394,10 @@ function aiCommand(tab, args, rest, say) {
     screen.text = text;
     refresh(false);
   }).then((r) => {
-    screen.text = r.text || (r.refused ? '' : '(pas de réponse)');
+    screen.text = r.text || (r.refused ? '' : t('(pas de réponse)'));
     screen.sources = r.sources.map((src, i) => ({ n: i + 1, ...src, short: shortUrl(src.url) }));
-    if (r.refused) screen.error = `${screen.provider} a refusé de répondre à cette question.`;
-    if (r.switched) say(`  le modèle ${r.switched.from} a été retiré : ${screen.provider} utilise maintenant ${r.switched.to}`);
+    if (r.refused) screen.error = t('{name} a refusé de répondre à cette question.', { name: screen.provider });
+    if (r.switched) say(t('  le modèle {from} a été retiré : {name} utilise maintenant {to}', { from: r.switched.from, name: screen.provider, to: r.switched.to }));
     screen.done = true;
     refresh(true);
   }).catch((err) => {
@@ -1365,22 +1410,52 @@ function aiCommand(tab, args, rest, say) {
 
 // ---------------------------------------------------------------- mises à jour
 
+// Réglage enregistré, sinon case de l'installateur Windows, sinon activé.
+function autoUpdateOn() {
+  if (typeof settings.data.autoUpdate === 'boolean') return settings.data.autoUpdate;
+  let on = true;
+  if (app.isPackaged) {
+    try {
+      on = fs.readFileSync(path.join(process.resourcesPath, 'default-autoupdate'), 'utf8').trim() !== 'off';
+      // Gardé dans les réglages : une mise à jour silencieuse réinstalle sans cette page.
+      settings.data.autoUpdate = on;
+      settings.save();
+    } catch {
+      // pas de fichier : installé autrement qu'avec l'installateur Windows
+    }
+  }
+  return on;
+}
+
 async function updateCommand(args, say) {
   const sub = args[0];
+  if (sub === 'auto') {
+    const arg = (args[1] || '').toLowerCase();
+    if (arg && arg !== 'on' && arg !== 'off') throw new Error('update auto [on | off]');
+    if (arg) {
+      settings.data.autoUpdate = arg === 'on';
+      settings.save();
+    }
+    const state = autoUpdateOn()
+      ? t('vérification automatique au lancement : activée (dev-brows et extensions)')
+      : t('vérification automatique au lancement : désactivée (« update » et « ext » restent possibles à la main)');
+    say(`  ${arg ? '✓ ' : ''}${state}`, arg ? 'ok' : '');
+    return;
+  }
   if (updater.installed()) {
     if (sub === 'electron') {
-      say('  Electron est inclus dans l\'installateur : « update install » installe la dernière version publiée', 'dim');
+      say(t('  Electron est inclus dans l\'installateur : « update install » installe la dernière version publiée'), 'dim');
       return;
     }
     if (sub === 'install') {
       // Sans signature Apple, macOS refuse l'installation automatique : on ouvre la page de téléchargement.
       if (process.platform === 'darwin') {
         createTab({ url: updater.RELEASES_URL });
-        say('  page des installateurs ouverte : télécharge le .dmg de la dernière version', 'dim');
+        say(t('  page des installateurs ouverte : télécharge le .dmg de la dernière version'), 'dim');
         return;
       }
-      ask(say, 'télécharger et installer la dernière version ? l\'appli redémarrera', async (s) => {
-        print([{ t: '  téléchargement de l\'installateur…', c: 'dim' }]);
+      ask(say, t('télécharger et installer la dernière version ? l\'appli redémarrera'), async (s) => {
+        print([{ t: t('  téléchargement de l\'installateur…'), c: 'dim' }]);
         let last = -10;
         try {
           const started = await updater.installRelease((pct) => {
@@ -1389,27 +1464,27 @@ async function updateCommand(args, say) {
               print([{ t: `  ↓ ${pct} %`, c: 'dim' }]);
             }
           });
-          if (!started) s('  ✓ déjà à jour', 'ok');
+          if (!started) s(t('  ✓ déjà à jour'), 'ok');
         } catch (err) {
-          s(`  mise à jour impossible : ${err.message}`, 'err');
+          s(t('  mise à jour impossible : {error}', { error: err.message }), 'err');
           createTab({ url: updater.RELEASES_URL });
-          s('  page des installateurs ouverte pour la faire à la main', 'dim');
+          s(t('  page des installateurs ouverte pour la faire à la main'), 'dim');
         }
       });
       return;
     }
   } else if (sub === 'install' || sub === 'electron') {
     const what = sub === 'electron'
-      ? 'passer à la dernière version majeure d\'Electron (peut casser des choses, à tester)'
-      : 'mettre à jour l\'appli et Electron dans sa version actuelle';
-    ask(say, `${what} ? l'appli va se fermer puis se relancer`, async (s) => {
+      ? t('passer à la dernière version majeure d\'Electron (peut casser des choses, à tester) ? l\'appli va se fermer puis se relancer')
+      : t('mettre à jour l\'appli et Electron dans sa version actuelle ? l\'appli va se fermer puis se relancer');
+    ask(say, what, async (s) => {
       await updater.launchSource(sub === 'electron' ? 'electron' : 'app');
-      s('  mise à jour lancée, l\'appli redémarre…', 'ok');
+      s(t('  mise à jour lancée, l\'appli redémarre…'), 'ok');
       setTimeout(() => app.quit(), 600);
     });
     return;
   }
-  say('  vérification…', 'dim');
+  say(t('  vérification…'), 'dim');
   const r = await updater.check();
   settings.data.lastUpdateCheck = Date.now();
   settings.save();
@@ -1419,18 +1494,18 @@ async function updateCommand(args, say) {
 function updateLines(r) {
   if (r.installed) {
     const lines = [{ t: `  dev-brows ${r.current} (Electron ${process.versions.electron}, Chromium ${process.versions.chrome})` }];
-    if (r.available) lines.push({ t: `  ↑ nouvelle version publiée sur GitHub : ${r.latest} → « update install »`, c: 'warn' });
-    else lines.push({ t: '  ✓ à jour', c: 'ok' });
+    if (r.available) lines.push({ t: t('  ↑ nouvelle version publiée sur GitHub : {version} → « update install »', { version: r.latest }), c: 'warn' });
+    else lines.push({ t: t('  ✓ à jour'), c: 'ok' });
     return lines;
   }
-  const lines = [{ t: `  Electron ${r.current} (Chromium ${process.versions.chrome}), lancé depuis le code` }];
+  const lines = [{ t: t('  Electron {electron} (Chromium {chrome}), lancé depuis le code', { electron: r.current, chrome: process.versions.chrome }) }];
   const patch = r.sameMajor !== r.current;
-  if (patch) lines.push({ t: `  ↑ correctifs disponibles : Electron ${r.sameMajor} → « update install »`, c: 'warn' });
+  if (patch) lines.push({ t: t('  ↑ correctifs disponibles : Electron {version} → « update install »', { version: r.sameMajor }), c: 'warn' });
   if (updater.major(r.latest) > updater.major(r.current)) {
-    lines.push({ t: `  ↑ nouvelle version majeure : Electron ${r.latest} → « update electron » (à tester)`, c: 'dim' });
+    lines.push({ t: t('  ↑ nouvelle version majeure : Electron {version} → « update electron » (à tester)', { version: r.latest }), c: 'dim' });
   }
-  if (r.behind) lines.push({ t: `  ↑ ${r.behind} nouveau${r.behind > 1 ? 'x' : ''} commit${r.behind > 1 ? 's' : ''} sur le dépôt → « update install »`, c: 'warn' });
-  if (!patch && !r.behind) lines.push({ t: '  ✓ à jour', c: 'ok' });
+  if (r.behind) lines.push({ t: r.behind > 1 ? t('  ↑ {count} nouveaux commits sur le dépôt → « update install »', { count: r.behind }) : t('  ↑ 1 nouveau commit sur le dépôt → « update install »'), c: 'warn' });
+  if (!patch && !r.behind) lines.push({ t: t('  ✓ à jour'), c: 'ok' });
   return lines;
 }
 
@@ -1440,14 +1515,16 @@ function startupUpdateNotes() {
   const report = updater.lastReport();
   if (report) {
     const versions = report.before !== report.after ? ` (Electron ${report.before} → ${report.after})` : '';
-    print([{ t: `  ${report.ok ? '✓ mise à jour terminée' : '✗ mise à jour incomplète'}${versions}`, c: report.ok ? 'ok' : 'err' }]);
+    print([{ t: `  ${report.ok ? t('✓ mise à jour terminée') : t('✗ mise à jour incomplète')}${versions}`, c: report.ok ? 'ok' : 'err' }]);
     for (const step of report.steps.filter((st) => !st.ok)) print([{ t: `    ${step.cmd} : ${step.output}`, c: 'err' }]);
   }
   if (updater.installed() && settings.data.lastVersion && settings.data.lastVersion !== app.getVersion()) {
-    print([{ t: `  ✓ dev-brows mis à jour en ${app.getVersion()}`, c: 'ok' }]);
+    print([{ t: t('  ✓ dev-brows mis à jour en {version}', { version: app.getVersion() }), c: 'ok' }]);
   }
   settings.data.lastVersion = app.getVersion();
   settings.save();
+  // « update auto off » : ni vérification de l'appli ni mise à jour des extensions au lancement.
+  if (!autoUpdateOn()) return;
   setTimeout(async () => {
     try {
       const r = await updater.check();
@@ -1458,9 +1535,9 @@ function startupUpdateNotes() {
       // hors ligne : on réessaiera au prochain démarrage
     }
     const results = await exts.updateAll();
-    for (const u of results.filter((x) => !x.error)) print([{ t: `  ✓ extension ${u.name} mise à jour : ${u.from} → ${u.to}`, c: 'ok' }]);
+    for (const u of results.filter((x) => !x.error)) print([{ t: t('  ✓ extension {name} mise à jour : {from} → {to}', u), c: 'ok' }]);
     const failed = results.filter((x) => x.error);
-    if (failed.length) print([{ t: `  mise à jour impossible pour ${failed.map((x) => x.name).join(', ')} (${failed[0].error})`, c: 'dim' }]);
+    if (failed.length) print([{ t: t('  mise à jour impossible pour {names} ({error})', { names: failed.map((x) => x.name).join(', '), error: failed[0].error }), c: 'dim' }]);
     sendState();
   }, 8000);
 }
@@ -1474,10 +1551,10 @@ function setupWebAuthn() {
     const accounts = details.accounts || [];
     if (accounts.length <= 1) return callback(accounts[0] && accounts[0].credentialId);
     const label = (a) => [a.displayName, a.name].filter(Boolean).join(' · ') || a.credentialId.slice(0, 12);
-    const lines = enqueue(`${details.relyingPartyId} : quel compte de la clé utiliser ? ${accounts.map((a, i) => `${i + 1} = ${label(a)}`).join(', ')} (1-${accounts.length})`, async (input, say) => {
+    const lines = enqueue(t('{site} : quel compte de la clé utiliser ? {list} (1-{max})', { site: details.relyingPartyId, list: accounts.map((a, i) => `${i + 1} = ${label(a)}`).join(', '), max: accounts.length }), async (input, say) => {
       const a = accounts[(input ? Number(input) : 1) - 1];
       callback(a ? a.credentialId : undefined);
-      say(a ? `  ✓ compte ${label(a)}` : '  connexion annulée', a ? 'ok' : 'dim');
+      say(a ? t('  ✓ compte {name}', { name: label(a) }) : t('  connexion annulée'), a ? 'ok' : 'dim');
     }, /^\d*$/);
     if (lines.length) {
       print(lines);
@@ -1493,27 +1570,27 @@ function setupWebAuthn() {
 const SAFE_PERMISSIONS = new Set(['fullscreen', 'pointerLock', 'keyboardLock', 'clipboard-sanitized-write', 'mediaKeySystem']);
 
 const PERMISSION_LABELS = {
-  camera: 'la caméra',
-  microphone: 'le micro',
-  geolocation: 'ta position',
-  notifications: 'les notifications',
-  'clipboard-read': 'la lecture du presse-papier',
-  'display-capture': 'le partage d\'écran',
-  midi: 'les appareils MIDI',
-  midiSysex: 'les appareils MIDI',
-  openExternal: 'l\'ouverture d\'une application externe',
-  'idle-detection': 'la détection d\'inactivité',
-  'storage-access': 'ses cookies sur d\'autres sites',
-  'top-level-storage-access': 'ses cookies sur d\'autres sites',
-  'window-management': 'la gestion des fenêtres et écrans',
-  'speaker-selection': 'le choix de la sortie audio',
+  camera: mark('la caméra'),
+  microphone: mark('le micro'),
+  geolocation: mark('ta position'),
+  notifications: mark('les notifications'),
+  'clipboard-read': mark('la lecture du presse-papier'),
+  'display-capture': mark('le partage d\'écran'),
+  midi: mark('les appareils MIDI'),
+  midiSysex: mark('les appareils MIDI'),
+  openExternal: mark('l\'ouverture d\'une application externe'),
+  'idle-detection': mark('la détection d\'inactivité'),
+  'storage-access': mark('ses cookies sur d\'autres sites'),
+  'top-level-storage-access': mark('ses cookies sur d\'autres sites'),
+  'window-management': mark('la gestion des fenêtres et écrans'),
+  'speaker-selection': mark('le choix de la sortie audio'),
 };
 
 function originOf(url) {
   try {
     return new URL(url).origin;
   } catch {
-    return url || 'ce site';
+    return url || t('ce site');
   }
 }
 
@@ -1534,18 +1611,18 @@ function setupPermissions() {
     const keys = permissionKeys(permission, details);
     const known = keys.map((k) => saved[origin] && saved[origin][k]);
     if (known.every((v) => v !== undefined)) return callback(known.every(Boolean));
-    const label = [...new Set(keys.map((k) => PERMISSION_LABELS[k] || k))].join(' et ');
+    const label = [...new Set(keys.map((k) => (PERMISSION_LABELS[k] ? t(PERMISSION_LABELS[k]) : k)))].join(t(' et '));
     const extra = permission === 'openExternal' && details.externalURL ? ` (${details.externalURL.slice(0, 60)})` : '';
-    const lines = enqueue(`${origin} demande ${label}${extra} : O = oui, t = toujours, j = jamais, n = non (O/n)`, async (input, say) => {
+    const lines = enqueue(t('{site} demande {what}{extra} : O = oui, t = toujours, j = jamais, n = non (O/n)', { site: origin, what: label, extra }), async (input, say) => {
       const a = input.toLowerCase();
-      const ok = /^(|o|oui|y|yes|t|toujours)$/.test(a);
-      if (/^(t|toujours|j|jamais)$/.test(a)) {
+      const ok = /^(|o|oui|y|yes|t|toujours|a|always)$/.test(a);
+      if (/^(t|toujours|j|jamais|a|always|x|never)$/.test(a)) {
         saved[origin] = saved[origin] || {};
         for (const k of keys) saved[origin][k] = ok;
         settings.save();
       }
       callback(ok);
-      say(ok ? `  ✓ ${label} : autorisé pour ${origin}` : `  ✗ ${label} : refusé à ${origin}`, ok ? 'ok' : 'dim');
+      say(ok ? t('  ✓ {what} : autorisé pour {site}', { what: label, site: origin }) : t('  ✗ {what} : refusé à {site}', { what: label, site: origin }), ok ? 'ok' : 'dim');
     });
     if (lines.length) {
       print(lines);
@@ -1569,16 +1646,16 @@ function permCommand(args, say) {
     if (origin) delete saved[origin];
     else for (const k of Object.keys(saved)) delete saved[k];
     settings.save();
-    say(`  ✓ autorisations ${origin ? `de ${origin} ` : ''}effacées`, 'ok');
+    say(origin ? t('  ✓ autorisations de {site} effacées', { site: origin }) : t('  ✓ autorisations effacées'), 'ok');
     return;
   }
   const entries = Object.entries(saved);
-  if (!entries.length) say('  aucune autorisation enregistrée', 'dim');
+  if (!entries.length) say(t('  aucune autorisation enregistrée'), 'dim');
   for (const [origin, perms] of entries) {
-    const list = Object.entries(perms).map(([k, v]) => `${v ? '✓' : '✗'} ${PERMISSION_LABELS[k] || k}`).join(', ');
+    const list = Object.entries(perms).map(([k, v]) => `${v ? '✓' : '✗'} ${PERMISSION_LABELS[k] ? t(PERMISSION_LABELS[k]) : k}`).join(', ');
     say(`  ${origin} : ${list}`);
   }
-  say('  perm reset [site] pour effacer', 'dim');
+  say(t('  perm reset [site] pour effacer'), 'dim');
 }
 
 // Autocomplétion avec Tab.
@@ -1609,25 +1686,25 @@ function complete(line) {
 // ---------------------------------------------------------------- fenêtre et raccourcis
 
 const SHORTCUTS = [
-  ['Ctrl+L', 'aller au terminal'],
-  ['Ctrl+J', 'cacher / montrer le terminal'],
-  ['F11', 'plein écran'],
-  ['Échap', 'rendre la main à la page'],
-  ['Ctrl+T / Ctrl+W', 'nouvel onglet / fermer l\'onglet'],
-  ['Ctrl+Tab', 'onglet suivant (Ctrl+1…9 : onglet n)'],
-  ['Alt+← / Alt+→', 'précédent / suivant'],
-  ['F5', 'recharger'],
-  ['Ctrl+F / Ctrl+D', 'chercher dans la page / ajouter aux favoris'],
-  ['Ctrl+Maj+S / F6', 'split / changer d\'écran'],
-  ['F12, clic droit › Inspecter', 'outils de développement'],
-  ['Alt+1…9', 'popup de l\'extension n'],
-  ['Ctrl+molette, Ctrl+= / Ctrl+-', 'zoom'],
-  ['↑ ↓ / Tab', 'historique des commandes / autocomplétion'],
+  ['Ctrl+L', mark('aller au terminal')],
+  ['Ctrl+J', mark('cacher / montrer le terminal')],
+  ['F11', mark('plein écran')],
+  [mark('Échap'), mark('rendre la main à la page')],
+  ['Ctrl+T / Ctrl+W', mark('nouvel onglet / fermer l\'onglet')],
+  ['Ctrl+Tab', mark('onglet suivant (Ctrl+1…9 : onglet n)')],
+  ['Alt+← / Alt+→', mark('précédent / suivant')],
+  ['F5', mark('recharger')],
+  ['Ctrl+F / Ctrl+D', mark('chercher dans la page / ajouter aux favoris')],
+  [mark('Ctrl+Maj+S / F6'), mark('split / changer d\'écran')],
+  [mark('F12, clic droit › Inspecter'), mark('outils de développement')],
+  ['Alt+1…9', mark('popup de l\'extension n')],
+  [mark('Ctrl+molette, Ctrl+= / Ctrl+-'), 'zoom'],
+  ['↑ ↓ / Tab', mark('historique des commandes / autocomplétion')],
 ];
 
 // Recharge la page et retire l'écran du terminal (résultats, aide…) qui pouvait la cacher.
 function reloadTab(tab) {
-  if (!tab.view) throw new Error('aucune page ouverte');
+  if (!tab.view) throw new Error(t('aucune page ouverte'));
   tab.screen = null;
   tab.view.webContents.reload();
   layout();
@@ -1659,38 +1736,38 @@ function buildMenu() {
       label: 'dev-brows',
       submenu: [
         { label: 'Terminal', accelerator: 'CmdOrCtrl+L', click: () => focusTerminal() },
-        { label: 'Cacher le terminal', accelerator: 'CmdOrCtrl+J', click: () => win.webContents.send('term:toggle') },
-        { label: 'Plein écran', accelerator: 'F11', click: () => win.setFullScreen(!win.isFullScreen()) },
-        { label: 'Nouvel onglet', accelerator: 'CmdOrCtrl+T', click: act(() => { createTab(); focusTerminal(); }) },
-        { label: 'Fermer l\'onglet', accelerator: 'CmdOrCtrl+W', click: act(() => closeTab(activeTab())) },
-        { label: 'Onglet suivant', accelerator: 'Ctrl+Tab', click: act(() => cycleTab(1)) },
-        { label: 'Onglet précédent', accelerator: 'Ctrl+Shift+Tab', click: act(() => cycleTab(-1)) },
+        { label: t('Cacher le terminal'), accelerator: 'CmdOrCtrl+J', click: () => win.webContents.send('term:toggle') },
+        { label: t('Plein écran'), accelerator: 'F11', click: () => win.setFullScreen(!win.isFullScreen()) },
+        { label: t('Nouvel onglet'), accelerator: 'CmdOrCtrl+T', click: act(() => { createTab(); focusTerminal(); }) },
+        { label: t('Fermer l\'onglet'), accelerator: 'CmdOrCtrl+W', click: act(() => closeTab(activeTab())) },
+        { label: t('Onglet suivant'), accelerator: 'Ctrl+Tab', click: act(() => cycleTab(1)) },
+        { label: t('Onglet précédent'), accelerator: 'Ctrl+Shift+Tab', click: act(() => cycleTab(-1)) },
         ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({
-          label: `Onglet ${n}`, accelerator: `CmdOrCtrl+${n}`, visible: false, click: act(() => tabs[n - 1] && showInPane(tabs[n - 1], activePane)),
+          label: t('Onglet {n}', { n }), accelerator: `CmdOrCtrl+${n}`, visible: false, click: act(() => tabs[n - 1] && showInPane(tabs[n - 1], activePane)),
         })),
-        { label: 'Précédent', accelerator: 'Alt+Left', click: nav((wc) => wc.navigationHistory.canGoBack() && wc.navigationHistory.goBack()) },
-        { label: 'Suivant', accelerator: 'Alt+Right', click: nav((wc) => wc.navigationHistory.canGoForward() && wc.navigationHistory.goForward()) },
-        { label: 'Recharger', accelerator: 'F5', click: act(() => reloadTab(activeTab())) },
-        { label: 'Recharger', accelerator: 'CmdOrCtrl+R', visible: false, click: act(() => reloadTab(activeTab())) },
-        { label: 'Chercher', accelerator: 'CmdOrCtrl+F', click: () => focusTerminal('find ') },
-        { label: 'Ajouter aux favoris', accelerator: 'CmdOrCtrl+D', click: () => focusTerminal('add ') },
+        { label: t('Précédent'), accelerator: 'Alt+Left', click: nav((wc) => wc.navigationHistory.canGoBack() && wc.navigationHistory.goBack()) },
+        { label: t('Suivant'), accelerator: 'Alt+Right', click: nav((wc) => wc.navigationHistory.canGoForward() && wc.navigationHistory.goForward()) },
+        { label: t('Recharger'), accelerator: 'F5', click: act(() => reloadTab(activeTab())) },
+        { label: t('Recharger'), accelerator: 'CmdOrCtrl+R', visible: false, click: act(() => reloadTab(activeTab())) },
+        { label: t('Chercher'), accelerator: 'CmdOrCtrl+F', click: () => focusTerminal('find ') },
+        { label: t('Ajouter aux favoris'), accelerator: 'CmdOrCtrl+D', click: () => focusTerminal('add ') },
         { label: 'Split', accelerator: 'CmdOrCtrl+Shift+S', click: () => runCommand(panes.length > 1 ? 'split off' : 'split') },
-        { label: 'Changer d\'écran', accelerator: 'F6', click: () => panes.length > 1 && runCommand('focus') },
-        { label: 'Outils de développement', accelerator: 'F12', click: act(() => toggleDevtools(activeTab())) },
-        { label: 'Outils de développement', accelerator: 'CmdOrCtrl+Shift+I', visible: false, click: act(() => toggleDevtools(activeTab())) },
+        { label: t('Changer d\'écran'), accelerator: 'F6', click: () => panes.length > 1 && runCommand('focus') },
+        { label: t('Outils de développement'), accelerator: 'F12', click: act(() => toggleDevtools(activeTab())) },
+        { label: t('Outils de développement'), accelerator: 'CmdOrCtrl+Shift+I', visible: false, click: act(() => toggleDevtools(activeTab())) },
         ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({
           label: `Extension ${n}`, accelerator: `Alt+${n}`, visible: false, click: act(() => openExtPopup(n)),
         })),
         { label: 'Zoom +', accelerator: 'CmdOrCtrl+=', click: () => zoom(0.5) },
         { label: 'Zoom +', accelerator: 'CmdOrCtrl+Plus', visible: false, click: () => zoom(0.5) },
         { label: 'Zoom -', accelerator: 'CmdOrCtrl+-', click: () => zoom(-0.5) },
-        { label: 'Zoom normal', accelerator: 'CmdOrCtrl+0', click: () => zoom(0) },
+        { label: t('Zoom normal'), accelerator: 'CmdOrCtrl+0', click: () => zoom(0) },
         { type: 'separator' },
-        { role: 'quit', label: 'Quitter' },
+        { role: 'quit', label: t('Quitter') },
       ],
     },
     {
-      label: 'Édition',
+      label: t('Édition'),
       submenu: [{ role: 'undo' }, { role: 'redo' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }],
     },
   ];
@@ -1707,7 +1784,7 @@ function setupDownloads() {
     item.setSavePath(file);
     const d = { name: path.basename(file), path: file, state: 'progressing', received: 0, total: item.getTotalBytes() };
     downloads.unshift(d);
-    print([{ t: `  ↓ téléchargement de ${d.name} (dl pour suivre)`, c: 'dim' }]);
+    print([{ t: t('  ↓ téléchargement de {name} (dl pour suivre)', { name: d.name }), c: 'dim' }]);
     sendState();
     item.on('updated', () => {
       d.received = item.getReceivedBytes();
@@ -1715,7 +1792,7 @@ function setupDownloads() {
     item.once('done', (ev, state) => {
       d.state = state;
       d.received = item.getReceivedBytes();
-      print([{ t: `  ${state === 'completed' ? '✓' : '✗'} ${d.name} ${state === 'completed' ? 'téléchargé' : 'interrompu'}`, c: state === 'completed' ? 'ok' : 'err' }]);
+      print([{ t: state === 'completed' ? t('  ✓ {name} téléchargé', { name: d.name }) : t('  ✗ {name} interrompu', { name: d.name }), c: state === 'completed' ? 'ok' : 'err' }]);
       const tab = activeTab();
       if (tab.screen && tab.screen.kind === 'dl') showDl(tab);
       sendState();
@@ -1737,6 +1814,9 @@ function setupIpc() {
     return exec(String(line));
   });
   ipcMain.on('ui:zoom-reset', () => zoom(0));
+  ipcMain.on('ui:lang', (e) => {
+    e.returnValue = getLang();
+  });
   ipcMain.handle('ui:complete', (e, line) => complete(String(line)));
   ipcMain.handle('ui:clipboard-read', () => clipboard.readText());
   ipcMain.on('ui:clipboard-write', (e, text) => clipboard.writeText(String(text)));
@@ -1822,6 +1902,7 @@ app.whenReady().then(async () => {
   history = new JsonStore(path.join(dir, 'historique.json'), { entries: [] });
   settings = new JsonStore(path.join(dir, 'reglages.json'), { engine: 'ddg', theme: 'ambre', aliases: {}, extensions: [], builtinAdblock: false });
   ai.migrate(settings);
+  setLang(initialLang());
   setupChromeApi(); // avant le chargement des extensions, pour lire leurs manifestes
   ses.registerPreloadScript({ id: 'dev-brows-browser-alias', type: 'frame', filePath: path.join(__dirname, 'ext-preload.js') });
   exts = new Extensions(ses, settings, path.join(dir, 'extensions'));
@@ -1833,7 +1914,7 @@ app.whenReady().then(async () => {
   setupWebAuthn();
   setupGoogleLogin();
   adblock = new AdBlock(ses, path.join(dir, 'adblock.bin'));
-  if (settings.data.builtinAdblock) adblock.enable().catch((err) => print([{ t: `  bloqueur de pub : listes non téléchargées (${err.message}), « adblock on » pour réessayer`, c: 'err' }]));
+  if (settings.data.builtinAdblock) adblock.enable().catch((err) => print([{ t: t('  bloqueur de pub : listes non téléchargées ({error}), « adblock on » pour réessayer', { error: err.message }), c: 'err' }]));
   buildMenu();
   createWindow();
   createTab();

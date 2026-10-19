@@ -64,7 +64,14 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "multiLanguageInstaller": true,
+      "installerLanguages": [
+        "fr_FR",
+        "en_US"
+      ],
+      "displayLanguageSelector": true,
+      "include": "build/installer.nsh"
     },
     "mac": {
       "target": [

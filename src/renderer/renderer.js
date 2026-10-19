@@ -1,6 +1,9 @@
 'use strict';
 
 const api = window.brows;
+const { t, mark, setLang, getLang } = window.I18N;
+setLang(api.lang);
+const locale = () => (getLang() === 'en' ? 'en-US' : 'fr-FR');
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
 const content = $('#content');
@@ -9,7 +12,7 @@ const scrollback = $('#scrollback');
 const panesEl = [...document.querySelectorAll('.pane')];
 
 let state = null;
-let awaiting = false; // « (O/n) » ou « (o/N) » quand une question oui/non attend une réponse
+let awaiting = false; // « (O/n) » ou « (o/N) » (« (Y/n) » en anglais) quand une question attend une réponse
 const cmdHistory = load('cmdHistory', []);
 let histIndex = cmdHistory.length;
 
@@ -90,7 +93,7 @@ function showTerm(id, alive) {
 function print(lines, el = term()) {
   for (const l of lines) {
     el.append(h('div', { class: l.c || '' }, l.t));
-    if (l.c === 'warn' && l.t.trim().startsWith('?')) awaiting = (l.t.match(/\([^()]*\)$/) || ['(O/n)'])[0];
+    if (l.c === 'warn' && l.t.trim().startsWith('?')) awaiting = (l.t.match(/\([^()]*\)$/) || [t('(O/n)')])[0];
   }
   while (el.childElementCount > 600) el.firstElementChild.remove();
   scrollback.scrollTop = scrollback.scrollHeight;
@@ -119,7 +122,7 @@ function renderPs1() {
     ps1.replaceChildren(h('span', { class: 'warn' }, awaiting), ' ', h('span', { class: 'acc' }, '❯'));
     return;
   }
-  const host = state ? state.status.host || 'accueil' : '…';
+  const host = state ? state.status.host || t('accueil') : '…';
   ps1.replaceChildren(
     h('span', { class: 'user' }, state ? state.user : ''),
     h('span', { class: 'dim' }, '@'),
@@ -136,7 +139,7 @@ $('#url').addEventListener('click', () => {
   const url = $('#url').textContent;
   if (!url) return;
   api.writeClipboard(url);
-  print([{ t: `  ✓ adresse copiée : ${url}`, c: 'ok' }]);
+  print([{ t: t('  ✓ adresse copiée : {url}', { url }), c: 'ok' }]);
 });
 
 $('#prompt').addEventListener('submit', (e) => {
@@ -264,6 +267,10 @@ window.addEventListener('resize', sendRects);
 
 api.on('state', (s) => {
   state = s;
+  if (s.lang && s.lang !== getLang()) {
+    setLang(s.lang);
+    applyStaticLabels();
+  }
   document.documentElement.style.setProperty('--accent', s.accent);
   showTerm(s.panes[s.activePane].tabId, new Set(s.tabs.map((t) => t.id)));
   renderTabs();
@@ -275,27 +282,27 @@ api.on('state', (s) => {
 
 function renderTabs() {
   const activeId = state.panes[state.activePane].tabId;
-  fill($('#tabs'), state.tabs.map((t) => h(
+  fill($('#tabs'), state.tabs.map((tb) => h(
     'div',
     {
-      class: `tab${t.id === activeId ? ' active' : ''}${t.pane >= 0 && t.id !== activeId ? ' other-pane' : ''}`,
+      class: `tab${tb.id === activeId ? ' active' : ''}${tb.pane >= 0 && tb.id !== activeId ? ' other-pane' : ''}`,
       draggable: 'true',
       // Clic molette : ferme l'onglet.
       onmousedown: (e) => { if (e.button === 1) e.preventDefault(); },
-      onauxclick: (e) => { if (e.button === 1) api.closeTab(t.id); },
+      onauxclick: (e) => { if (e.button === 1) api.closeTab(tb.id); },
       // Glisser-déposer pour changer l'ordre des onglets.
-      ondragstart: (e) => { e.dataTransfer.setData('text/x-tab', String(t.id)); e.dataTransfer.effectAllowed = 'move'; },
+      ondragstart: (e) => { e.dataTransfer.setData('text/x-tab', String(tb.id)); e.dataTransfer.effectAllowed = 'move'; },
       ondragover: (e) => { if (e.dataTransfer.types.includes('text/x-tab')) { e.preventDefault(); e.currentTarget.classList.add('drop'); } },
       ondragleave: (e) => e.currentTarget.classList.remove('drop'),
       ondrop: (e) => {
         e.preventDefault();
         e.currentTarget.classList.remove('drop');
         const id = Number(e.dataTransfer.getData('text/x-tab'));
-        if (id && id !== t.id) api.moveTab(id, t.id);
+        if (id && id !== tb.id) api.moveTab(id, tb.id);
       },
     },
-    h('button', { type: 'button', class: 'label', title: t.title, onclick: () => api.tab(t.id) }, `[${t.n}] `, t.loading ? h('span', { class: 'spin' }, '◌ ') : null, t.title),
-    h('button', { type: 'button', class: 'close', 'aria-label': `Fermer l'onglet ${t.n}`, onclick: () => api.closeTab(t.id) }, '×'),
+    h('button', { type: 'button', class: 'label', title: tb.title, onclick: () => api.tab(tb.id) }, `[${tb.n}] `, tb.loading ? h('span', { class: 'spin' }, '◌ ') : null, tb.title),
+    h('button', { type: 'button', class: 'close', 'aria-label': t('Fermer l\'onglet {n}', { n: tb.n }), onclick: () => api.closeTab(tb.id) }, '×'),
   )));
   $('#url').textContent = state.status.url;
 }
@@ -314,17 +321,17 @@ function renderPanes() {
       bar = h('div', { class: 'devbar' },
         h('span', { class: 'dim' }, 'DevTools'),
         h('span', { class: 'grow' }),
-        h('button', { type: 'button', title: 'Détacher dans une fenêtre (devtools detach)', onclick: () => api.devtools('detach') }, '⇱'),
-        h('button', { type: 'button', title: 'Fermer les DevTools (F12)', onclick: () => api.devtools('close') }, '✕'));
+        h('button', { type: 'button', class: 'detach', title: t('Détacher dans une fenêtre (devtools detach)'), onclick: () => api.devtools('detach') }, '⇱'),
+        h('button', { type: 'button', class: 'close', title: t('Fermer les DevTools (F12)'), onclick: () => api.devtools('close') }, '✕'));
       viewport.append(bar);
     }
     bar.hidden = !p.dev;
     fill($('.pane-bar', pane), state.panes.length > 1 ? [
-      h('span', { class: 'pane-title' }, `écran ${i + 1} · ${p.title}`),
-      h('button', { type: 'button', class: 'pane-close', title: `Fermer l'écran ${i + 1} (split off ${i + 1})`, onclick: (ev) => { ev.stopPropagation(); run(`split off ${i + 1}`); } }, '✕'),
+      h('span', { class: 'pane-title' }, t('écran {n} · {title}', { n: i + 1, title: p.title })),
+      h('button', { type: 'button', class: 'pane-close', title: t('Fermer l\'écran {n} (split off {n})', { n: i + 1 }), onclick: (ev) => { ev.stopPropagation(); run(`split off ${i + 1}`); } }, '✕'),
     ] : []);
     const screen = $('.screen', pane);
-    const key = JSON.stringify(p.screen);
+    const key = getLang() + JSON.stringify(p.screen);
     if (screen.dataset.key !== key) {
       screen.dataset.key = key;
       fill(screen, p.screen ? renderScreen(p.screen) : []);
@@ -340,22 +347,22 @@ function renderStatus() {
   const chips = state.exts.map((e) => h('button', {
     type: 'button',
     class: `chip${e.enabled ? '' : ' off'}`,
-    title: `${e.name}${e.enabled ? '' : ' (désactivée)'}${e.error ? ` : ${e.error}` : ''} · Alt+${e.n}`,
+    title: `${e.name}${e.enabled ? '' : t(' (désactivée)')}${e.error ? ` : ${e.error}` : ''} · Alt+${e.n}`,
     onclick: (ev) => api.extPopup(e.n, ev.currentTarget.getBoundingClientRect().right),
   }, `${e.n} ${e.alias}${e.enabled ? '' : ' ⏸'}`));
   fill($('#status'), [
     h('span', {}, s.mode),
     h('span', { class: 'addr' }, s.host),
     s.fav ? h('span', {}, `★ ${s.fav}`) : null,
-    s.split ? h('span', {}, `split · écran ${state.activePane + 1}`) : null,
+    s.split ? h('span', {}, t('split · écran {n}', { n: state.activePane + 1 })) : null,
     s.devtools ? h('span', { class: 'dev' },
       'DevTools ',
       s.devtools === 'docked'
-        ? h('button', { type: 'button', class: 'pill', title: 'Détacher dans une fenêtre (devtools detach)', onclick: () => api.devtools('detach') }, '⇱ détacher')
-        : h('button', { type: 'button', class: 'pill', title: 'Remettre à côté de la page', onclick: () => api.devtools('attach') }, '⇲ rattacher'),
+        ? h('button', { type: 'button', class: 'pill', title: t('Détacher dans une fenêtre (devtools detach)'), onclick: () => api.devtools('detach') }, t('⇱ détacher'))
+        : h('button', { type: 'button', class: 'pill', title: t('Remettre à côté de la page'), onclick: () => api.devtools('attach') }, t('⇲ rattacher')),
       ' ',
-      h('button', { type: 'button', class: 'pill', title: 'Fermer les DevTools (F12)', onclick: () => api.devtools('close') }, '✕ fermer')) : null,
-    s.zoom !== 100 ? h('button', { type: 'button', class: 'pill zoom', title: 'Revenir à 100 % (Ctrl+0)', onclick: () => api.resetZoom() }, `zoom ${s.zoom} %`) : null,
+      h('button', { type: 'button', class: 'pill', title: t('Fermer les DevTools (F12)'), onclick: () => api.devtools('close') }, t('✕ fermer'))) : null,
+    s.zoom !== 100 ? h('button', { type: 'button', class: 'pill zoom', title: t('Revenir à 100 % (Ctrl+0)'), onclick: () => api.resetZoom() }, t('zoom {zoom} %', { zoom: s.zoom })) : null,
     h('span', { class: 'grow' }),
     state.downloads ? h('span', {}, `↓ ${state.downloads}`) : null,
     chips,
@@ -364,7 +371,7 @@ function renderStatus() {
 }
 
 function clock() {
-  return new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  return new Date().toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
 }
 
 setInterval(() => {
@@ -395,91 +402,92 @@ const LOGO = String.raw`     _                 _
  \__,_|\___| \_/      |_.__/|_|  \___/ \_/\_/ |___/`;
 
 const HOME_COMMANDS = [
-  ['brows', '<recherche>', 'lancer une recherche'],
-  ['ia', '<question>', 'réponse courte d\'une IA (« ia » pour la choisir)'],
-  ['go', '<url>', 'ouvrir une adresse'],
-  ['fav', '', 'liste des favoris'],
-  ['add', '[dossier/]nom', 'ajouter la page aux favoris'],
-  ['hist', '', 'historique'],
-  ['clean', '[all]', 'vider l\'historique (+ cookies)'],
-  ['split', '[off [1|2]]', 'deux écrans côte à côte ; off ferme un écran'],
+  ['brows', mark('<recherche>'), mark('lancer une recherche')],
+  ['ia', '<question>', mark('réponse courte d\'une IA (« ia » pour la choisir)')],
+  ['go', '<url>', mark('ouvrir une adresse')],
+  ['fav', '', mark('liste des favoris')],
+  ['add', mark('[dossier/]nom'), mark('ajouter la page aux favoris')],
+  ['hist', '', mark('historique')],
+  ['clean', '[all]', mark('vider l\'historique (+ cookies)')],
+  ['split', '[off [1|2]]', mark('deux écrans côte à côte ; off ferme un écran')],
   ['ext', '', 'extensions'],
-  ['update', '', 'mises à jour'],
-  ['help', '', 'toutes les commandes et raccourcis'],
+  ['lang', '[fr | en]', mark('langue de l\'interface (français ou anglais)')],
+  ['update', '', mark('mises à jour')],
+  ['help', '', mark('toutes les commandes et raccourcis')],
 ];
 
 function cmdLine([name, args, desc]) {
-  return h('div', {}, h('span', { class: 'acc' }, name), ` ${args}`.padEnd(20 - name.length), h('span', { class: 'dim' }, desc));
+  return h('div', {}, h('span', { class: 'acc' }, name), ` ${t(args)}`.padEnd(20 - name.length), h('span', { class: 'dim' }, t(desc)));
 }
 
 const screens = {
   home(s) {
     return [
       h('pre', { class: 'logo-art', 'aria-label': 'dev-brows' }, LOGO),
-      h('div', { class: 'dim' }, `Bonjour ${s.user}. Tape `, h('span', { class: 'acc' }, 'help'), ' pour la liste des commandes, ou directement une recherche ou une adresse.'),
+      h('div', { class: 'dim' }, t('Bonjour {user}. Tape ', { user: s.user }), h('span', { class: 'acc' }, 'help'), t(' pour la liste des commandes, ou directement une recherche ou une adresse.')),
       h(
         'div',
         { class: 'cols' },
-        h('div', { class: 'cmd-list' }, h('h3', {}, 'Commandes'), HOME_COMMANDS.map(cmdLine)),
+        h('div', { class: 'cmd-list' }, h('h3', {}, t('Commandes')), HOME_COMMANDS.map(cmdLine)),
         h(
           'div',
           {},
-          h('h3', {}, 'Favoris récents'),
+          h('h3', {}, t('Favoris récents')),
           s.recent.length
             ? s.recent.map((r) => item('', String(r.n), h('span', { class: 'dim' }, `[${r.n}]`), r.path))
-            : h('div', { class: 'dim' }, 'Aucun favori. Sur un site, tape « add dossier/nom ».'),
-          s.recent.length ? h('div', { class: 'hint' }, 'Tape un numéro pour ouvrir.') : null,
+            : h('div', { class: 'dim' }, t('Aucun favori. Sur un site, tape « add dossier/nom ».')),
+          s.recent.length ? h('div', { class: 'hint' }, t('Tape un numéro pour ouvrir.')) : null,
         ),
       ),
       s.changes ? h('div', { class: 'changes' },
-        h('h3', {}, `Nouveautés de la version ${s.changes.version}`),
+        h('h3', {}, t('Nouveautés de la version {version}', { version: s.changes.version })),
         h('ul', {}, s.changes.notes.map((n) => h('li', {}, n)))) : null,
     ];
   },
 
   ai(s) {
     return [
-      head(`ia ${s.question}`, s.done ? s.provider : `${s.provider} réfléchit…`),
+      head(`ia ${s.question}`, s.done ? s.provider : t('{name} réfléchit…', { name: s.provider })),
       s.text ? h('div', { class: 'ai-text' }, s.text, s.done ? null : h('span', { class: 'acc' }, ' ▍')) : (s.done ? null : h('div', { class: 'dim' }, '…')),
       s.error ? h('div', { class: 'err' }, s.error) : null,
       s.sources.length ? [
         h('h3', { class: 'sources' }, 'Sources'),
         s.sources.map((r) => item('result', String(r.n), h('span', { class: 'badge' }, r.n), h('span', { class: 'body' }, h('span', { class: 'title' }, r.title), h('span', { class: 'link' }, r.short)))),
-        h('div', { class: 'hint' }, 'Tape un numéro pour ouvrir une source · ', h('b', {}, '2t'), ' nouvel onglet · ', h('b', {}, 'brows'), ' pour une recherche classique'),
+        h('div', { class: 'hint' }, t('Tape un numéro pour ouvrir une source · '), h('b', {}, '2t'), t(' nouvel onglet · '), h('b', {}, 'brows'), t(' pour une recherche classique')),
       ] : null,
     ];
   },
 
   aiproviders(s) {
     return [
-      head('ia', 'choisir l\'IA qui répond à « ia <question> »'),
+      head('ia', t('choisir l\'IA qui répond à « ia <question> »')),
       h(
         'table',
         {},
-        h('tr', {}, ['#', 'IA', 'modèle', 'clé', ''].map((t) => h('th', {}, t))),
+        h('tr', {}, ['#', t('IA'), t('modèle'), t('clé'), ''].map((c) => h('th', {}, c))),
         s.rows.map((r) => h(
           'tr',
           { class: r.current ? 'current' : '' },
           h('td', { class: 'dim' }, `[${r.n}]`),
-          h('td', {}, h('button', { type: 'button', class: 'link-btn', onclick: () => run(String(r.n)) }, r.name), r.current ? h('span', { class: 'acc' }, ' ● actuelle') : null),
+          h('td', {}, h('button', { type: 'button', class: 'link-btn', onclick: () => run(String(r.n)) }, r.name), r.current ? h('span', { class: 'acc' }, t(' ● actuelle')) : null),
           h('td', { class: 'dim' }, r.model),
           h('td', { class: r.ready ? 'ok' : 'dim' }, r.key),
-          h('td', {}, r.free ? h('span', { class: 'pill ok' }, 'gratuit') : h('span', { class: 'pill dim' }, 'payant'), r.web ? h('span', { class: 'pill' }, 'web') : null),
+          h('td', {}, r.free ? h('span', { class: 'pill ok' }, t('gratuit')) : h('span', { class: 'pill dim' }, t('payant')), r.web ? h('span', { class: 'pill' }, 'web') : null),
         )),
       ),
       h(
         'div',
         { class: 'hint' },
-        'Tape un numéro pour choisir · ', h('b', {}, 'ia key'), ' <clé> pour connecter l\'IA actuelle · ',
-        h('b', {}, 'ia logout'), ' retire sa clé · ', h('b', {}, 'ia model'), ' <id> change de modèle',
+        t('Tape un numéro pour choisir · '), h('b', {}, 'ia key'), t(' <clé> pour connecter l\'IA actuelle · '),
+        h('b', {}, 'ia logout'), t(' retire sa clé · '), h('b', {}, 'ia model'), t(' <id> change de modèle'),
       ),
-      h('div', { class: 'hint' }, 'Les clés restent sur cet ordinateur, chiffrées par le système. Gratuit : Gemini, Mistral, Groq et OpenRouter (avec des limites par jour), Ollama (en local).'),
+      h('div', { class: 'hint' }, t('Les clés restent sur cet ordinateur, chiffrées par le système. Gratuit : Gemini, Mistral, Groq et OpenRouter (avec des limites par jour), Ollama (en local).')),
     ];
   },
 
   results(s) {
     return [
-      head(`brows ${s.query}`, `${s.engine} · ${s.results.length} résultats · page ${s.page}`),
+      head(`brows ${s.query}`, t('{engine} · {count} résultats · page {page}', { engine: s.engine, count: s.results.length, page: s.page })),
       s.results.map((r) => item(
         'result',
         String(r.n),
@@ -489,9 +497,9 @@ const screens = {
       h(
         'div',
         { class: 'hint' },
-        'Tape un numéro pour ouvrir · ', h('b', {}, '3t'), ' nouvel onglet (ou Ctrl+clic)',
-        s.next ? [' · ', h('b', {}, 'n'), ' page suivante'] : null,
-        s.prev ? [' · ', h('b', {}, 'p'), ' page précédente'] : null,
+        t('Tape un numéro pour ouvrir · '), h('b', {}, '3t'), t(' nouvel onglet (ou Ctrl+clic)'),
+        s.next ? [' · ', h('b', {}, 'n'), t(' page suivante')] : null,
+        s.prev ? [' · ', h('b', {}, 'p'), t(' page précédente')] : null,
       ),
     ];
   },
@@ -499,8 +507,8 @@ const screens = {
   fav(s) {
     const open = []; // pour chaque profondeur : reste-t-il des frères en dessous ?
     return [
-      head(`fav${s.folder ? ` ${s.folder}` : ''}`, `${s.counts.links} favoris, ${s.counts.folders} dossiers`),
-      h('h3', {}, `~/favoris${s.folder ? `/${s.folder}` : ''}`),
+      head(`fav${s.folder ? ` ${s.folder}` : ''}`, t('{links} favoris, {folders} dossiers', { links: s.counts.links, folders: s.counts.folders })),
+      h('h3', {}, `~/${t('favoris')}${s.folder ? `/${s.folder}` : ''}`),
       s.rows.length ? h('div', { class: 'tree' }, s.rows.map((r) => {
         open[r.depth] = !r.last;
         const prefix = open.slice(0, r.depth).map((o) => (o ? '│  ' : '   ')).join('') + (r.last ? '└─ ' : '├─ ');
@@ -513,10 +521,10 @@ const screens = {
           h('span', { class: 'branch' }, prefix),
           h('button', { type: 'button', onclick: click(String(r.n)), onauxclick: click(String(r.n)) }, h('span', { class: 'num' }, `[${r.n}]`), r.name),
           h('span', { class: 'site' }, r.url.replace(/^https?:\/\/(www\.)?/, '')),
-          h('button', { type: 'button', class: 'rm', 'aria-label': `Supprimer ${r.path}`, title: 'Supprimer', onclick: () => run(`fav rm ${r.path}`) }, '✕'),
+          h('button', { type: 'button', class: 'rm', 'aria-label': t('Supprimer {path}', { path: r.path }), title: t('Supprimer'), onclick: () => run(`fav rm ${r.path}`) }, '✕'),
         );
-      })) : h('div', { class: 'dim' }, 'Aucun favori ici. Sur un site, tape « add dossier/nom ».'),
-      h('div', { class: 'hint' }, h('b', {}, 'fav rm'), ' chemin|n · ', h('b', {}, 'fav mv'), ' chemin destination/ · ', h('b', {}, 'fav rename'), ' chemin nom · ', h('b', {}, 'undo')),
+      })) : h('div', { class: 'dim' }, t('Aucun favori ici. Sur un site, tape « add dossier/nom ».')),
+      h('div', { class: 'hint' }, h('b', {}, 'fav rm'), t(' chemin|n · '), h('b', {}, 'fav mv'), t(' chemin destination/ · '), h('b', {}, 'fav rename'), t(' chemin nom · '), h('b', {}, 'undo')),
     ];
   },
 
@@ -529,62 +537,62 @@ const screens = {
         day = d;
         rows.push(h('div', { class: 'day' }, d));
       }
-      const time = new Date(r.time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      const time = new Date(r.time).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
       rows.push(item('', String(r.n), h('span', { class: 'time' }, `[${r.n}] ${time}`), r.label, h('span', { class: 'title' }, r.title)));
     }
     return [
-      head(`hist${s.filter ? ` ${s.filter}` : ''}`, `${s.total} entrées`),
-      h('div', { class: 'rows' }, rows.length ? rows : h('div', { class: 'dim' }, 'Historique vide.')),
-      h('div', { class: 'hint' }, h('b', {}, 'hist'), ' texte pour filtrer · ', h('b', {}, 'clean'), ' vide l\'historique · ', h('b', {}, 'clean all'), ' vide aussi les cookies'),
+      head(`hist${s.filter ? ` ${s.filter}` : ''}`, t('{count} entrées', { count: s.total })),
+      h('div', { class: 'rows' }, rows.length ? rows : h('div', { class: 'dim' }, t('Historique vide.'))),
+      h('div', { class: 'hint' }, h('b', {}, 'hist'), t(' texte pour filtrer · '), h('b', {}, 'clean'), t(' vide l\'historique · '), h('b', {}, 'clean all'), t(' vide aussi les cookies')),
     ];
   },
 
   tabs(s) {
     return [
-      head('tab', `${s.rows.length} onglets`),
-      h('div', { class: 'rows' }, s.rows.map((r) => item('', String(r.n), h('span', { class: 'time' }, `[${r.n}]`), r.title, h('span', { class: 'title' }, r.url), r.pane >= 0 ? h('span', { class: 'acc' }, `écran ${r.pane + 1}`) : null))),
+      head('tab', t('{count} onglets', { count: s.rows.length })),
+      h('div', { class: 'rows' }, s.rows.map((r) => item('', String(r.n), h('span', { class: 'time' }, `[${r.n}]`), r.title, h('span', { class: 'title' }, r.url), r.pane >= 0 ? h('span', { class: 'acc' }, t('écran {n}', { n: r.pane + 1 })) : null))),
       h('div', { class: 'hint' }, h('b', {}, 'tab new'), ' [url] · ', h('b', {}, 'close'), ' n'),
     ];
   },
 
   ext(s) {
     return [
-      head('ext', `${s.rows.length} extensions`),
+      head('ext', t('{count} extensions', { count: s.rows.length })),
       s.rows.length ? h(
         'table',
         {},
-        h('tr', {}, ['#', 'alias', 'nom', 'état', 'raccourci', ''].map((t) => h('th', {}, t))),
+        h('tr', {}, ['#', 'alias', t('nom'), t('état'), t('raccourci'), ''].map((c) => h('th', {}, c))),
         s.rows.map((r) => h(
           'tr',
           {},
           h('td', { class: 'dim' }, `[${r.n}]`),
           h('td', { class: 'acc' }, r.alias),
           h('td', {}, r.name),
-          h('td', {}, h('button', { type: 'button', class: `pill ${r.enabled ? 'ok' : 'dim'}`, onclick: () => run(`ext ${r.enabled ? 'off' : 'on'} ${r.n}`) }, r.enabled ? 'actif' : 'pause')),
+          h('td', {}, h('button', { type: 'button', class: `pill ${r.enabled ? 'ok' : 'dim'}`, onclick: () => run(`ext ${r.enabled ? 'off' : 'on'} ${r.n}`) }, r.enabled ? t('actif') : 'pause')),
           h('td', { class: 'dim' }, `Alt+${r.n}`),
-          h('td', {}, r.popup ? h('button', { type: 'button', class: 'pill', onclick: () => run(`ext ${r.n}`) }, 'popup') : null, r.error ? h('span', { class: 'err' }, ` ${r.error}`) : null, r.dnrOnly ? h('span', { class: 'warn' }, ' ne bloque rien ici (ext add ublock)') : null),
+          h('td', {}, r.popup ? h('button', { type: 'button', class: 'pill', onclick: () => run(`ext ${r.n}`) }, 'popup') : null, r.error ? h('span', { class: 'err' }, ` ${r.error}`) : null, r.dnrOnly ? h('span', { class: 'warn' }, t(' ne bloque rien ici (ext add ublock)')) : null),
         )),
-      ) : h('div', { class: 'dim' }, 'Aucune extension.'),
+      ) : h('div', { class: 'dim' }, t('Aucune extension.')),
       h(
         'div',
         { class: 'hint' },
-        h('b', {}, 'ext add'), ' lien du Chrome Web Store, identifiant, dossier ou « ublock » · ',
-        h('b', {}, 'ext off|on|rm'), ' n · ', h('b', {}, 'ext alias'), ' n nom · ', h('b', {}, 'ext n'), ' ou Alt+n ouvre la popup',
+        h('b', {}, 'ext add'), t(' lien du Chrome Web Store, identifiant, dossier ou « ublock » · '),
+        h('b', {}, 'ext off|on|rm'), ' n · ', h('b', {}, 'ext alias'), t(' n nom · '), h('b', {}, 'ext n'), t(' ou Alt+n ouvre la popup'),
       ),
     ];
   },
 
   dl(s) {
     return [
-      head('dl', `${s.rows.length} téléchargements`),
+      head('dl', t('{count} téléchargements', { count: s.rows.length })),
       h('div', { class: 'rows' }, s.rows.length ? s.rows.map((r) => item(
         '',
         String(r.n),
         h('span', { class: 'time' }, `[${r.n}]`),
         r.name,
         h('span', { class: r.state === 'completed' ? 'ok' : r.state === 'progressing' ? 'acc' : 'err' }, dlState(r)),
-      )) : h('div', { class: 'dim' }, 'Aucun téléchargement.')),
-      h('div', { class: 'hint' }, 'Tape un numéro pour ouvrir le fichier · ', h('b', {}, '3t'), ' l\'affiche dans son dossier'),
+      )) : h('div', { class: 'dim' }, t('Aucun téléchargement.'))),
+      h('div', { class: 'hint' }, t('Tape un numéro pour ouvrir le fichier · '), h('b', {}, '3t'), t(' l\'affiche dans son dossier')),
     ];
   },
 
@@ -592,16 +600,16 @@ const screens = {
     return [
       head('help'),
       h('div', { class: 'cols' },
-        h('div', { class: 'cmd-list' }, h('h3', {}, 'Commandes'), s.commands.map(([n, a, d]) => h('div', {}, h('span', { class: 'acc' }, n), ` ${a}`, '\n', h('span', { class: 'dim' }, `    ${d}`)))),
-        h('div', { class: 'cmd-list' }, h('h3', {}, 'Raccourcis'), s.shortcuts.map(([k, d]) => h('div', {}, h('span', { class: 'acc' }, k), '\n', h('span', { class: 'dim' }, `    ${d}`))))),
-      h('div', { class: 'hint' }, 'Taper autre chose qu\'une commande lance une recherche, ou ouvre l\'adresse si ça en est une.'),
+        h('div', { class: 'cmd-list' }, h('h3', {}, t('Commandes')), s.commands.map(([n, a, d]) => h('div', {}, h('span', { class: 'acc' }, n), ` ${t(a)}`, '\n', h('span', { class: 'dim' }, `    ${t(d)}`)))),
+        h('div', { class: 'cmd-list' }, h('h3', {}, t('Raccourcis')), s.shortcuts.map(([k, d]) => h('div', {}, h('span', { class: 'acc' }, t(k)), '\n', h('span', { class: 'dim' }, `    ${t(d)}`))))),
+      h('div', { class: 'hint' }, t('Taper autre chose qu\'une commande lance une recherche, ou ouvre l\'adresse si ça en est une.')),
     ];
   },
 
   alias(s) {
     return [
       head('alias', `${s.rows.length} alias`),
-      s.rows.length ? h('div', { class: 'cmd-list' }, s.rows.map((r) => h('div', {}, h('span', { class: 'acc' }, r.name), ' = ', r.value))) : h('div', { class: 'dim' }, 'Aucun alias.'),
+      s.rows.length ? h('div', { class: 'cmd-list' }, s.rows.map((r) => h('div', {}, h('span', { class: 'acc' }, r.name), ' = ', r.value))) : h('div', { class: 'dim' }, t('Aucun alias.')),
       h('div', { class: 'hint' }, h('b', {}, 'alias yt = brows youtube'), ' · ', h('b', {}, 'unalias yt')),
     ];
   },
@@ -611,23 +619,37 @@ function renderScreen(s) {
   return (screens[s.kind] || (() => [h('div', {}, s.kind)]))(s);
 }
 
-function dayLabel(t) {
-  const d = new Date(t);
+function dayLabel(time) {
+  const d = new Date(time);
   const today = new Date();
   const diff = Math.round((new Date(today.toDateString()) - new Date(d.toDateString())) / 86400000);
-  if (diff === 0) return 'aujourd\'hui';
-  if (diff === 1) return 'hier';
-  return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  if (diff === 0) return t('aujourd\'hui');
+  if (diff === 1) return t('hier');
+  return d.toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
 function dlState(r) {
-  if (r.state === 'completed') return 'terminé';
-  if (r.state === 'progressing') return r.total ? `${Math.round((r.received / r.total) * 100)} %` : `${Math.round(r.received / 1024)} Ko`;
-  return 'interrompu';
+  if (r.state === 'completed') return t('terminé');
+  if (r.state === 'progressing') return r.total ? `${Math.round((r.received / r.total) * 100)} %` : t('{size} Ko', { size: Math.round(r.received / 1024) });
+  return t('interrompu');
 }
 
+// Libellés écrits dans index.html : traduits au démarrage et quand la langue change.
+function applyStaticLabels() {
+  document.documentElement.lang = getLang();
+  $('#tabs').setAttribute('aria-label', t('Onglets'));
+  $('#new-tab').setAttribute('aria-label', t('Nouvel onglet'));
+  $('#new-tab').title = t('Nouvel onglet (Ctrl+T)');
+  $('#url').title = t('Cliquer pour copier l\'adresse');
+  $('.pane-resizer').title = t('Glisser pour redimensionner');
+  $('#resizer').title = t('Glisser pour redimensionner le terminal (double-clic : taille par défaut)');
+  for (const b of document.querySelectorAll('.devbar .detach')) b.title = t('Détacher dans une fenêtre (devtools detach)');
+  for (const b of document.querySelectorAll('.devbar .close')) b.title = t('Fermer les DevTools (F12)');
+}
+
+applyStaticLabels();
 renderPs1();
-print([{ t: 'dev-brows prêt. Ctrl+L revient ici, Ctrl+J cache le terminal, Échap rend la main à la page.', c: 'dim' }]);
+print([{ t: t('dev-brows prêt. Ctrl+L revient ici, Ctrl+J cache le terminal, Échap rend la main à la page.'), c: 'dim' }]);
 api.ready();
 input.focus();
 

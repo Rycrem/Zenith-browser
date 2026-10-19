@@ -1,5 +1,7 @@
 'use strict';
 
+const { t } = require('./i18n');
+
 // Favoris rangés en arbre : { type: 'folder', name, children: [...] }
 // et { type: 'link', name, url, title, addedAt } pour les feuilles.
 
@@ -38,7 +40,7 @@ function getFolder(tree, parts, create) {
       next = { type: 'folder', name: part, children: [] };
       node.children.push(next);
     } else if (next.type !== 'folder') {
-      throw new Error(`« ${part} » est un favori, pas un dossier`);
+      throw new Error(t('« {name} » est un favori, pas un dossier', { name: part }));
     }
     node = next;
   }
@@ -48,7 +50,7 @@ function getFolder(tree, parts, create) {
 // add [dossier/]nom : crée les dossiers qui manquent. Renvoie ce qui a été fait.
 function addFavorite(tree, path, url, title) {
   const parts = splitPath(path);
-  if (!parts.length) throw new Error('il faut un nom : add [dossier/]nom');
+  if (!parts.length) throw new Error(t('il faut un nom : add [dossier/]nom'));
   const name = parts.pop();
   const createdFolders = [];
   let node = tree;
@@ -59,12 +61,12 @@ function addFavorite(tree, path, url, title) {
       node.children.push(next);
       createdFolders.push(part);
     } else if (next.type !== 'folder') {
-      throw new Error(`« ${part} » est un favori, pas un dossier`);
+      throw new Error(t('« {name} » est un favori, pas un dossier', { name: part }));
     }
     node = next;
   }
   const existing = findChild(node, name);
-  if (existing && existing.type === 'folder') throw new Error(`« ${name} » est déjà un dossier`);
+  if (existing && existing.type === 'folder') throw new Error(t('« {name} » est déjà un dossier', { name }));
   if (existing) {
     existing.url = url;
     existing.title = title || existing.title;
@@ -77,11 +79,11 @@ function addFavorite(tree, path, url, title) {
 // Supprime un favori ou un dossier entier. Renvoie de quoi annuler.
 function removeFavorite(tree, path) {
   const parts = splitPath(path);
-  if (!parts.length) throw new Error('quel favori supprimer ?');
+  if (!parts.length) throw new Error(t('quel favori supprimer ?'));
   const name = parts.pop();
   const parent = getFolder(tree, parts, false);
   const node = parent && findChild(parent, name);
-  if (!node) throw new Error(`favori introuvable : ${path}`);
+  if (!node) throw new Error(t('favori introuvable : {path}', { path }));
   const index = parent.children.indexOf(node);
   parent.children.splice(index, 1);
   return { node, parentParts: parts, index };
@@ -99,7 +101,7 @@ function moveFavorite(tree, src, dest) {
   const srcKey = splitPath(src).join('/').toLowerCase();
   const destKey = splitPath(dest).join('/').toLowerCase();
   if (destKey === srcKey || destKey.startsWith(`${srcKey}/`)) {
-    throw new Error('impossible de déplacer un dossier dans lui-même');
+    throw new Error(t('impossible de déplacer un dossier dans lui-même'));
   }
   const removed = removeFavorite(tree, src);
   try {
@@ -112,7 +114,7 @@ function moveFavorite(tree, src, dest) {
       name = parts.pop();
       target = getFolder(tree, parts, true);
     }
-    if (findChild(target, name)) throw new Error(`« ${name} » existe déjà à cet endroit`);
+    if (findChild(target, name)) throw new Error(t('« {name} » existe déjà à cet endroit', { name }));
     removed.node.name = name;
     target.children.push(removed.node);
     return removed.node;
@@ -123,12 +125,12 @@ function moveFavorite(tree, src, dest) {
 }
 
 function renameFavorite(tree, path, newName) {
-  if (!newName || newName.includes('/')) throw new Error('nouveau nom invalide');
+  if (!newName || newName.includes('/')) throw new Error(t('nouveau nom invalide'));
   const node = getNode(tree, path);
-  if (!node || node === tree) throw new Error(`favori introuvable : ${path}`);
+  if (!node || node === tree) throw new Error(t('favori introuvable : {path}', { path }));
   const parent = getFolder(tree, splitPath(path).slice(0, -1), false);
   const clash = findChild(parent, newName);
-  if (clash && clash !== node) throw new Error(`« ${newName} » existe déjà`);
+  if (clash && clash !== node) throw new Error(t('« {name} » existe déjà', { name: newName }));
   node.name = newName;
   return node;
 }

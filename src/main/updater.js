@@ -3,6 +3,7 @@
 const { app } = require('electron');
 const { execFile, spawn } = require('child_process');
 const fs = require('fs');
+const { t } = require('../shared/i18n');
 const path = require('path');
 
 // Deux façons de se mettre à jour :
@@ -52,7 +53,7 @@ async function checkSource() {
     sh('npm', ['view', `electron@^${major(current)}`, 'version', '--json']),
     sh('npm', ['view', 'electron', 'version']),
   ]);
-  if (!latest) throw new Error('npm est introuvable ou hors ligne : impossible de vérifier');
+  if (!latest) throw new Error(t('npm est introuvable ou hors ligne : impossible de vérifier'));
   let sameMajor = current;
   try {
     const list = [].concat(JSON.parse(sameMajorJson));
@@ -97,7 +98,7 @@ function launchSource(mode) {
       stdio: 'ignore',
       shell: win,
     });
-    child.once('error', () => reject(new Error('node est introuvable : mets à jour à la main avec « npm update »')));
+    child.once('error', () => reject(new Error(t('node est introuvable : mets à jour à la main avec « npm update »'))));
     child.once('spawn', () => {
       child.unref();
       resolve();
