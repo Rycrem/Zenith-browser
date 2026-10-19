@@ -390,7 +390,7 @@ const LINKS_SCRIPT = `(() => {
     const h = document.createElement('span');
     h.className = '__devbrows_hint';
     h.textContent = i + 1;
-    h.style.cssText = 'position:absolute;z-index:2147483647;pointer-events:none;left:' + (r.left + scrollX) + 'px;top:' + (r.top + scrollY) + 'px;background:__ACCENT__;color:#0E1116;font:bold 11px/1.4 monospace;padding:0 4px;border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,.4)';
+    h.style.cssText = 'position:absolute;z-index:2147483647;pointer-events:none;left:' + (r.left + scrollX) + 'px;top:' + (r.top + scrollY) + 'px;background:__ACCENT__;color:#0E1116;font:bold 11px/1.4 monospace;padding:0 4px;border-radius:3px;transform:translate(-70%,-45%);box-shadow:0 1px 3px rgba(0,0,0,.4)';
     document.documentElement.appendChild(h);
   });
   return els.map((el) => ({ href: el.href || null, text: (el.innerText || el.value || el.getAttribute('aria-label') || '').trim().slice(0, 80) }));
