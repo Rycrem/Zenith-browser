@@ -38,7 +38,7 @@ Le workflow construit les installateurs Windows, macOS et Linux, les joint à un
 | `links` | numérote les liens et boutons de la page, puis tape un numéro |
 | `back`, `fwd`, `reload`, `home` | navigation |
 | `tab`, `tab <n>`, `tab new [url]`, `close [n]` | onglets |
-| `split [off]`, `focus` | deux écrans côte à côte, changer d'écran |
+| `split`, `split off [1\|2]`, `focus` | deux écrans côte à côte, fermer un écran (l'autre par défaut, ou le ✕ en haut de l'écran), changer d'écran |
 | `fav [dossier]` | favoris en arbre |
 | `add [dossier/]nom` | ajoute la page, crée les dossiers manquants |
 | `fav rm <chemin\|n>`, `fav mv <chemin> <dest>`, `fav rename <chemin> <nom>`, `undo` | gérer les favoris |

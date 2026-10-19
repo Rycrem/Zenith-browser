@@ -245,6 +245,10 @@ function renderPanes() {
     pane.classList.toggle('active', i === state.activePane);
     viewport.classList.toggle('has-screen', !!p.screen);
     viewport.classList.toggle('page', !p.screen && p.page);
+    fill($('.pane-bar', pane), state.panes.length > 1 ? [
+      h('span', { class: 'pane-title' }, `écran ${i + 1} · ${p.title}`),
+      h('button', { type: 'button', class: 'pane-close', title: `Fermer l'écran ${i + 1} (split off ${i + 1})`, onclick: (ev) => { ev.stopPropagation(); run(`split off ${i + 1}`); } }, '✕'),
+    ] : []);
     const screen = $('.screen', pane);
     const key = JSON.stringify(p.screen);
     if (screen.dataset.key !== key) {
@@ -310,13 +314,13 @@ const LOGO = String.raw`     _                 _
 
 const HOME_COMMANDS = [
   ['brows', '<recherche>', 'lancer une recherche'],
-  ['ia', '<question>', 'réponse courte de Claude'],
+  ['ia', '<question>', 'réponse courte d\'une IA (« ia » pour la choisir)'],
   ['go', '<url>', 'ouvrir une adresse'],
   ['fav', '', 'liste des favoris'],
   ['add', '[dossier/]nom', 'ajouter la page aux favoris'],
   ['hist', '', 'historique'],
   ['clean', '[all]', 'vider l\'historique (+ cookies)'],
-  ['split', '', 'deux écrans côte à côte'],
+  ['split', '[off [1|2]]', 'deux écrans côte à côte ; off ferme un écran'],
   ['ext', '', 'extensions'],
   ['update', '', 'mises à jour'],
   ['help', '', 'toutes les commandes et raccourcis'],

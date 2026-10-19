@@ -154,6 +154,15 @@ function showInPane(tab, idx) {
   sendState();
 }
 
+function closePane(idx) {
+  if (panes.length === 1) throw new Error('pas de split en cours');
+  const keep = panes[1 - idx];
+  panes.splice(0, panes.length, keep);
+  activePane = 0;
+  layout();
+  sendState();
+}
+
 function destroyTab(tab) {
   for (const v of [tab.view, tab.dev]) {
     if (!v) continue;
@@ -233,7 +242,7 @@ function sendState() {
     tabs: tabs.map((t, i) => ({ id: t.id, n: i + 1, title: tabTitle(t), loading: t.loading, pane: paneOf(t) })),
     panes: panes.map((p) => {
       const t = getTab(p.tabId);
-      return { tabId: p.tabId, screen: t.screen, page: !!t.view && !t.screen, url: t.url };
+      return { tabId: p.tabId, screen: t.screen, page: !!t.view && !t.screen, url: t.url, title: t.screen ? tabTitle(t) : t.title || hostOf(t.url) || 'nouvel onglet' };
     }),
     activePane,
     status: {
@@ -689,14 +698,13 @@ async function exec(raw) {
         break;
       }
       case 'split':
-        if (args[0] === 'off') {
-          if (panes.length === 1) throw new Error('pas de split en cours');
-          panes.splice(1);
-          activePane = 0;
-          layout();
-          sendState();
+        if (args[0] === 'off' || args[0] === 'close') {
+          // Sans numéro, garde l'écran actif ; l'onglet de l'écran fermé reste ouvert.
+          const n = args[1] ? Number(args[1]) : 2 - activePane;
+          if (n !== 1 && n !== 2) throw new Error('split off [1|2]');
+          closePane(n - 1);
         } else if (panes.length > 1) {
-          say('  déjà en split : « focus » change d\'écran, « split off » revient à un seul', 'dim');
+          say('  déjà en split : « focus » change d\'écran, « split off » ferme l\'autre écran (« split off 1|2 » pour choisir)', 'dim');
         } else {
           panes.push({ tabId: null });
           const t = args.length
