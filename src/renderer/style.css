@@ -220,3 +220,7 @@ th { color: var(--dim); }
 .chip { padding: 2px 8px; border-radius: 3px; background: var(--bg); color: var(--green); font-size: 12px; font-weight: 600; }
 .chip.off { color: var(--dim); }
 .chip:hover { outline: 2px solid var(--bg); outline-offset: 1px; }
+.link-btn { padding: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-align: left; }
+.link-btn:hover { color: var(--accent); text-decoration: underline; }
+tr.current td { background: var(--bg-raised); }
+td .pill + .pill { margin-left: 6px; }

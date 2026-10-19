@@ -31,7 +31,8 @@ Le workflow construit les installateurs Windows, macOS et Linux, les joint à un
 | Commande | Effet |
 | --- | --- |
 | `brows <recherche>` | recherche, résultats numérotés (DuckDuckGo par défaut) |
-| `ia <question>` | réponse courte de Claude, avec recherche web et sources numérotées |
+| `ia <question>` | réponse courte de l'IA choisie (Claude avec recherche web et sources numérotées) |
+| `ia`, `ia use <ia>`, `ia key <clé>`, `ia logout`, `ia model [id]` | choisir et connecter l'IA |
 | `<n>` / `<n>t` | ouvre l'élément n de la liste affichée, `t` pour un nouvel onglet |
 | `go <url>` | ouvre une adresse (taper directement une adresse marche aussi) |
 | `links` | numérote les liens et boutons de la page, puis tape un numéro |
@@ -66,9 +67,23 @@ Ctrl+L terminal · Ctrl+J cacher/montrer le terminal · Échap rendre la main à
 
 ## IA
 
-`ia <question>` affiche une réponse de quelques phrases écrite par Claude (modèle `claude-opus-5-5`, effort bas pour aller vite), qui fait une recherche web quand la question touche à l'actualité. Les sources sont numérotées : tape un numéro pour en ouvrir une.
+`ia <question>` affiche une réponse de quelques phrases écrite par l'IA choisie. `ia` tout seul affiche la liste des IA : tape un numéro pour en choisir une. Si elle n'a pas encore de clé, la page où la créer s'ouvre ; copie la clé puis tape `ia key <clé>`.
 
-Il faut une clé API Anthropic (console.anthropic.com, facturée à l'usage, indépendante d'un abonnement Claude) : `ia key <clé>`. Elle est chiffrée par le système quand c'est possible et n'apparaît ni à l'écran ni dans l'historique des commandes. `ia model <id>` change de modèle ; la variable `ANTHROPIC_API_KEY` marche aussi.
+| IA | Modèle par défaut | Prix |
+| --- | --- | --- |
+| Claude (Anthropic) | `claude-opus-5-5`, avec recherche web et sources numérotées | payant à l'usage |
+| Gemini (Google AI Studio) | `gemini-2.5-flash` | gratuit, avec une limite par jour |
+| ChatGPT (OpenAI) | `gpt-5-mini` | payant à l'usage |
+| Mistral AI | `mistral-small-latest` | gratuit (offre Experiment) |
+| Groq | `openai/gpt-oss-120b` | gratuit, avec une limite par jour |
+| OpenRouter | `openrouter/free` (choisit un modèle gratuit) | gratuit, avec une limite par jour |
+| Ollama | `llama3.2`, sur ton ordinateur | gratuit, sans clé ([ollama.com](https://ollama.com), puis `ollama pull llama3.2`) |
+
+- `ia connect <ia> <clé>` choisit l'IA et enregistre sa clé en une fois.
+- `ia model <id>` change le modèle de l'IA actuelle (`ia model default` revient au modèle par défaut).
+- `ia logout [ia]` supprime la clé enregistrée, par exemple avant de prêter l'ordinateur.
+
+Chaque clé reste sur cet ordinateur, chiffrée par le système quand c'est possible, et n'apparaît ni à l'écran ni dans l'historique des commandes. Personne d'autre qui installe l'appli n'utilise ta clé. Les variables `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, `MISTRAL_API_KEY`, `GROQ_API_KEY` et `OPENROUTER_API_KEY` marchent aussi. Seul Claude fait des recherches web ; les autres répondent avec ce qu'ils savent.
 
 ## Mises à jour
 

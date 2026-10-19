@@ -46,7 +46,7 @@ const ENGINES = {
 // Liste des commandes, utilisée pour l'aide et l'autocomplétion.
 const COMMANDS = [
   ['brows', '<recherche>', 'lancer une recherche (résultats numérotés)'],
-  ['ia', '<question>', 'réponse courte de Claude, avec ses sources numérotées (ia key <clé> la première fois)'],
+  ['ia', '[question | use | key | logout | model]', 'réponse courte d\'une IA (Claude, Gemini, ChatGPT, Mistral…) ; « ia » seul pour la choisir'],
   ['go', '<url>', 'ouvrir une adresse'],
   ['<n>', '', 'ouvrir l\'élément numéro n de la liste affichée ; « nt » dans un nouvel onglet'],
   ['links', '', 'numéroter les liens de la page'],
@@ -89,7 +89,7 @@ const SUBCOMMANDS = {
   split: ['off'],
   clean: ['all'],
   perm: ['reset'],
-  ia: ['key', 'model'],
+  ia: ['use', 'connect', 'key', 'logout', 'model'],
   update: ['install', 'electron'],
   engine: Object.keys(ENGINES),
   theme: ['ambre', 'vert', 'cyan', 'rose'],
