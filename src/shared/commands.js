@@ -52,7 +52,8 @@ const COMMANDS = [
   ['links', '', 'numéroter les liens de la page'],
   ['back / fwd / reload', '', 'précédent, suivant, recharger'],
   ['home', '', 'revenir à l\'accueil'],
-  ['tab', '[n | new [url]]', 'lister, changer ou ouvrir un onglet'],
+  ['tab', '[n | new [url…]]', 'lister, changer ou ouvrir un ou plusieurs onglets'],
+  ['tab save', '<nom>', 'créer l\'alias <nom> qui rouvre les onglets ouverts'],
   ['close', '[n]', 'fermer l\'onglet courant ou le numéro n'],
   ['split', '[off [1|2]]', 'deux écrans côte à côte ; « focus » change d\'écran, « split off » ferme l\'autre'],
   ['fav', '[dossier]', 'liste des favoris'],
@@ -85,7 +86,7 @@ const COMMAND_NAMES = [
 const SUBCOMMANDS = {
   fav: ['rm', 'mv', 'rename'],
   ext: ['add', 'on', 'off', 'rm', 'alias'],
-  tab: ['new'],
+  tab: ['new', 'save'],
   split: ['off'],
   clean: ['all'],
   perm: ['reset'],
@@ -101,7 +102,7 @@ const ARG_SHAPES = {
   help: null, '?': null, clear: null, home: null, accueil: null, back: null, b: null, fwd: null, f: null,
   reload: null, r: null, n: null, next: null, p: null, prev: null, links: null, l: null, term: null,
   undo: null, focus: null,
-  tab: /^(\d+|new)$/i, tabs: /^(\d+|new)$/i, close: /^\d+$/, dl: /^\d+$/, split: /^(off|close)$/i,
+  tab: /^(\d+|new|save)$/i, tabs: /^(\d+|new|save)$/i, close: /^\d+$/, dl: /^\d+$/, split: /^(off|close)$/i,
   devtools: /^(detach|detacher|attach|rattacher|close|off)$/i, dev: /^(detach|detacher|attach|rattacher|close|off)$/i,
 };
 
@@ -110,6 +111,11 @@ function acceptsArgs(name, args) {
   if (!Object.prototype.hasOwnProperty.call(ARG_SHAPES, name)) return true;
   const shape = ARG_SHAPES[name];
   return !!shape && shape.test(args[0]);
+}
+
+// « a ; b » : plusieurs commandes à la suite (un « ; » collé dans une adresse n'en sépare pas).
+function splitCommands(line) {
+  return line.split(/\s+;\s*|\s*;\s+|^;|;$/).map((s) => s.trim()).filter(Boolean);
 }
 
 function commonPrefix(words) {
@@ -125,6 +131,7 @@ module.exports = {
   looksLikeUrl,
   normalizeUrl,
   acceptsArgs,
+  splitCommands,
   ENGINES,
   COMMANDS,
   COMMAND_NAMES,
