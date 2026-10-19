@@ -1,13 +1,14 @@
 {
   "name": "dev-brows",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "Navigateur basé sur Chromium qui se pilote comme un terminal",
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
     "test": "node --test test/*.test.js",
-    "dist": "electron-builder --publish never",
-    "release": "electron-builder --publish always"
+    "dist": "node scripts/fetch-ublock.js && electron-builder --publish never",
+    "release": "node scripts/fetch-ublock.js && electron-builder --publish always",
+    "ublock": "node scripts/fetch-ublock.js"
   },
   "license": "GPL-3.0-or-later",
   "dependencies": {
@@ -91,6 +92,12 @@
       ],
       "category": "Network",
       "maintainer": "Rycrem <47139830+Rycrem@users.noreply.github.com>"
-    }
+    },
+    "extraResources": [
+      {
+        "from": "vendor/ublock-origin",
+        "to": "ublock-origin"
+      }
+    ]
   }
 }

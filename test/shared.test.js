@@ -117,3 +117,10 @@ test('une commande suivie de mots inattendus devient une recherche', () => {
   assert.strictEqual(cmd.acceptsArgs('brows', ['chat']), true);
   assert.strictEqual(cmd.acceptsArgs('devtools', ['detach']), true);
 });
+
+test('les notes de mise à jour couvrent la version de package.json', () => {
+  const { CHANGELOG } = require('../src/shared/changelog');
+  const { version } = require('../package.json');
+  assert.strictEqual(CHANGELOG[0].version, version);
+  assert.ok(CHANGELOG[0].notes.length > 0);
+});

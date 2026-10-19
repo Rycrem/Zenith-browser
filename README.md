@@ -17,11 +17,11 @@ npm install
 npm start
 ```
 
-Tests de la logique (favoris, alias, lecture des résultats, extensions) : `npm test`. `npm run dist` construit l'installateur du système courant dans `dist/`.
+Tests de la logique (favoris, alias, lecture des résultats, extensions) : `npm test`. `npm run ublock` télécharge uBlock Origin dans `vendor/` pour qu'il soit préinstallé au lancement. `npm run dist` le fait aussi, puis construit l'installateur du système courant dans `dist/`.
 
 ## Publier une version
 
-1. Changer `version` dans `package.json` (par exemple `0.2.0`) et pousser sur `main`.
+1. Changer `version` dans `package.json` (par exemple `0.2.0`), ajouter ses notes en tête de `src/shared/changelog.js` (affichées sur l'écran d'accueil ; `npm test` le vérifie) et pousser sur `main`.
 2. Lancer le workflow GitHub Actions « Installateurs » (onglet Actions › Installateurs › Run workflow), ou pousser le tag correspondant (`git tag v0.2.0 && git push origin v0.2.0`).
 
 Le workflow construit les installateurs Windows, macOS et Linux, les joint à une Release `v0.2.0` puis la publie. C'est cette Release que l'appli installée détecte avec `update`.
@@ -50,7 +50,7 @@ Pour seulement Windows, lancer plutôt le workflow « Installateur Windows » (o
 | `ext`, `ext add <lien store \| id \| dossier>`, `ext on/off/rm <n>`, `ext alias <n> <nom>`, `ext <n>` | extensions |
 | `dl [n]` | téléchargements (enregistrés directement dans Téléchargements) |
 | `alias nom = commande [; commande…]`, `unalias nom` | raccourcis perso, qui peuvent enchaîner des commandes |
-| `adblock [on\|off]` | bloqueur de pub intégré, actif par défaut |
+| `adblock [on\|off]` | bloqueur de pub de secours, éteint par défaut (uBlock Origin est préinstallé) |
 | `engine ddg\|google\|bing\|qwant`, `theme ambre\|vert\|cyan\|rose\|violet` | réglages |
 | `perm`, `perm reset [site]` | autorisations données aux sites |
 | `update`, `update install`, `update electron` | mises à jour (voir plus bas) |
@@ -77,7 +77,9 @@ Ctrl+L terminal · Ctrl+J cacher/montrer le terminal · F11 plein écran · Éch
 Sur le Chrome Web Store, le bouton « Ajouter à Chrome » est grisé hors de Chrome : sur la page de l'extension, tape simplement `ext add` (le terminal le rappelle). `ext add` accepte aussi un lien du Chrome Web Store, un identifiant d'extension ou un dossier d'extension décompressée. Chaque extension a une pastille numérotée dans la barre d'état ; un clic ou Alt+n ouvre sa popup. Electron ne gère qu'une partie des API d'extensions Chrome ; la bibliothèque [electron-chrome-extensions](https://github.com/samuelmaddock/electron-browser-shell/tree/master/packages/electron-chrome-extensions) ajoute les onglets, fenêtres, notifications, cookies et permissions (une extension peut par exemple ouvrir un onglet). Les bloqueurs de pub et scripts de contenu fonctionnent bien ; certaines extensions plus poussées peuvent encore ne pas marcher.
 
 
-**Bloqueur de pub :** dev-brows bloque pubs et pisteurs tout seul, avec le moteur de [Ghostery](https://github.com/ghostery/adblocker) et les listes EasyList et EasyPrivacy (retéléchargées chaque semaine). `adblock` affiche le nombre de requêtes bloquées, `adblock off` le met en pause. uBlock Origin ne fonctionne pas dans Electron (son script de fond plante sur une API absente) et uBlock Origin Lite bloque avec `declarativeNetRequest`, qu'Electron ne gère pas : `ext add ublock` active donc le bloqueur intégré. Tant qu'il est actif, les extensions qui bloquent avec `chrome.webRequest` ne filtrent rien (Electron n'accepte qu'un seul filtre de requêtes).
+**Bloqueur de pub :** [uBlock Origin](https://github.com/gorhill/uBlock) est préinstallé (pastille 1 dans la barre d'état, Alt+1 pour sa popup). L'installateur embarque la dernière version publiée au moment de sa construction ; `ext add ublock` la remplace par la toute dernière. Si on le supprime avec `ext rm`, il n'est pas réinstallé. uBlock Origin Lite, la version du Chrome Web Store, bloque avec `declarativeNetRequest`, qu'Electron ne gère pas : elle ne bloque rien ici, et `ext` le signale.
+
+`adblock on` allume un bloqueur de secours intégré (moteur de [Ghostery](https://github.com/ghostery/adblocker), listes EasyList et EasyPrivacy). Electron n'accepte qu'un filtre de requêtes à la fois : tant qu'il est allumé, uBlock Origin ne filtre plus. Il est donc éteint par défaut, et installer uBlock l'éteint.
 
 ## IA
 
@@ -122,7 +124,7 @@ L'appli se ferme, la mise à jour se fait avec le `node` du système (sous Windo
 - Chaque site tourne dans le bac à sable de Chromium, sans accès à Node ni à l'ordinateur.
 - Caméra, micro, position, notifications, presse-papier, partage d'écran, ouverture d'applications externes : chaque demande d'un site pose la question dans le terminal (Entrée ou `o` oui, `t` toujours, `j` jamais, `n` non). `perm` liste les choix enregistrés.
 - La version de Chromium est celle d'Electron : faire `update install` quand l'appli le signale pour recevoir les correctifs de sécurité.
-- Connexion Google : Google refuse les navigateurs basés sur Electron (« Ce navigateur ou cette application ne sont peut-être pas sécurisés »). Sur `accounts.google.com` uniquement, dev-brows se présente donc comme Firefox ; pendant cette connexion, les extensions de blocage sont en pause (le bloqueur intégré, lui, continue). Google peut bloquer cette parade à tout moment.
+- Connexion Google : Google refuse les navigateurs basés sur Electron (« Ce navigateur ou cette application ne sont peut-être pas sécurisés »). Sur `accounts.google.com` uniquement, dev-brows se présente donc comme Firefox ; pendant cette connexion, uBlock Origin est en pause (Electron ne laisse pas les deux filtrer les requêtes en même temps). Google peut bloquer cette parade à tout moment.
 - Pas de protection anti-hameçonnage (navigation sécurisée de Google) comme dans Chrome.
 
 ## Données

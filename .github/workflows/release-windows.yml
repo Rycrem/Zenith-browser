@@ -35,6 +35,10 @@ jobs:
           gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "dev-brows $TAG" --generate-notes
       - run: npm ci
       - run: npm test
+      - name: Télécharger uBlock Origin (livré préinstallé)
+        run: node scripts/fetch-ublock.js
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: Construire et envoyer l'installateur
         run: npx electron-builder --win --publish always
         env:
