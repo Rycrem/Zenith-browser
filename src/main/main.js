@@ -217,6 +217,11 @@ function wireWebContents(tab, wc) {
       sendState();
     }
   });
+  // Une page peut se fermer elle-même (window.close(), par exemple après une connexion) :
+  // l'onglet disparaît avec elle.
+  wc.once('destroyed', () => {
+    if (win && !win.isDestroyed()) closeTab(tab);
+  });
   wc.on('found-in-page', (e, r) => {
     if (r.finalUpdate) print([{ t: `  ${r.matches ? `${r.activeMatchOrdinal}/${r.matches}` : 'aucun résultat'}`, c: 'dim' }]);
   });
@@ -244,7 +249,7 @@ function showInPane(tab, idx) {
   if (other >= 0) panes[other].tabId = panes[idx].tabId; // échange si l'onglet est déjà dans l'autre écran
   panes[idx].tabId = tab.id;
   activePane = idx;
-  if (tab.view) chromeApi.selectTab(tab.view.webContents);
+  if (tab.view?.webContents) chromeApi.selectTab(tab.view.webContents);
   layout();
   sendState();
 }
@@ -262,7 +267,7 @@ function destroyTab(tab) {
   for (const v of [tab.view, tab.dev]) {
     if (!v) continue;
     win.contentView.removeChildView(v);
-    v.webContents.close();
+    if (v.webContents) v.webContents.close(); // déjà détruit si la page s'est fermée seule
   }
 }
 
@@ -1141,7 +1146,7 @@ function aiCommand(tab, args, rest, say) {
   }
   if (sub === 'model' && args.length <= 2) {
     const id = ai.current(settings);
-    if (args[1]) ai.setModel(settings, id, args[1] === 'default' ? ai.PROVIDERS[id].model : args[1]);
+    if (args[1]) ai.setModel(settings, id, args[1] === 'default' ? null : args[1]);
     say(`  modèle ${ai.PROVIDERS[id].name} : ${ai.model(settings, id)}`);
     return;
   }
@@ -1164,6 +1169,7 @@ function aiCommand(tab, args, rest, say) {
     screen.text = r.text || (r.refused ? '' : '(pas de réponse)');
     screen.sources = r.sources.map((src, i) => ({ n: i + 1, ...src, short: shortUrl(src.url) }));
     if (r.refused) screen.error = `${screen.provider} a refusé de répondre à cette question.`;
+    if (r.switched) say(`  le modèle ${r.switched.from} a été retiré : ${screen.provider} utilise maintenant ${r.switched.to}`);
     screen.done = true;
     refresh(true);
   }).catch((err) => {

@@ -26,6 +26,8 @@ Tests de la logique (favoris, alias, lecture des résultats, extensions) : `npm 
 
 Le workflow construit les installateurs Windows, macOS et Linux, les joint à une Release `v0.2.0` puis la publie. C'est cette Release que l'appli installée détecte avec `update`.
 
+Pour seulement Windows, lancer plutôt le workflow « Installateur Windows » (onglet Actions › Installateur Windows › Run workflow) : il ne construit que le `.exe` et le publie dans la Release `v<version>`, plus vite. Les applis macOS et Linux installées ne verront pas cette version comme une mise à jour.
+
 ## Commandes
 
 | Commande | Effet |
@@ -72,7 +74,7 @@ Sur le Chrome Web Store, le bouton « Ajouter à Chrome » est grisé hors de Ch
 | IA | Modèle par défaut | Prix |
 | --- | --- | --- |
 | Claude (Anthropic) | `claude-opus-5-5`, avec recherche web et sources numérotées | payant à l'usage |
-| Gemini (Google AI Studio) | `gemini-2.5-flash` | gratuit, avec une limite par jour |
+| Gemini (Google AI Studio) | `gemini-3.8-flash` | gratuit, avec une limite par jour |
 | ChatGPT (OpenAI) | `gpt-5-mini` | payant à l'usage |
 | Mistral AI | `mistral-small-latest` | gratuit (offre Experiment) |
 | Groq | `openai/gpt-oss-120b` | gratuit, avec une limite par jour |
@@ -80,7 +82,7 @@ Sur le Chrome Web Store, le bouton « Ajouter à Chrome » est grisé hors de Ch
 | Ollama | `llama3.2`, sur ton ordinateur | gratuit, sans clé ([ollama.com](https://ollama.com), puis `ollama pull llama3.2`) |
 
 - `ia connect <ia> <clé>` choisit l'IA et enregistre sa clé en une fois.
-- `ia model <id>` change le modèle de l'IA actuelle (`ia model default` revient au modèle par défaut).
+- `ia model <id>` change le modèle de l'IA actuelle (`ia model default` revient au modèle par défaut). Quand une IA retire un modèle, dev-brows passe tout seul à son modèle actuel (celui que conseille l'IA, sinon la version la plus récente de la même famille) et s'en souvient.
 - `ia logout [ia]` supprime la clé enregistrée, par exemple avant de prêter l'ordinateur.
 
 Chaque clé reste sur cet ordinateur, chiffrée par le système quand c'est possible, et n'apparaît ni à l'écran ni dans l'historique des commandes. Personne d'autre qui installe l'appli n'utilise ta clé. Les variables `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, `MISTRAL_API_KEY`, `GROQ_API_KEY` et `OPENROUTER_API_KEY` marchent aussi. Seul Claude fait des recherches web ; les autres répondent avec ce qu'ils savent.

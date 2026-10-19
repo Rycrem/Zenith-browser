@@ -17,7 +17,7 @@ const PROVIDERS = {
   gemini: {
     name: 'Gemini (Google)',
     base: 'https://generativelanguage.googleapis.com/v1beta/openai',
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.8-flash',
     env: 'GEMINI_API_KEY',
     keyUrl: 'https://aistudio.google.com/apikey',
     free: true,
@@ -103,12 +103,24 @@ function use(settings, id) {
   settings.save();
 }
 
+// Modèle utilisé : celui choisi avec « ia model », sinon le remplaçant trouvé quand le modèle
+// par défaut a été retiré (tant que dev-brows n'a pas changé de modèle par défaut), sinon le défaut.
 function model(settings, id = current(settings)) {
-  return (settings.data.aiModels && settings.data.aiModels[id]) || PROVIDERS[id].model;
+  const d = settings.data;
+  if (d.aiModels && d.aiModels[id]) return d.aiModels[id];
+  const auto = d.aiAutoModels && d.aiAutoModels[id];
+  if (auto && auto.from === PROVIDERS[id].model) return auto.model;
+  return PROVIDERS[id].model;
 }
 
+// value null : revient au modèle par défaut, qui suit les retraits de modèles.
 function setModel(settings, id, value) {
-  settings.data.aiModels = { ...settings.data.aiModels, [id]: value };
+  const d = settings.data;
+  d.aiModels = { ...d.aiModels, [id]: value };
+  if (!value) {
+    delete d.aiModels[id];
+    if (d.aiAutoModels) delete d.aiAutoModels[id];
+  }
   settings.save();
 }
 
@@ -155,6 +167,45 @@ class ProviderError extends Error {
     super(message);
     this.status = status;
   }
+}
+
+const isNotFound = (err) => (err instanceof ProviderError || err instanceof Anthropic.NotFoundError) && err.status === 404;
+
+// Numéros d'un identifiant de modèle, pour trier du plus récent au plus ancien (« gemini-3.8-flash » → [3, 8]).
+const versionOf = (m) => (m.match(/\d+/g) || []).map(Number);
+function newer(a, b) {
+  const va = versionOf(a);
+  const vb = versionOf(b);
+  for (let i = 0; i < Math.max(va.length, vb.length); i++) if ((va[i] || 0) !== (vb[i] || 0)) return (vb[i] || 0) - (va[i] || 0);
+  return 0;
+}
+
+async function listModels(id, p, apiKey) {
+  if (id === 'claude') {
+    const page = await new Anthropic({ apiKey }).models.list({ limit: 100 });
+    return page.data.map((m) => m.id);
+  }
+  const headers = { ...p.headers };
+  if (apiKey) headers.authorization = `Bearer ${apiKey}`;
+  const res = await fetch(`${p.base}/models`, { headers });
+  if (!res.ok) return [];
+  const j = await res.json();
+  return (j.data || []).map((m) => String(m.id).replace(/^models\//, ''));
+}
+
+// Remplaçant d'un modèle retiré : celui que conseille le message d'erreur s'il existe,
+// sinon la version la plus récente de la même famille (« gemini-#-flash », « claude-opus-#-# »…).
+async function replacement(id, p, apiKey, retired, message) {
+  let models = [];
+  try {
+    models = await listModels(id, p, apiKey);
+  } catch {
+    // liste indisponible : on s'en tient au conseil du message
+  }
+  const advised = (String(message).match(/models\/([\w.-]+)/g) || []).map((m) => m.slice(7)).find((m) => m !== retired && (!models.length || models.includes(m)));
+  if (advised) return advised;
+  const family = (m) => m.replace(/\d+(\.\d+)?/g, '#');
+  return models.filter((m) => m !== retired && family(m) === family(retired)).sort(newer)[0] || null;
 }
 
 function errorMessage(err, id) {
@@ -283,14 +334,28 @@ async function askCompatible(p, apiKey, modelId, question, onText) {
   return { text: text.trim(), sources: [], refused };
 }
 
-// Pose la question à l'IA choisie. Renvoie { text, sources, refused }.
+// Pose la question à l'IA choisie. Renvoie { text, sources, refused, switched }.
+// Si le modèle a été retiré, passe tout seul au modèle actuel de l'IA et s'en souvient.
 async function ask(settings, question, onText) {
   const id = current(settings);
   const p = PROVIDERS[id];
   const apiKey = readKey(settings, id);
   if (!apiKey && !p.noKey) throw new Error(`pas de clé pour ${p.name} : crée-en une sur ${p.keyUrl.replace('https://', '')} puis tape « ia key <clé> »`);
-  if (id === 'claude') return askClaude(apiKey, model(settings, id), question, onText);
-  return askCompatible(p, apiKey, model(settings, id), question, onText);
+  const run = (m) => (id === 'claude' ? askClaude(apiKey, m, question, onText) : askCompatible(p, apiKey, m, question, onText));
+  const retired = model(settings, id);
+  try {
+    return await run(retired);
+  } catch (err) {
+    if (!isNotFound(err) || id === 'ollama') throw err;
+    const next = await replacement(id, p, apiKey, retired, err.message);
+    if (!next) throw err;
+    const r = await run(next);
+    const d = settings.data;
+    if (d.aiModels) delete d.aiModels[id];
+    d.aiAutoModels = { ...d.aiAutoModels, [id]: { from: p.model, model: next } };
+    settings.save();
+    return { ...r, switched: { from: retired, to: next } };
+  }
 }
 
 module.exports = {

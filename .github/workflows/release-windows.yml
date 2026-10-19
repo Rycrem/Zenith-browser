@@ -1,0 +1,49 @@
+# Construit seulement l'installateur Windows (.exe) et le publie dans une Release GitHub.
+# Se lance à la main depuis l'onglet Actions. Plus rapide que « Installateurs », mais les
+# appli macOS et Linux installées ne trouveront pas de mise à jour dans cette Release.
+name: Installateur Windows
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - id: version
+        name: Lire la version
+        shell: bash
+        run: echo "tag=v$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Créer la Release en brouillon
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::la Release $TAG existe déjà : augmente la version dans package.json"
+            exit 1
+          fi
+          gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "dev-brows $TAG" --generate-notes
+      - run: npm ci
+      - run: npm test
+      - name: Construire et envoyer l'installateur
+        run: npx electron-builder --win --publish always
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Pas de certificat de signature : installateur non signé.
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Publier la Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: gh release edit "$TAG" --draft=false --latest
