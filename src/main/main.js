@@ -992,7 +992,8 @@ async function exec(raw, depth = 0) {
           tab.view.webContents.stopFindInPage('clearSelection');
           tab.findText = '';
         } else {
-          tab.view.webContents.findInPage(rest, { findNext: tab.findText === rest });
+          // Pour Electron, findNext: true ouvre une nouvelle recherche ; false passe au résultat suivant.
+          tab.view.webContents.findInPage(rest, { findNext: tab.findText !== rest });
           tab.findText = rest;
         }
         break;
