@@ -13,16 +13,6 @@ A Chromium-based browser (Electron) that you drive like a terminal. Websites dis
 
 ![Help](docs/screenshots/help.png)
 
-## Install
-
-Installers are on the [Releases](https://github.com/Rycrem/dev-brows/releases/latest) page:
-
-- Windows: `dev-brows-Setup-x.y.z.exe`. The installer asks for the app's language (English or French) and, on its Privacy page, whether the app may check for updates on its own. If an installer is unsigned (see "Signing the Windows installer"), Windows SmartScreen shows "Windows protected your PC": click "More info" › "Run anyway". Windows 11 Smart App Control blocks unsigned installers with no way around it.
-- macOS: `.dmg` (`arm64` for Apple Silicon Macs, `x64` for Intel Macs). The app is not signed: on first launch, right-click the app › Open.
-- Linux: `.AppImage` (make it executable, then run it) or `.deb`.
-
-**Uninstall:** on Windows, Settings › Apps › Installed apps › dev-brows › Uninstall. On macOS, drag dev-brows from Applications to the Trash. On Linux, delete the `.AppImage`, or `sudo apt remove dev-brows` for the `.deb`. Your data stays in the folder listed under "Data" until you delete it.
-
 ## Language
 
 dev-brows speaks English and French. `lang` shows the current language, `lang en` or `lang fr` switches it right away. The first time, the app uses the language picked in the Windows installer, or else the system language (French if the system is in French, English otherwise).
@@ -44,10 +34,6 @@ Logic tests (bookmarks, aliases, result parsing, extensions, translations): `npm
 The workflow builds the Windows, macOS and Linux installers, attaches them to a `v0.2.0` Release and publishes it. That Release is what the installed app finds with `update`.
 
 For Windows only, run the "Installateur Windows" workflow instead (Actions tab › Installateur Windows › Run workflow): it builds only the `.exe` and publishes it in the `v<version>` Release, faster. Installed macOS and Linux apps will not see that version as an update.
-
-### Signing the Windows installer
-
-The "Installateur Windows" workflow has [SignPath](https://signpath.io) sign the app, then the installer, when the repository has the `SIGNPATH_API_TOKEN` secret and the `SIGNPATH_ORGANIZATION_ID` variable (Settings › Secrets and variables › Actions). Without them, the installer stays unsigned. Optional variables: `SIGNPATH_PROJECT_SLUG` (default `dev-brows`) and `SIGNPATH_POLICY_SLUG` (default `release-signing`). In SignPath, the project has two artifact configurations, `app` and `installer`, to copy from [.signpath/artifact-configurations](.signpath/artifact-configurations). Each signing request waits for approval in SignPath before the workflow goes on. To test the build without publishing, run the workflow with "Publier" unchecked: the installer is then a workflow artifact.
 
 ## Commands
 
@@ -153,15 +139,6 @@ The app closes, the update runs with the system's `node` (on Windows, Electron c
 Bookmarks, history and settings are JSON files in Electron's data folder (`~/.config/dev-brows` on Linux, `%APPDATA%\dev-brows` on Windows, `~/Library/Application Support/dev-brows` on macOS).
 
 Run from source, the app uses a separate folder, `dev-brows-dev` (copied from `dev-brows` the first time): the installed app encrypts its cookies with a key the development version cannot read.
-
-## Code signing policy
-
-Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
-
-- Committers and reviewers: [Rycrem](https://github.com/Rycrem) (every pull request from anyone else is reviewed before it is merged)
-- Approvers: [Rycrem](https://github.com/Rycrem) (approves each signing request)
-
-Only `dev-brows.exe` and the Windows installer, built from this repository by GitHub Actions, are signed. The other files of the app (Electron's DLLs) come from upstream projects and are shipped as they are.
 
 ## Privacy
 
