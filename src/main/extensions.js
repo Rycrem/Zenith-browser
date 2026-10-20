@@ -5,6 +5,7 @@ const path = require('path');
 const { net } = require('electron');
 const AdmZip = require('adm-zip');
 const { crxToZip, extensionIdFrom } = require('../shared/crx');
+const { patchExtension } = require('./storage-sync');
 const { t } = require('../shared/i18n');
 
 // uBlock Origin complet (MV2) n'est plus sur le Chrome Web Store : on le prend dans ses Releases GitHub.
@@ -95,6 +96,8 @@ class Extensions {
   }
 
   async load(ext) {
+    // Extensions téléchargées par dev-brows (pas les dossiers de l'utilisateur) : chrome.storage.sync remplacé.
+    if (path.resolve(ext.path).startsWith(path.resolve(this.dir) + path.sep)) patchExtension(ext.path);
     // Pas d'accès aux pages file:// : l'interface de dev-brows en est une, les extensions n'ont pas à s'y injecter.
     const loaded = await this.api.loadExtension(ext.path, { allowFileAccess: false });
     for (const api of this.others) if (!api.getExtension(loaded.id)) await api.loadExtension(ext.path, { allowFileAccess: false }).catch(() => {});

@@ -1209,6 +1209,7 @@ async function setupPrivateSession() {
   watchWorkerLogs(privSes);
   privSes.registerPreloadScript({ id: 'dev-brows-browser-alias', type: 'frame', filePath: path.join(__dirname, 'ext-preload.js') });
   privSes.registerPreloadScript({ id: 'dev-brows-sw-events', type: 'service-worker', filePath: path.join(__dirname, 'ext-sw-preload.js') });
+  for (const type of ['frame', 'service-worker']) privSes.registerPreloadScript({ id: `dev-brows-storage-sync-${type}`, type, filePath: path.join(__dirname, 'ext-sync-preload.js') });
   setupDownloads(privSes);
   setupPermissions(privSes);
   setupWebAuthn(privSes);
@@ -3103,6 +3104,7 @@ app.whenReady().then(async () => {
   watchExtensionLogs();
   ses.registerPreloadScript({ id: 'dev-brows-browser-alias', type: 'frame', filePath: path.join(__dirname, 'ext-preload.js') });
   ses.registerPreloadScript({ id: 'dev-brows-sw-events', type: 'service-worker', filePath: path.join(__dirname, 'ext-sw-preload.js') });
+  for (const type of ['frame', 'service-worker']) ses.registerPreloadScript({ id: `dev-brows-storage-sync-${type}`, type, filePath: path.join(__dirname, 'ext-sync-preload.js') });
   exts = new Extensions(ses, settings, path.join(dir, 'extensions'));
   exts.installBundledUblock(app.isPackaged ? path.join(process.resourcesPath, 'ublock-origin') : path.join(__dirname, '..', '..', 'vendor', 'ublock-origin'));
   await exts.loadAll();
