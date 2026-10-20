@@ -230,32 +230,71 @@ function renderPs1() {
 $('#new-tab').addEventListener('click', () => api.newTab());
 
 // L'adresse en haut se modifie à la main (Entrée : y aller, Échap : annuler) ; le bouton à droite la copie.
+// En tapant, l'historique propose des pages (↑/↓ pour choisir, clic pour y aller).
 const urlInput = $('#url');
+let suggestions = [];
+let suggestSel = -1;
+let suggestTyped = '';
+const urlRect = () => {
+  const r = $('#url-form').getBoundingClientRect();
+  return { x: r.x, y: r.y, width: r.width, height: r.height };
+};
+function closeSuggest() {
+  suggestions = [];
+  suggestSel = -1;
+  api.suggestHide();
+}
 $('#url-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const url = urlInput.value.trim();
+  closeSuggest();
   urlInput.blur();
   if (!url || url === state.status.url) return;
   await run(`go ${url}`);
   api.focusPage();
 });
 urlInput.addEventListener('focus', () => urlInput.select());
+urlInput.addEventListener('input', async () => {
+  suggestTyped = urlInput.value;
+  suggestSel = -1;
+  const list = await api.suggest(urlInput.value, urlRect());
+  if (document.activeElement === urlInput) suggestions = list;
+  else api.suggestHide();
+});
 urlInput.addEventListener('keydown', async (e) => {
+  if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && suggestions.length) {
+    e.preventDefault();
+    const n = suggestions.length;
+    // -1 : ce qui a été tapé ; 0..n-1 : une suggestion.
+    suggestSel = ((suggestSel + 1 + (e.key === 'ArrowDown' ? 1 : -1) + n + 1) % (n + 1)) - 1;
+    urlInput.value = suggestSel >= 0 ? suggestions[suggestSel].url : suggestTyped;
+    api.suggestSelect(suggestSel, urlRect());
+    return;
+  }
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
     e.preventDefault();
     const url = urlInput.value.trim();
+    closeSuggest();
     urlInput.blur();
     if (url) await run(`tab new ${url}`);
     return;
   }
   if (e.key !== 'Escape') return;
   e.preventDefault();
+  if (suggestions.length) {
+    urlInput.value = suggestTyped;
+    closeSuggest();
+    return;
+  }
   urlInput.value = state.status.url;
   urlInput.blur();
 });
 urlInput.addEventListener('blur', () => {
   urlInput.value = state.status.url;
+  // Laisse passer un clic sur une suggestion avant de fermer la liste.
+  setTimeout(() => { if (document.activeElement !== urlInput) closeSuggest(); }, 200);
 });
+api.on('suggest:done', () => urlInput.blur());
 let copiedTimer = null;
 $('#url-copy').append(copyIcon());
 $('#url-copy').addEventListener('click', () => {

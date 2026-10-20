@@ -22,12 +22,15 @@ contextBridge.exposeInMainWorld('brows', {
   volume: (v) => ipcRenderer.send('ui:volume', v),
   toggleMode: () => ipcRenderer.send('ui:mode'),
   mediaToggle: () => ipcRenderer.send('ui:media-toggle'),
+  suggest: (text, rect) => ipcRenderer.invoke('ui:suggest', text, rect),
+  suggestSelect: (i, rect) => ipcRenderer.send('ui:suggest-select', i, rect),
+  suggestHide: () => ipcRenderer.send('ui:suggest-hide'),
   muteAll: () => ipcRenderer.send('ui:mute-all'),
   readClipboard: () => ipcRenderer.invoke('ui:clipboard-read'),
   writeClipboard: (text) => ipcRenderer.send('ui:clipboard-write', text),
   resetZoom: () => ipcRenderer.send('ui:zoom-reset'),
   on: (channel, fn) => {
-    if (!['state', 'term:print', 'term:focus', 'term:toggle', 'ui:panel'].includes(channel)) return;
+    if (!['state', 'term:print', 'term:focus', 'term:toggle', 'ui:panel', 'suggest:done'].includes(channel)) return;
     ipcRenderer.on(channel, (e, ...args) => fn(...args));
   },
 });

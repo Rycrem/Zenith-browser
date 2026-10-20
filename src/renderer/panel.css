@@ -184,3 +184,11 @@ button.link { border: none; padding: 0; color: var(--accent); text-decoration: u
 .arow button.star.pinned { color: var(--accent); }
 .arow.off .name { color: var(--dim); }
 .arow button.pill { min-width: 40px; }
+
+/* Suggestions de l'adresse (historique) */
+#pop.suggest { padding: 3px 0; }
+.sug { display: flex; align-items: baseline; gap: 10px; height: 26px; padding: 0 10px; line-height: 26px; white-space: nowrap; cursor: pointer; }
+.sug:hover, .sug.active { background: var(--bg-raised); }
+.sug.active { box-shadow: inset 2px 0 0 var(--accent); }
+.sug .url { color: var(--green); overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; max-width: 60%; }
+.sug .title { color: var(--dim); font-size: 12px; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }

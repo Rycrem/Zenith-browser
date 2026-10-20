@@ -590,6 +590,95 @@ function addHistory(entry) {
   history.save();
 }
 
+// ---------------------------------------------------------------- suggestions de l'adresse
+
+// Les pages de l'historique qui correspondent à ce qui est tapé : d'abord celles dont
+// l'adresse commence par le texte, puis celles qui le contiennent, puis par le titre ;
+// à égalité, les plus visitées puis les plus récentes.
+function historySuggestions(text, max = 8) {
+  const q = String(text || '').trim().toLowerCase();
+  if (!q) return [];
+  const byUrl = new Map();
+  const entries = history.data.entries;
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const e = entries[i];
+    if (!e.url || e.query || !/^https?:/.test(e.url)) continue;
+    let s = byUrl.get(e.url);
+    if (!s) byUrl.set(e.url, (s = { url: e.url, title: e.title || '', visits: 0, time: e.time || 0 }));
+    s.visits++;
+    if (!s.title && e.title) s.title = e.title;
+  }
+  const out = [];
+  for (const s of byUrl.values()) {
+    const bare = s.url.replace(/^https?:\/\/(www\.)?/, '').toLowerCase();
+    const score = bare.startsWith(q) ? 3 : bare.includes(q) ? 2 : s.title.toLowerCase().includes(q) ? 1 : 0;
+    if (score) out.push({ ...s, score });
+  }
+  out.sort((a, b) => b.score - a.score || b.visits - a.visits || b.time - a.time);
+  return out.slice(0, max).map(({ url, title }) => ({ url, title }));
+}
+
+// Fenêtre sous le champ d'adresse : la page (vue native) couvrirait une liste dans l'interface.
+let suggest = null; // { win, key, ready, data }
+let suggestList = [];
+
+function hideSuggest() {
+  suggestList = [];
+  if (suggest && !suggest.win.isDestroyed()) suggest.win.hide();
+}
+
+function showSuggest(rect, selected) {
+  if (!win || win.isDestroyed() || !suggestList.length || !rect) return hideSuggest();
+  const b = win.getContentBounds();
+  const width = Math.max(340, Math.round(rect.width));
+  const bounds = {
+    x: Math.max(b.x, Math.min(b.x + Math.round(rect.x), b.x + b.width - width)),
+    y: b.y + Math.round(rect.y + rect.height) + 2,
+    width,
+    height: suggestList.length * 26 + 8,
+  };
+  const key = `${accentColor()}|${isLight()}|${!!privateMode}`;
+  if (suggest && (suggest.win.isDestroyed() || suggest.key !== key)) {
+    if (!suggest.win.isDestroyed()) suggest.win.destroy();
+    suggest = null;
+  }
+  if (!suggest) {
+    const sw = new BrowserWindow({
+      ...bounds,
+      parent: win,
+      frame: false,
+      resizable: false,
+      focusable: false,
+      show: false,
+      skipTaskbar: true,
+      backgroundColor: isLight() ? '#F6F7F9' : privateMode ? '#1A1024' : '#0E1116',
+      webPreferences: { preload: path.join(__dirname, 'panel-preload.js'), sandbox: true, contextIsolation: true },
+    });
+    suggest = { win: sw, key, ready: false, data: null };
+    const s = suggest;
+    sw.webContents.on('did-finish-load', () => {
+      s.ready = true;
+      if (!s.data || sw.isDestroyed() || !suggestList.length) return;
+      sw.webContents.send('panel:data', s.data);
+      sw.showInactive();
+    });
+    sw.loadFile(path.join(__dirname, '../renderer/suggest.html'), { query: { accent: accentColor(), mode: isLight() ? 'jour' : 'nuit', private: privateMode ? '1' : '' } });
+  }
+  suggest.data = { list: suggestList, selected };
+  suggest.win.setBounds(bounds);
+  if (!suggest.ready) return;
+  suggest.win.webContents.send('panel:data', suggest.data);
+  if (!suggest.win.isVisible()) suggest.win.showInactive();
+}
+
+function suggestAction(action, arg) {
+  if (action !== 'open' || !arg || !suggestList.some((s) => s.url === arg.url)) return;
+  hideSuggest();
+  win.webContents.send('suggest:done');
+  if (arg.newTab) createTab({ url: arg.url, background: true });
+  else navigate(activeTab(), arg.url);
+}
+
 // ---------------------------------------------------------------- recherche
 
 async function runSearch(tab, query, form) {
@@ -2861,7 +2950,15 @@ function setupIpc() {
   ipcMain.on('ui:mute-all', () => setMuteAll(!settings.data.muteAll));
   ipcMain.on('ui:panel', (e, kind, x) => PANELS[kind] && togglePanel(kind, Number.isFinite(x) ? x : undefined));
   const fromPanel = (e) => (panel && !panel.win.isDestroyed() && e.sender === panel.win.webContents ? panel : null);
+  ipcMain.handle('ui:suggest', (e, text, rect) => {
+    suggestList = historySuggestions(text);
+    showSuggest(rect, -1);
+    return suggestList;
+  });
+  ipcMain.on('ui:suggest-select', (e, i, rect) => showSuggest(rect, i));
+  ipcMain.on('ui:suggest-hide', () => hideSuggest());
   ipcMain.on('panel:act', (e, action, arg) => {
+    if (suggest && !suggest.win.isDestroyed() && e.sender === suggest.win.webContents) return suggestAction(action, arg);
     const p = fromPanel(e);
     if (p) panelAction(p.kind, action, arg).catch((err) => print([{ t: `  ${err.message}`, c: 'err' }]));
   });
@@ -2894,7 +2991,11 @@ function createWindow() {
   });
   win.setMenuBarVisibility(false);
   win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
-  win.on('resize', () => { if (fullTab) layout(); });
+  win.on('resize', () => {
+    hideSuggest();
+    if (fullTab) layout();
+  });
+  win.on('move', () => hideSuggest());
   // F11 ou la fenêtre qui sort du plein écran : la vidéo en sort aussi.
   win.on('leave-full-screen', () => {
     if (!fullTab) return;
