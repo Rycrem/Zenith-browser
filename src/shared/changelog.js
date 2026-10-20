@@ -4,6 +4,17 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.19',
+    notes: [
+      'L\'adresse en haut se modifie à la main : Entrée pour y aller, Échap pour annuler.',
+      'Un bouton copier à droite de l\'adresse la copie et affiche « copié ».',
+    ],
+    en: [
+      'The address at the top can be edited by hand: Enter to go, Esc to cancel.',
+      'A copy button right of the address copies it and shows “copied”.',
+    ],
+  },
+  {
     version: '0.1.18',
     notes: [
       'Un onglet qui joue du son affiche un haut-parleur : un clic coupe ou remet son son.',
