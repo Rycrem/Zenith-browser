@@ -1235,7 +1235,9 @@ function watchExtensionLogs() {
 
 function extLogCommand(arg, say) {
   const list = exts.summary();
-  const i = /^\d+$/.test(arg || '') ? Number(arg) - 1 : list.findIndex((x) => x.alias === arg || (x.name || '').toLowerCase().includes(String(arg || '').toLowerCase()));
+  // Le nom n'est cherché qu'à partir de 3 lettres, sinon « n » trouverait n'importe quelle extension.
+  const q = String(arg || '').toLowerCase();
+  const i = /^\d+$/.test(q) ? Number(q) - 1 : list.findIndex((x) => x.alias === arg || (q.length >= 3 && (x.name || '').toLowerCase().includes(q)));
   if (!arg || !list[i]) throw new Error(t('ext log <n | alias>'));
   const ext = exts.get(i + 1);
   const lines = (ext.id && extLogs.get(ext.id)) || [];
