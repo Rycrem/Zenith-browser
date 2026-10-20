@@ -10,6 +10,22 @@
   'use strict';
 
   const EN = {
+    "  au programme :": "  what's new:",
+    "  · … et {count} autres": "  · … and {count} more",
+    "son": "sound",
+    "tout le navigateur": "whole browser",
+    "Aucun onglet ne joue de son.": "No tab is playing sound.",
+    "clic sur le titre : aller à l'onglet": "click a title: go to the tab",
+    "lecture": "play",
+    "pause": "pause",
+    "couper le son": "mute",
+    "remettre le son": "unmute",
+    "baisser": "lower",
+    "monter": "raise",
+    "Remettre le son de l'onglet": "Unmute the tab",
+    "Couper le son de l'onglet": "Mute the tab",
+    "Son des onglets : lecture, pause, volume": "Tab sound: play, pause, volume",
+    "Volume du navigateur : {v} %": "Browser volume: {v}%",
     "fond": "background",
     "ligne": "line",
     "page": "page",

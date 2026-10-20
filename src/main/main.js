@@ -119,6 +119,7 @@ const prompts = []; // questions oui/non en attente, la première est affichée
 let lastUndo = null;
 const downloads = [];
 let popupWin = null;
+let extPopupClosed = { n: 0, at: 0 };
 let panel = null; // popup de la barre du bas : { kind: 'dl' | 'fav', win, place }
 let panelClosed = { kind: null, at: 0 };
 
@@ -216,6 +217,29 @@ function wireWebContents(tab, wc) {
     tab.loading = true;
     sendState();
   });
+  // « Couper tout » s'applique aussi aux onglets ouverts ensuite.
+  if (settings.data.muteAll) {
+    wc.setAudioMuted(true);
+    tab.mutedByAll = true;
+  }
+  // Son : onglet qui en joue (haut-parleur), média en lecture ou en pause (player en bas).
+  wc.on('audio-state-changed', (e) => {
+    tab.audible = e && e.audible !== undefined ? e.audible : wc.isCurrentlyAudible();
+    audioChanged();
+  });
+  wc.on('media-started-playing', () => {
+    tab.media = 'playing';
+    audioChanged();
+  });
+  wc.on('media-paused', () => {
+    tab.media = 'paused';
+    audioChanged();
+  });
+  wc.on('did-navigate', () => {
+    tab.media = null;
+    audioChanged();
+  });
+  wc.on('did-frame-finish-load', () => applyVolume(tab));
   wc.on('did-stop-loading', () => {
     tab.loading = false;
     sendState();
@@ -399,7 +423,7 @@ function sendState() {
     lang: getLang(),
     accent: THEMES[settings.data.theme] || THEMES.ambre,
     engine: settings.data.engine,
-    tabs: tabs.map((t, i) => ({ id: t.id, n: i + 1, title: tabTitle(t), loading: t.loading, pane: paneOf(t) })),
+    tabs: tabs.map((t, i) => ({ id: t.id, n: i + 1, title: tabTitle(t), loading: t.loading, pane: paneOf(t), audible: !!t.audible, muted: isMuted(t) })),
     panes: panes.map((p) => {
       const t = getTab(p.tabId);
       return { tabId: p.tabId, screen: t.screen, page: !!t.view && !t.screen, dev: !!(t.dev && t.devOpen && !t.devWin && !t.screen), url: t.url, title: t.screen ? tabTitle(t) : t.title || hostOf(t.url) || tr('nouvel onglet') };
@@ -416,6 +440,7 @@ function sendState() {
     },
     exts: exts.summary(),
     downloads: downloads.filter((d) => d.state === 'progressing').length,
+    audio: audioState(),
   });
 }
 
@@ -873,6 +898,147 @@ function openInOtherPane(url) {
   showInPane(tab, target);
 }
 
+// ---------------------------------------------------------------- son
+
+// Volume : celui du navigateur (réglages) multiplié par celui de l'onglet, appliqué aux
+// éléments <audio> et <video> de toutes les frames. À 100 %, rien n'est touché.
+const MEDIA_SCRIPT = `((action, volume) => {
+  const st = window.__devBrowsAudio || (window.__devBrowsAudio = { volume: 1, last: [] });
+  const all = () => [...document.querySelectorAll('video, audio')];
+  if (!st.hooked) {
+    st.hooked = true;
+    document.addEventListener('play', (e) => {
+      if (st.volume !== 1 && e.target && 'volume' in e.target) e.target.volume = st.volume;
+    }, true);
+  }
+  if (action === 'volume') {
+    const changed = st.volume !== volume;
+    st.volume = volume;
+    if (changed) for (const el of all()) el.volume = volume;
+    return null;
+  }
+  if (action === 'toggle') {
+    const playing = all().filter((el) => !el.paused);
+    if (playing.length) {
+      for (const el of playing) el.pause();
+      st.last = playing;
+      return 'paused';
+    }
+    const el = st.last.find((x) => x.isConnected) || all().find((x) => x.currentTime > 0) || all()[0];
+    if (!el) return null;
+    el.play().catch(() => {});
+    return 'playing';
+  }
+  return all().some((el) => !el.paused) ? 'playing' : all().some((el) => el.currentTime > 0) ? 'paused' : null;
+})`;
+
+const isMuted = (tab) => !!(tab.view && !tab.view.webContents.isDestroyed() && tab.view.webContents.isAudioMuted());
+const tabVolume = (tab) => (tab.volume === undefined ? 1 : tab.volume);
+const globalVolume = () => (settings.data.volume === undefined ? 1 : settings.data.volume);
+
+// Exécute MEDIA_SCRIPT dans chaque frame de l'onglet ; renvoie le résultat de la première qui répond.
+async function mediaCall(tab, action, value) {
+  if (!tab.view || tab.view.webContents.isDestroyed()) return null;
+  let result = null;
+  for (const frame of tab.view.webContents.mainFrame.framesInSubtree) {
+    try {
+      const r = await frame.executeJavaScript(`${MEDIA_SCRIPT}(${JSON.stringify(action)}, ${Number(value) || 0})`, true);
+      if (r && !result) result = r;
+    } catch {}
+  }
+  return result;
+}
+
+function applyVolume(tab) {
+  const v = Math.round(globalVolume() * tabVolume(tab) * 100) / 100;
+  if (v === 1 && !tab.volumeSet) return;
+  tab.volumeSet = v !== 1;
+  mediaCall(tab, 'volume', v);
+}
+
+// Onglets qui jouent du son ou ont un média en cours (lecture ou pause).
+function audioTabs() {
+  return tabs.filter((t) => t.view && (t.audible || t.media));
+}
+
+function audioState() {
+  const list = audioTabs();
+  return {
+    show: list.length > 0,
+    playing: list.some((t) => t.audible),
+    volume: globalVolume(),
+    muted: !!settings.data.muteAll,
+  };
+}
+
+let audioTimer = null;
+function audioChanged() {
+  // Les événements arrivent par rafales (plusieurs frames) : un seul envoi.
+  clearTimeout(audioTimer);
+  audioTimer = setTimeout(() => {
+    sendState();
+    sendPanel('audio');
+  }, 50);
+}
+
+function setMuted(tab, muted) {
+  if (!tab.view) return;
+  tab.view.webContents.setAudioMuted(muted);
+  audioChanged();
+}
+
+function setGlobalVolume(v) {
+  settings.data.volume = Math.min(1, Math.max(0, Math.round(v * 100) / 100));
+  settings.save();
+  for (const tab of tabs) applyVolume(tab);
+  audioChanged();
+}
+
+// « Couper tout » coupe chaque onglet ; le rétablir rend le son à ceux qu'il avait coupés.
+function setMuteAll(on) {
+  settings.data.muteAll = on;
+  settings.save();
+  for (const tab of tabs) {
+    if (!tab.view) continue;
+    if (on && !isMuted(tab)) {
+      tab.mutedByAll = true;
+      tab.view.webContents.setAudioMuted(true);
+    } else if (!on && tab.mutedByAll) {
+      tab.mutedByAll = false;
+      tab.view.webContents.setAudioMuted(false);
+    }
+  }
+  audioChanged();
+}
+
+async function togglePlay(tab) {
+  const r = await mediaCall(tab, 'toggle');
+  if (r) tab.media = r;
+  audioChanged();
+}
+
+function audioData() {
+  return {
+    title: t('son'),
+    all: t('tout le navigateur'),
+    volume: globalVolume(),
+    muted: !!settings.data.muteAll,
+    empty: t('Aucun onglet ne joue de son.'),
+    hint: t('clic sur le titre : aller à l\'onglet'),
+    labels: { play: t('lecture'), pause: t('pause'), mute: t('couper le son'), unmute: t('remettre le son'), down: t('baisser'), up: t('monter') },
+    tabs: audioTabs().map((tb) => ({
+      id: tb.id,
+      n: tabs.indexOf(tb) + 1,
+      title: tb.title || hostOf(tb.url),
+      host: hostOf(tb.url),
+      playing: tb.media === 'playing' || (!tb.media && tb.audible),
+      audible: !!tb.audible,
+      muted: isMuted(tb),
+      volume: tabVolume(tb),
+    })),
+  };
+}
+
 // ---------------------------------------------------------------- popup des téléchargements
 
 function formatSize(bytes) {
@@ -938,6 +1104,7 @@ function favData() {
 const PANELS = {
   dl: { file: 'downloads.html', width: 420, data: dlData },
   fav: { file: 'favorites.html', width: 380, data: favData },
+  audio: { file: 'audio.html', width: 440, data: audioData },
 };
 
 function sendPanel(kind) {
@@ -999,6 +1166,22 @@ async function panelAction(kind, action, arg) {
     else if (action === 'open' && d.state === 'completed') {
       const err = await shell.openPath(d.path);
       if (err) print([{ t: `  ${err}`, c: 'err' }]);
+    }
+  } else if (kind === 'audio') {
+    const v = arg && Number(arg.volume);
+    if (action === 'global' && Number.isFinite(v)) return setGlobalVolume(v);
+    if (action === 'muteAll') return setMuteAll(!settings.data.muteAll);
+    const tab = arg && getTab(arg.id);
+    if (!tab || !tab.view) return;
+    if (action === 'mute') setMuted(tab, !isMuted(tab));
+    else if (action === 'toggle') await togglePlay(tab);
+    else if (action === 'volume' && Number.isFinite(v)) {
+      tab.volume = Math.min(1, Math.max(0, Math.round(v * 100) / 100));
+      applyVolume(tab);
+      audioChanged();
+    } else if (action === 'show') {
+      showInPane(tab, activePane);
+      if (panel && !panel.win.isDestroyed()) panel.win.close();
     }
   } else if (kind === 'fav' && action === 'open' && arg && typeof arg.url === 'string') {
     // Seulement une adresse qui est bien dans les favoris.
@@ -1063,7 +1246,14 @@ function extLogCommand(arg, say) {
 
 function openExtPopup(n, x) {
   const url = exts.popupUrl(n);
-  if (popupWin && !popupWin.isDestroyed()) popupWin.close();
+  // Un second clic (ou Alt+n) sur la même extension ferme sa popup.
+  if (popupWin && !popupWin.isDestroyed()) {
+    const same = popupWin.extN === n;
+    popupWin.close();
+    if (same) return;
+  }
+  // Le clic sur la pastille fait d'abord perdre le focus à la popup, qui se ferme : ce clic ne la rouvre pas.
+  if (extPopupClosed.n === n && Date.now() - extPopupClosed.at < 300) return;
   const b = win.getContentBounds();
   const place = (w, h) => {
     const left = x !== undefined ? b.x + Math.round(x) - w + 60 : b.x + b.width - w - 16;
@@ -1079,6 +1269,10 @@ function openExtPopup(n, x) {
     webPreferences: { session: ses, enablePreferredSizeMode: true },
   });
   const pw = popupWin;
+  pw.extN = n;
+  pw.on('closed', () => {
+    extPopupClosed = { n, at: Date.now() };
+  });
   pw.loadURL(url);
   pw.once('ready-to-show', () => pw.show());
   pw.on('blur', () => !pw.isDestroyed() && pw.close());
@@ -1971,6 +2165,36 @@ async function updateCommand(args, say) {
   settings.data.lastUpdateCheck = Date.now();
   settings.save();
   for (const l of updateLines(r)) say(l.t, l.c);
+  await updateRecap(r, say);
+}
+
+// Récapitulatif de ce qu'apporte la mise à jour proposée : notes de chaque version publiée
+// depuis celle installée, ou titres des commits en attente quand l'appli tourne depuis le code.
+async function updateRecap(r, say) {
+  if (!r.installed) {
+    if (!r.commits || !r.commits.length) return;
+    say(t('  au programme :'), 'dim');
+    for (const c of r.commits) say(`  · ${c}`);
+    if (r.behind > r.commits.length) say(t('  · … et {count} autres', { count: r.behind - r.commits.length }), 'dim');
+    return;
+  }
+  if (!r.available) return;
+  let releases = [];
+  try {
+    releases = await updater.listReleases();
+  } catch {
+    return; // la vérification a marché, seules les notes manquent
+  }
+  const lang = getLang();
+  const wanted = releases.filter((x) => newer(x.version, r.current) && !newer(x.version, r.latest));
+  if (!wanted.length) return;
+  say(t('  au programme :'), 'dim');
+  for (const x of wanted) {
+    say(`  dev-brows ${x.version}`, 'ok');
+    const notes = exactNotes(x.version, lang) || releaseNotes(x.body, lang);
+    if (notes.length) for (const n of notes) say(`  · ${n}`);
+    else say(t('  pas de notes pour cette version'), 'dim');
+  }
 }
 
 // « update -v » : liste les versions publiées ; un numéro affiche les notes de cette version
@@ -2433,6 +2657,11 @@ function setupIpc() {
       sendState();
     }
   });
+  ipcMain.on('ui:tab-mute', (e, id) => {
+    const tab = getTab(id);
+    if (tab) setMuted(tab, !isMuted(tab));
+  });
+  ipcMain.on('ui:volume', (e, v) => Number.isFinite(v) && setGlobalVolume(v));
   ipcMain.on('ui:panel', (e, kind, x) => PANELS[kind] && togglePanel(kind, Number.isFinite(x) ? x : undefined));
   const fromPanel = (e) => (panel && !panel.win.isDestroyed() && e.sender === panel.win.webContents ? panel : null);
   ipcMain.on('panel:act', (e, action, arg) => {

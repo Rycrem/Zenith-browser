@@ -75,7 +75,8 @@ class Extensions {
   }
 
   async load(ext) {
-    const loaded = await this.api.loadExtension(ext.path, { allowFileAccess: true });
+    // Pas d'accès aux pages file:// : l'interface de dev-brows en est une, les extensions n'ont pas à s'y injecter.
+    const loaded = await this.api.loadExtension(ext.path, { allowFileAccess: false });
     ext.id = loaded.id;
     ext.name = this.readName(ext.path, loaded.name);
     ext.popup = this.readPopup(ext.path);

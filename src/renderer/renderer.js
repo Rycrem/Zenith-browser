@@ -50,6 +50,28 @@ function h(tag, attrs, ...children) {
 }
 
 // replaceChildren sans les valeurs vides et avec les tableaux aplatis.
+// Haut-parleur en SVG (même rendu partout) : avec ondes, ou barré quand le son est coupé.
+function speaker(muted) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 16 16');
+  svg.setAttribute('class', 'speaker-icon');
+  const path = (d, fill) => {
+    const p = document.createElementNS(NS, 'path');
+    p.setAttribute('d', d);
+    p.setAttribute('fill', fill ? 'currentColor' : 'none');
+    p.setAttribute('stroke', 'currentColor');
+    p.setAttribute('stroke-width', '1.5');
+    p.setAttribute('stroke-linecap', 'round');
+    p.setAttribute('stroke-linejoin', 'round');
+    return p;
+  };
+  svg.append(path('M2 6h3l4-3v10l-4-3H2z', true));
+  if (muted) svg.append(path('M11 6l4 4M15 6l-4 4'));
+  else svg.append(path('M11 5.5a3.5 3.5 0 0 1 0 5'), path('M12.8 3.5a6 6 0 0 1 0 9'));
+  return svg;
+}
+
 function fill(el, children) {
   el.replaceChildren(...children.flat(Infinity).filter((c) => c !== null && c !== undefined && c !== false));
 }
@@ -190,9 +212,9 @@ function setTerminalHidden(hidden) {
 api.on('term:print', print);
 // Popups de la barre du bas, au-dessus de leur bouton : ↓ (bord droit) ou ★ (bord gauche).
 function openPanel(kind) {
-  const b = $(kind === 'dl' ? '#dl-chip' : '#fav-chip');
+  const b = $({ dl: '#dl-chip', fav: '#fav-chip', audio: '#audio-chip' }[kind]);
   const r = b && b.getBoundingClientRect();
-  api.panel(kind, r ? (kind === 'dl' ? r.right : r.left) : undefined);
+  api.panel(kind, r ? (kind === 'fav' ? r.left : r.right) : undefined);
 }
 // Ctrl+Maj+J et Ctrl+Maj+B.
 api.on('ui:panel', openPanel);
@@ -310,6 +332,15 @@ function renderTabs() {
       },
     },
     h('button', { type: 'button', class: 'label', title: tb.title, onclick: () => api.tab(tb.id) }, `[${tb.n}] `, tb.loading ? h('span', { class: 'spin' }, '◌ ') : null, tb.title),
+    tb.audible || tb.muted ? h('button', {
+      type: 'button',
+      class: `speaker${tb.muted ? ' muted' : ''}`,
+      title: tb.muted ? t('Remettre le son de l\'onglet') : t('Couper le son de l\'onglet'),
+      onclick: (e) => {
+        e.stopPropagation();
+        api.tabMute(tb.id);
+      },
+    }, speaker(tb.muted)) : null,
     h('button', { type: 'button', class: 'close', 'aria-label': t('Fermer l\'onglet {n}', { n: tb.n }), onclick: () => api.closeTab(tb.id) }, '×'),
   )));
   $('#url').textContent = state.status.url;
@@ -350,7 +381,39 @@ function renderPanes() {
 
 panesEl.forEach((p, i) => p.addEventListener('pointerdown', () => state && state.activePane !== i && api.pane(i)));
 
+// Player du son : barre animée (clic : popup par onglet) et volume du navigateur.
+let volumeDragging = false;
+function player(a) {
+  const bars = h('button', {
+    type: 'button',
+    id: 'audio-chip',
+    class: `chip eq${a.playing && !a.muted ? ' on' : ''}`,
+    title: t('Son des onglets : lecture, pause, volume'),
+    onclick: () => openPanel('audio'),
+  }, a.muted ? speaker(true) : [1, 2, 3, 4].map((i) => h('span', { class: `bar b${i}` })));
+  const slider = h('input', {
+    type: 'range',
+    class: 'volume',
+    min: '0',
+    max: '100',
+    value: String(Math.round(a.volume * 100)),
+    title: t('Volume du navigateur : {v} %', { v: Math.round(a.volume * 100) }),
+    onpointerdown: () => { volumeDragging = true; },
+    oninput: (e) => api.volume(Number(e.target.value) / 100),
+  });
+  return h('span', { class: 'player' }, bars, slider);
+}
+
+// Le bouton peut être relâché hors du curseur.
+window.addEventListener('pointerup', () => {
+  if (!volumeDragging) return;
+  volumeDragging = false;
+  renderStatus();
+});
+
 function renderStatus() {
+  // Pendant qu'on fait glisser le volume, ne pas recréer la barre (le curseur serait lâché).
+  if (volumeDragging) return;
   const s = state.status;
   const chips = state.exts.map((e) => h('button', {
     type: 'button',
@@ -373,6 +436,7 @@ function renderStatus() {
       h('button', { type: 'button', class: 'pill', title: t('Fermer les DevTools (F12)'), onclick: () => api.devtools('close') }, t('✕ fermer'))) : null,
     s.zoom !== 100 ? h('button', { type: 'button', class: 'pill zoom', title: t('Revenir à 100 % (Ctrl+0)'), onclick: () => api.resetZoom() }, t('zoom {zoom} %', { zoom: s.zoom })) : null,
     h('span', { class: 'grow' }),
+    state.audio.show ? player(state.audio) : null,
     chips,
     h('button', {
       type: 'button',
@@ -381,7 +445,8 @@ function renderStatus() {
       title: t('Téléchargements (Ctrl+Maj+J)'),
       onclick: () => openPanel('dl'),
     }, state.downloads ? `↓ ${state.downloads}` : '↓'),
-    h('span', { id: 'clock' }, clock()),
+    // Le player prend la place de l'heure.
+    state.audio.show ? null : h('span', { id: 'clock' }, clock()),
   ]);
 }
 

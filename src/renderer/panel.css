@@ -134,3 +134,22 @@ button.link { border: none; padding: 0; color: var(--accent); text-decoration: u
 .fav .label { overflow: hidden; text-overflow: ellipsis; }
 .fav .sub { color: var(--dim); font-size: 12px; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .fav.here .label { color: var(--green); }
+
+/* Son */
+.arow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.arow > * { flex: none; }
+#all { color: var(--accent); }
+.arow .name { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: left; }
+.arow button { min-width: 28px; }
+.arow button.link { min-width: 0; border: none; padding: 0; color: var(--text); }
+.arow button.link:hover { color: var(--accent); }
+.arow button.on { color: var(--red); border-color: var(--red); }
+.arow input[type=range] { width: 90px; accent-color: var(--accent); cursor: pointer; }
+.arow .pct { width: 40px; color: var(--dim); font-size: 12px; text-align: right; }

@@ -80,7 +80,7 @@ Each tab has its own terminal; command history (↑ ↓) is shared by all of the
 
 Ctrl+L terminal · Ctrl+J hide/show the terminal · F11 fullscreen · Esc hand over to the page · Ctrl+T / Ctrl+W tabs · Ctrl+Tab, Ctrl+1…9 · Alt+←/→ · F5 · Ctrl+F find · Ctrl+D bookmark · Ctrl+Shift+S split · F6 switch pane · F12 or right-click › Inspect for DevTools · Alt+1…9 extension popup · Ctrl+Shift+B bookmarks popup · Ctrl+Shift+J downloads popup · ↑/↓ command history · Tab completion.
 
-With the mouse: clicking the address at the top right copies it, + opens a tab, the zoom level shows in the status bar when it is not 100% (click it to go back to 100%), and the bar above DevTools detaches them (⇱) or closes them (✕). The bar between the page and the terminal can be dragged to change its height (double-click for the default size), and so can the bar between the two split panes. Tabs, results, bookmarks and extension badges are clickable (Ctrl+click for a new tab). In the status bar, ★ bookmarks (bottom left) opens your bookmarks in a popup with a filter (type, ↑/↓, Enter), and ↓ (right of the extension badges) opens the downloads popup, with a progress ring, size, speed and time left for each download. Middle-click a tab to close it, drag and drop to reorder. In the terminal, right-click copies the selected text, or pastes the clipboard into the command line when nothing is selected.
+With the mouse: clicking the address at the top right copies it, + opens a tab, the zoom level shows in the status bar when it is not 100% (click it to go back to 100%), and the bar above DevTools detaches them (⇱) or closes them (✕). The bar between the page and the terminal can be dragged to change its height (double-click for the default size), and so can the bar between the two split panes. Tabs, results, bookmarks and extension badges are clickable (Ctrl+click for a new tab). In the status bar, ★ bookmarks (bottom left) opens your bookmarks in a popup with a filter (type, ↑/↓, Enter), and ↓ (right of the extension badges) opens the downloads popup, with a progress ring, size, speed and time left for each download. A tab playing sound shows a speaker: click it to mute the tab. While music or a video plays, a player replaces the clock: its slider sets the whole browser's volume, and a click on its sound bars opens a popup to control each tab (play/pause, mute, volume). A second click on an extension badge closes its popup. Middle-click a tab to close it, drag and drop to reorder. In the terminal, right-click copies the selected text, or pastes the clipboard into the command line when nothing is selected.
 
 ## Extensions
 
@@ -116,7 +116,7 @@ A check runs at every launch (`update auto off` turns it off); `update` runs it 
 
 **Installed app** (from a Releases installer):
 
-- `update` compares the installed version with the latest GitHub Release and says when a new installer is out.
+- `update` compares the installed version with the latest GitHub Release and says when a new installer is out, with a recap of what each version since yours brings.
 - `update -v` lists the published versions; type a number to read that version's notes in the terminal, then install it if you want (an older one too). `update -v 0.1.12` goes straight to that version.
 - `update install` downloads the new installer, applies it and restarts the app. On macOS (unsigned app, where automatic updates are impossible), it opens the Release page to download the `.dmg`.
 - Electron and Chromium ship with the installer: each new Release updates them.

@@ -4,6 +4,23 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.18',
+    notes: [
+      'Un onglet qui joue du son affiche un haut-parleur : un clic coupe ou remet son son.',
+      'Pendant une musique ou une vidéo, un player remplace l\'heure : son curseur règle le volume du navigateur, un clic sur la barre de son ouvre le contrôle de chaque onglet (lecture/pause, muet, volume).',
+      '« update » affiche un récapitulatif de ce qu\'apporte la mise à jour proposée.',
+      'Un second clic sur la pastille d\'une extension ferme sa popup au lieu de la rouvrir.',
+      'Les extensions ne s\'injectent plus dans l\'interface de dev-brows.',
+    ],
+    en: [
+      'A tab playing sound shows a speaker: click it to mute or unmute the tab.',
+      'While music or a video plays, a player replaces the clock: its slider sets the browser volume, and a click on its sound bars opens per-tab controls (play/pause, mute, volume).',
+      '“update” shows a recap of what the proposed update brings.',
+      'A second click on an extension badge closes its popup instead of reopening it.',
+      'Extensions no longer inject into dev-brows\'s own interface.',
+    ],
+  },
+  {
     version: '0.1.17',
     notes: [
       'Bouton ↓ à droite des extensions (ou Ctrl+Maj+J) : les téléchargements en popup, avec une roue de progression, le poids, la vitesse et le temps restant.',
