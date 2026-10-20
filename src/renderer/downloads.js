@@ -3,6 +3,7 @@
 // Popup des téléchargements : le processus principal envoie la liste déjà traduite.
 const accent = new URLSearchParams(location.search).get('accent');
 if (accent && /^#[0-9a-f]{6}$/i.test(accent)) document.documentElement.style.setProperty('--accent', accent);
+if (new URLSearchParams(location.search).get('mode') === 'jour') document.documentElement.dataset.mode = 'jour';
 
 function h(tag, attrs, ...children) {
   const el = document.createElement(tag);

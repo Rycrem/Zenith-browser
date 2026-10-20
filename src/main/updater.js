@@ -66,7 +66,10 @@ async function checkSource() {
     const n = await sh('git', ['rev-list', '--count', 'HEAD..@{u}']);
     behind = n === null ? null : Number(n);
   }
-  return { installed: false, current, sameMajor, latest, behind };
+  // Titres des commits en attente, pour le récapitulatif.
+  const log = behind ? await sh('git', ['log', '--no-merges', '--format=%s', '-n', '20', 'HEAD..@{u}']) : null;
+  const commits = log ? log.split('\n').filter(Boolean) : [];
+  return { installed: false, current, sameMajor, latest, behind, commits };
 }
 
 function check() {
