@@ -6,16 +6,6 @@ Un navigateur basé sur Chromium (Electron) qui se pilote comme un terminal. Les
 
 ![Écran d'accueil](docs/screenshots/home-fr.png)
 
-## Installer
-
-Les installateurs sont sur la page [Releases](https://github.com/Rycrem/dev-brows/releases/latest) :
-
-- Windows : `dev-brows-Setup-x.y.z.exe`. L'installateur demande la langue de l'appli (français ou anglais) et, sur sa page Confidentialité, si l'appli peut chercher les mises à jour toute seule. Si l'installateur n'est pas signé (voir « Signer l'installateur Windows »), Windows SmartScreen affiche « Windows a protégé votre ordinateur » : cliquer sur « Informations complémentaires » › « Exécuter quand même ». Le Contrôle intelligent des applications de Windows 11, lui, bloque un installateur non signé sans proposer d'exception.
-- macOS : `.dmg` (`arm64` pour les Mac Apple Silicon, `x64` pour les Mac Intel). L'appli n'est pas signée : au premier lancement, clic droit sur l'appli › Ouvrir.
-- Linux : `.AppImage` (le rendre exécutable puis le lancer) ou `.deb`.
-
-**Désinstaller :** sous Windows, Paramètres › Applications › Applications installées › dev-brows › Désinstaller. Sous macOS, glisser dev-brows des Applications vers la Corbeille. Sous Linux, supprimer le `.AppImage`, ou `sudo apt remove dev-brows` pour le `.deb`. Tes données restent dans le dossier indiqué dans « Données » tant que tu ne le supprimes pas.
-
 ## Langue
 
 dev-brows parle français et anglais. `lang` affiche la langue, `lang fr` ou `lang en` la change tout de suite. La première fois, l'appli prend la langue choisie dans l'installateur Windows, sinon celle du système (français si le système est en français, anglais sinon).
@@ -37,10 +27,6 @@ Tests de la logique (favoris, alias, lecture des résultats, extensions) : `npm 
 Le workflow construit les installateurs Windows, macOS et Linux, les joint à une Release `v0.2.0` puis la publie. C'est cette Release que l'appli installée détecte avec `update`.
 
 Pour seulement Windows, lancer plutôt le workflow « Installateur Windows » (onglet Actions › Installateur Windows › Run workflow) : il ne construit que le `.exe` et le publie dans la Release `v<version>`, plus vite. Les applis macOS et Linux installées ne verront pas cette version comme une mise à jour.
-
-### Signer l'installateur Windows
-
-Le workflow « Installateur Windows » fait signer l'appli puis l'installateur par [SignPath](https://signpath.io) quand le dépôt a le secret `SIGNPATH_API_TOKEN` et la variable `SIGNPATH_ORGANIZATION_ID` (Settings › Secrets and variables › Actions) ; sinon l'installateur reste non signé. Variables facultatives : `SIGNPATH_PROJECT_SLUG` (`dev-brows` par défaut) et `SIGNPATH_POLICY_SLUG` (`release-signing` par défaut). Dans SignPath, le projet a deux configurations d'artefact, `app` et `installer`, à copier depuis [.signpath/artifact-configurations](.signpath/artifact-configurations). Chaque signature attend l'approbation dans SignPath avant que le workflow continue. Pour tester la construction sans publier, lancer le workflow en décochant « Publier » : l'installateur est alors un artefact du workflow.
 
 ## Commandes
 
@@ -147,15 +133,6 @@ L'appli se ferme, la mise à jour se fait avec le `node` du système (sous Windo
 Favoris, historique et réglages sont des fichiers JSON dans le dossier de données d'Electron (`~/.config/dev-brows` sous Linux, `%APPDATA%\dev-brows` sous Windows, `~/Library/Application Support/dev-brows` sous macOS).
 
 Lancée depuis le code, l'appli utilise un dossier à part, `dev-brows-dev` (copié depuis `dev-brows` la première fois) : l'appli installée chiffre ses cookies avec une clé que la version de développement ne peut pas relire.
-
-## Politique de signature (Code signing policy)
-
-Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
-
-- Committers and reviewers : [Rycrem](https://github.com/Rycrem) (chaque pull request d'une autre personne est relue avant d'être mergée)
-- Approvers : [Rycrem](https://github.com/Rycrem) (approuve chaque demande de signature)
-
-Seuls `dev-brows.exe` et l'installateur Windows, construits depuis ce dépôt par GitHub Actions, sont signés. Les autres fichiers de l'appli (les DLL d'Electron) viennent de projets amont et sont livrés tels quels.
 
 ## Confidentialité
 
