@@ -13,6 +13,16 @@ A Chromium-based browser (Electron) that you drive like a terminal. Websites dis
 
 ![Help](docs/screenshots/help.png)
 
+## Install
+
+Installers are on the [Releases](https://github.com/Rycrem/dev-brows/releases/latest) page:
+
+- Windows: `dev-brows-Setup-x.y.z.exe`. The installer asks for the app's language (English or French) and, on its Privacy page, whether the app may check for updates on its own. The installer is not signed: Windows SmartScreen shows "Windows protected your PC": click "More info" › "Run anyway". Windows 11 Smart App Control blocks unsigned installers with no way around it.
+- macOS: `.dmg` (`arm64` for Apple Silicon Macs, `x64` for Intel Macs). The app is not signed: on first launch, right-click the app › Open.
+- Linux: `.AppImage` (make it executable, then run it) or `.deb`.
+
+**Uninstall:** on Windows, Settings › Apps › Installed apps › dev-brows › Uninstall. On macOS, drag dev-brows from Applications to the Trash. On Linux, delete the `.AppImage`, or `sudo apt remove dev-brows` for the `.deb`. Your data stays in the folder listed under "Data" until you delete it.
+
 ## Language
 
 dev-brows speaks English and French. `lang` shows the current language, `lang en` or `lang fr` switches it right away. The first time, the app uses the language picked in the Windows installer, or else the system language (French if the system is in French, English otherwise).
@@ -25,15 +35,6 @@ npm start
 ```
 
 Logic tests (bookmarks, aliases, result parsing, extensions, translations): `npm test`. `npm run ublock` downloads uBlock Origin into `vendor/` so it is preinstalled at launch. `npm run dist` does that too, then builds the installer for the current OS into `dist/`.
-
-## Publishing a version
-
-1. Change `version` in `package.json` (for example `0.2.0`), add its notes at the top of `src/shared/changelog.js` in French and English (shown on the home screen; `npm test` checks it), and push to `main`.
-2. Run the GitHub Actions workflow "Installateurs" (Actions tab › Installateurs › Run workflow), or push the matching tag (`git tag v0.2.0 && git push origin v0.2.0`).
-
-The workflow builds the Windows, macOS and Linux installers, attaches them to a `v0.2.0` Release and publishes it. That Release is what the installed app finds with `update`.
-
-For Windows only, run the "Installateur Windows" workflow instead (Actions tab › Installateur Windows › Run workflow): it builds only the `.exe` and publishes it in the `v<version>` Release, faster. Installed macOS and Linux apps will not see that version as an update.
 
 ## Commands
 

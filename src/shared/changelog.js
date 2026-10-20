@@ -4,6 +4,11 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.15',
+    notes: ['Rien de nouveau dans l\'appli : le README retrouve sa partie installation et ne décrit plus la publication des versions.'],
+    en: ['Nothing new in the app: the README has its install section back and no longer describes publishing versions.'],
+  },
+  {
     version: '0.1.14',
     notes: ['Rien de nouveau dans l\'appli : le dépôt ne parle plus d\'installation ni de signature SignPath.'],
     en: ['Nothing new in the app: the repository no longer covers installing or SignPath signing.'],
