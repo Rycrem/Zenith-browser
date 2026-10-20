@@ -173,6 +173,17 @@ function ensureView(tab) {
 
 const tabOfContents = (wc) => tabs.find((t) => t.view && t.view.webContents === wc);
 
+// electron-chrome-extensions n'envoie jamais tabs.onHighlighted, et le sender des messages n'a
+// tab.active vrai que si la page a le focus clavier. Dashlane attend l'un ou l'autre pour
+// analyser les champs : on signale l'onglet affiché quand il est choisi, chargé ou cliqué.
+function highlightForExtensions(tab) {
+  const wc = tab && tab.view && tab.view.webContents;
+  if (!wc || wc.isDestroyed() || paneOf(tab) < 0 || !win) return;
+  try {
+    apiOf(tab).ctx.router.broadcastEvent('tabs.onHighlighted', { tabIds: [wc.id], windowId: win.id });
+  } catch {}
+}
+
 // chrome.tabs / chrome.windows des extensions, branchés sur les onglets de dev-brows.
 function setupChromeApi(s) {
   return new ElectronChromeExtensions({
@@ -256,6 +267,9 @@ function wireWebContents(tab, wc) {
   wc.on('did-frame-finish-load', () => applyVolume(tab));
   wc.on('did-stop-loading', () => {
     tab.loading = false;
+    // Une seconde plus tard aussi : l'extension a fini de traiter « page chargée » entre-temps.
+    highlightForExtensions(tab);
+    setTimeout(() => highlightForExtensions(tab), 1000);
     sendState();
     if (tab.tty && (!tab.screen || tab.screen.kind === 'tty')) showTty(tab, true);
   });
@@ -293,6 +307,7 @@ function wireWebContents(tab, wc) {
     if (isMainFrame && code !== -3) print([{ t: t('impossible de charger {url} : {desc}', { url, desc }), c: 'err' }]);
   });
   wc.on('focus', () => {
+    highlightForExtensions(tab);
     const p = paneOf(tab);
     if (p >= 0 && p !== activePane) {
       activePane = p;
@@ -346,6 +361,7 @@ function showInPane(tab, idx) {
   panes[idx].tabId = tab.id;
   activePane = idx;
   if (tab.view?.webContents) apiOf(tab).selectTab(tab.view.webContents);
+  highlightForExtensions(tab);
   layout();
   sendState();
 }
@@ -1128,6 +1144,7 @@ async function setupPrivateSession() {
   privApi = setupChromeApi(privSes);
   watchWorkerLogs(privSes);
   privSes.registerPreloadScript({ id: 'dev-brows-browser-alias', type: 'frame', filePath: path.join(__dirname, 'ext-preload.js') });
+  privSes.registerPreloadScript({ id: 'dev-brows-sw-events', type: 'service-worker', filePath: path.join(__dirname, 'ext-sw-preload.js') });
   setupDownloads(privSes);
   setupPermissions(privSes);
   setupWebAuthn(privSes);
@@ -3021,6 +3038,7 @@ app.whenReady().then(async () => {
   chromeApi = setupChromeApi(ses); // avant le chargement des extensions, pour lire leurs manifestes
   watchExtensionLogs();
   ses.registerPreloadScript({ id: 'dev-brows-browser-alias', type: 'frame', filePath: path.join(__dirname, 'ext-preload.js') });
+  ses.registerPreloadScript({ id: 'dev-brows-sw-events', type: 'service-worker', filePath: path.join(__dirname, 'ext-sw-preload.js') });
   exts = new Extensions(ses, settings, path.join(dir, 'extensions'));
   exts.installBundledUblock(app.isPackaged ? path.join(process.resourcesPath, 'ublock-origin') : path.join(__dirname, '..', '..', 'vendor', 'ublock-origin'));
   await exts.loadAll();

@@ -12,6 +12,7 @@ const CHANGELOG = [
       'Le player du son a un bouton lecture/pause, un bouton muet et un curseur de volume avec son pourcentage.',
       'Une vidéo en plein écran prend toute la fenêtre : les onglets et la barre d\'état disparaissent.',
       'Dans la popup des favoris, un glisser-déposer les range : avant, après ou dans un dossier.',
+      'Dashlane détecte à nouveau les champs de connexion : les extensions sont prévenues quand un onglet est affiché.',
     ],
     en: [
       'Typing in the address suggests pages from your history: ↑/↓ to pick, click or Enter to go.',
@@ -20,6 +21,7 @@ const CHANGELOG = [
       'The sound player has a play/pause button, a mute button and a volume slider with its percentage.',
       'A fullscreen video takes the whole window: tabs and the status bar disappear.',
       'In the bookmarks popup, drag and drop reorders them: before, after or into a folder.',
+      'Dashlane detects login fields again: extensions are told when a tab is shown.',
     ],
   },
   {
