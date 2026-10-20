@@ -6,6 +6,16 @@ Un navigateur basé sur Chromium (Electron) qui se pilote comme un terminal. Les
 
 ![Écran d'accueil](docs/screenshots/home-fr.png)
 
+## Installer
+
+Les installateurs sont sur la page [Releases](https://github.com/Rycrem/dev-brows/releases/latest) :
+
+- Windows : `dev-brows-Setup-x.y.z.exe`. L'installateur demande la langue de l'appli (français ou anglais) et, sur sa page Confidentialité, si l'appli peut chercher les mises à jour toute seule. L'installateur n'est pas signé : Windows SmartScreen affiche « Windows a protégé votre ordinateur » : cliquer sur « Informations complémentaires » › « Exécuter quand même ». Le Contrôle intelligent des applications de Windows 11, lui, bloque un installateur non signé sans proposer d'exception.
+- macOS : `.dmg` (`arm64` pour les Mac Apple Silicon, `x64` pour les Mac Intel). L'appli n'est pas signée : au premier lancement, clic droit sur l'appli › Ouvrir.
+- Linux : `.AppImage` (le rendre exécutable puis le lancer) ou `.deb`.
+
+**Désinstaller :** sous Windows, Paramètres › Applications › Applications installées › dev-brows › Désinstaller. Sous macOS, glisser dev-brows des Applications vers la Corbeille. Sous Linux, supprimer le `.AppImage`, ou `sudo apt remove dev-brows` pour le `.deb`. Tes données restent dans le dossier indiqué dans « Données » tant que tu ne le supprimes pas.
+
 ## Langue
 
 dev-brows parle français et anglais. `lang` affiche la langue, `lang fr` ou `lang en` la change tout de suite. La première fois, l'appli prend la langue choisie dans l'installateur Windows, sinon celle du système (français si le système est en français, anglais sinon).
@@ -18,15 +28,6 @@ npm start
 ```
 
 Tests de la logique (favoris, alias, lecture des résultats, extensions) : `npm test`. `npm run ublock` télécharge uBlock Origin dans `vendor/` pour qu'il soit préinstallé au lancement. `npm run dist` le fait aussi, puis construit l'installateur du système courant dans `dist/`.
-
-## Publier une version
-
-1. Changer `version` dans `package.json` (par exemple `0.2.0`), ajouter ses notes en français et en anglais en tête de `src/shared/changelog.js` (affichées sur l'écran d'accueil ; `npm test` le vérifie) et pousser sur `main`.
-2. Lancer le workflow GitHub Actions « Installateurs » (onglet Actions › Installateurs › Run workflow), ou pousser le tag correspondant (`git tag v0.2.0 && git push origin v0.2.0`).
-
-Le workflow construit les installateurs Windows, macOS et Linux, les joint à une Release `v0.2.0` puis la publie. C'est cette Release que l'appli installée détecte avec `update`.
-
-Pour seulement Windows, lancer plutôt le workflow « Installateur Windows » (onglet Actions › Installateur Windows › Run workflow) : il ne construit que le `.exe` et le publie dans la Release `v<version>`, plus vite. Les applis macOS et Linux installées ne verront pas cette version comme une mise à jour.
 
 ## Commandes
 
