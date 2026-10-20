@@ -95,14 +95,16 @@ function copyIcon() {
   const NS = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(NS, 'svg');
   svg.setAttribute('viewBox', '0 0 16 16');
-  svg.setAttribute('class', 'mode-icon');
-  for (const d of ['M5.5 5.5h7v8h-7z', 'M3.5 10.5v-8h7']) {
+  svg.setAttribute('class', 'copy-icon');
+  // Deux feuilles : celle de derrière dépasse, celle de devant a un coin plié et des lignes de texte.
+  for (const d of ['M4.5 4H3v10.5h7.5V13', 'M5 1.5h5.25L13 4.25V13H5z', 'M10.25 1.5v2.75H13', 'M7 6.5h4M7 8.5h4M7 10.5h4']) {
     const p = document.createElementNS(NS, 'path');
     p.setAttribute('d', d);
     p.setAttribute('fill', 'none');
     p.setAttribute('stroke', 'currentColor');
-    p.setAttribute('stroke-width', '1.5');
+    p.setAttribute('stroke-width', '1.2');
     p.setAttribute('stroke-linejoin', 'round');
+    p.setAttribute('stroke-linecap', 'round');
     svg.append(p);
   }
   return svg;
@@ -466,6 +468,25 @@ api.on('state', (s) => {
   requestAnimationFrame(sendRects);
 });
 
+let dragTabId = null;
+
+// Emplacement visé pendant le glissement d'un onglet : l'indice devant lequel il sera posé
+// (selon la moitié de l'onglet survolée), ou -1 s'il ne bougerait pas.
+function tabGapAt(e, overId) {
+  const i = state.tabs.findIndex((tb) => tb.id === overId);
+  const r = e.currentTarget.getBoundingClientRect();
+  const gap = e.clientX < r.left + r.width / 2 ? i : i + 1;
+  const from = state.tabs.findIndex((tb) => tb.id === dragTabId);
+  return from >= 0 && (gap === from || gap === from + 1) ? -1 : gap;
+}
+
+function markTabGap(gap) {
+  $('#tabs').querySelectorAll('.tab').forEach((el, i) => {
+    el.classList.toggle('drop-r', gap >= 0 && i === gap - 1);
+    el.classList.toggle('drop-l', gap >= 0 && i === gap);
+  });
+}
+
 function renderTabs() {
   const activeId = state.panes[state.activePane].tabId;
   fill($('#tabs'), state.tabs.map((tb) => h(
@@ -476,15 +497,28 @@ function renderTabs() {
       // Clic molette : ferme l'onglet.
       onmousedown: (e) => { if (e.button === 1) e.preventDefault(); },
       onauxclick: (e) => { if (e.button === 1) api.closeTab(tb.id); },
-      // Glisser-déposer pour changer l'ordre des onglets.
-      ondragstart: (e) => { e.dataTransfer.setData('text/x-tab', String(tb.id)); e.dataTransfer.effectAllowed = 'move'; },
-      ondragover: (e) => { if (e.dataTransfer.types.includes('text/x-tab')) { e.preventDefault(); e.currentTarget.classList.add('drop'); } },
-      ondragleave: (e) => e.currentTarget.classList.remove('drop'),
+      // Glisser-déposer pour changer l'ordre des onglets : les deux bords qui entourent
+      // l'emplacement visé s'allument (droite de l'onglet de gauche, gauche de celui de droite).
+      ondragstart: (e) => {
+        dragTabId = tb.id;
+        e.dataTransfer.setData('text/x-tab', String(tb.id));
+        e.dataTransfer.effectAllowed = 'move';
+      },
+      ondragend: () => {
+        dragTabId = null;
+        markTabGap(-1);
+      },
+      ondragover: (e) => {
+        if (!e.dataTransfer.types.includes('text/x-tab')) return;
+        e.preventDefault();
+        markTabGap(tabGapAt(e, tb.id));
+      },
       ondrop: (e) => {
         e.preventDefault();
-        e.currentTarget.classList.remove('drop');
+        const gap = tabGapAt(e, tb.id);
+        markTabGap(-1);
         const id = Number(e.dataTransfer.getData('text/x-tab'));
-        if (id && id !== tb.id) api.moveTab(id, tb.id);
+        if (id && gap >= 0) api.moveTab(id, gap);
       },
     },
     h('button', { type: 'button', class: 'label', title: tb.title, onclick: () => api.tab(tb.id) }, `[${tb.n}] `, tb.loading ? h('span', { class: 'spin' }, '◌ ') : null, tb.title),

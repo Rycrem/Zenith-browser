@@ -9,6 +9,7 @@ const { Extensions, newer } = require('./extensions');
 const bookmarks = require('../shared/bookmarks-import');
 const { AdBlock } = require('./adblock');
 const { ElectronChromeExtensions } = require('electron-chrome-extensions');
+const { registerExtraApis } = require('./ext-api');
 const ai = require('./ai');
 const updater = require('./updater');
 const fav = require('../shared/favorites');
@@ -186,7 +187,14 @@ function highlightForExtensions(tab) {
 
 // chrome.tabs / chrome.windows des extensions, branchés sur les onglets de dev-brows.
 function setupChromeApi(s) {
-  return new ElectronChromeExtensions({
+  // Avant le préchargement de la bibliothèque, qui fige l'objet chrome une fois ses API posées,
+  // puis après lui, pour remplacer ses chrome.downloads qui ne font rien.
+  const apiPreload = (when) => {
+    for (const type of ['frame', 'service-worker']) s.registerPreloadScript({ id: `dev-brows-api-${when}-${type}`, type, filePath: path.join(__dirname, 'ext-api-preload.js') });
+  };
+  apiPreload('early');
+  s.registerPreloadScript({ id: 'dev-brows-webstore', type: 'frame', filePath: path.join(__dirname, 'store-preload.js') });
+  const api = new ElectronChromeExtensions({
     license: 'GPL-3.0',
     session: s,
     createTab(details) {
@@ -219,15 +227,211 @@ function setupChromeApi(s) {
       if (!w.isDestroyed()) w.close();
     },
   });
+  apiPreload('late');
+  registerExtraApis(api, {
+    window: () => win,
+    activeContents: () => activeTab()?.view?.webContents,
+    search(text, here) {
+      const tab = (here && activeTab()) || createTab({});
+      runSearch(tab, text).then((lines) => print(lines)).catch(() => {});
+    },
+    history: () => history.data.entries,
+    favorites: () => favorites.data.tree,
+    downloads: () => downloads,
+    download: (url) => s.downloadURL(url),
+    showItem: (p) => shell.showItemInFolder(p),
+    openItem: (p) => shell.openPath(p),
+    showDownloadsFolder: () => shell.openPath(app.getPath('downloads')),
+    openSidePanel(url, title) {
+      const b = win.getBounds();
+      const side = new BrowserWindow({
+        x: b.x + b.width - 400,
+        y: b.y,
+        width: 400,
+        height: b.height,
+        parent: win,
+        title,
+        webPreferences: { session: s, sandbox: true, contextIsolation: true },
+      });
+      side.setMenuBarVisibility(false);
+      side.loadURL(url);
+    },
+  });
+  return api;
 }
 
-// Le Chrome Web Store grise « Ajouter à Chrome » hors de Chrome : on propose « ext add » à la place.
+// Le Chrome Web Store grise « Ajouter à Chrome » hors de Chrome : on ajoute dans la page
+// un bouton « Ajouter à dev-brows ». Il vit dans un monde isolé (le site ne voit ni son code
+// ni le secret) et signale le clic par un message console que seul ce secret authentifie.
+const STORE_WORLD = 1042;
+const STORE_SECRET = `dev-brows-store-${require('crypto').randomBytes(12).toString('hex')}`;
+
 function storeHint(tab, url) {
   const id = storeExtensionId(url);
   if (!id || tab.storeHint === id) return;
   tab.storeHint = id;
   const installed = exts.list.some((e) => e.id === id);
-  print([{ t: installed ? t('  extension déjà installée (« ext » pour la gérer)') : t('  ↓ le bouton « Ajouter à Chrome » ne marche pas ici : tape « ext add » pour installer cette extension'), c: installed ? 'dim' : 'warn' }]);
+  print([{ t: installed ? t('  extension déjà installée (« ext » pour la gérer)') : t('  ↓ le bouton « Ajouter » de la page (ou « ext add ») installe cette extension'), c: installed ? 'dim' : 'warn' }]);
+}
+
+function storeButton(tab, busy = false) {
+  const wc = tab.view && tab.view.webContents;
+  if (!wc || wc.isDestroyed()) return;
+  let host = '';
+  try {
+    host = new URL(wc.getURL()).hostname;
+  } catch {}
+  if (host !== 'chromewebstore.google.com' && host !== 'chrome.google.com') return;
+  const id = storeExtensionId(wc.getURL());
+  const installed = !!id && exts.list.some((e) => e.id === id);
+  const opts = {
+    show: !!id && !tab.storeApi,
+    label: busy ? t('installation…') : installed ? t('✓ installée dans dev-brows') : t('Ajouter à dev-brows'),
+    disabled: busy || installed,
+    accent: accentColor(),
+    secret: STORE_SECRET,
+  };
+  const code = `(${(o) => {
+    let b = document.getElementById('dev-brows-store-install');
+    if (!o.show) {
+      if (b) b.remove();
+      return;
+    }
+    if (!b) {
+      b = document.createElement('button');
+      b.id = 'dev-brows-store-install';
+      b.addEventListener('click', (e) => {
+        if (e.isTrusted && !b.disabled) console.info(`${o.secret}:install`);
+      });
+      document.documentElement.append(b);
+    }
+    b.textContent = o.label;
+    b.disabled = o.disabled;
+    b.style.cssText = `position:fixed;right:24px;bottom:24px;z-index:2147483647;padding:12px 20px;border:0;border-radius:24px;
+      font:600 15px/1 system-ui,sans-serif;color:#0E1116;background:${o.accent};box-shadow:0 4px 16px rgba(0,0,0,.3);
+      cursor:${o.disabled ? 'default' : 'pointer'};opacity:${o.disabled ? 0.75 : 1}`;
+  }})(${JSON.stringify(opts)})`;
+  wc.executeJavaScriptInIsolatedWorld(STORE_WORLD, [{ code }]).catch(() => {});
+}
+
+// Le vrai bouton du store : appels de chrome.webstorePrivate et chrome.management posés par
+// store-preload.js. Seul le cadre principal d'un onglet sur chromewebstore.google.com est écouté.
+const STORE_ORIGIN = 'https://chromewebstore.google.com';
+const STORE = { SUCCESS: 'success', USER_CANCELLED: 'user_cancelled', GESTURE: 'user_gesture_required', ALREADY: 'already_installed', ERROR: 'install_error', IN_PROGRESS: 'install_in_progress' };
+let storeInstalling = false;
+
+function storeExtInfo(e) {
+  const loaded = (ses.extensions || ses).getExtension(e.id);
+  return { id: e.id, name: e.name, shortName: e.name, version: (loaded && loaded.version) || '', enabled: !!e.enabled, type: 'extension', installType: 'normal', mayDisable: true, isApp: false };
+}
+
+function sendStoreEvent(name, arg) {
+  for (const tb of tabs) {
+    const wc = tb.view && tb.view.webContents;
+    if (!wc || wc.isDestroyed()) continue;
+    try {
+      if (new URL(wc.getURL()).origin === STORE_ORIGIN) wc.send('store:event', name, arg);
+    } catch {}
+  }
+}
+
+async function storeCall(tab, name, args) {
+  if (!tab.storeApi) {
+    tab.storeApi = true;
+    storeButton(tab); // le vrai bouton marche : plus besoin du nôtre
+  }
+  const indexOf = (id) => exts.list.findIndex((e) => e.id === id) + 1;
+  switch (name) {
+    case 'getFullChromeVersion':
+      return { version_number: process.versions.chrome };
+    case 'getExtensionStatus': {
+      const e = exts.list.find((x) => x.id === args[0]);
+      return e ? (e.enabled ? 'enabled' : 'disabled') : 'installable';
+    }
+    case 'completeInstall':
+      return STORE.SUCCESS;
+    case 'beginInstall': {
+      const [details = {}, gesture] = args;
+      const id = String(details.id || '');
+      if (!/^[a-p]{32}$/.test(id)) return { result: 'invalid_id', error: 'Invalid id' };
+      if (!gesture) return { result: STORE.GESTURE, error: 'User gesture required' };
+      if (indexOf(id)) return { result: STORE.ALREADY, error: 'Already installed' };
+      if (storeInstalling) return { result: STORE.IN_PROGRESS, error: 'Install in progress' };
+      let manifest = {};
+      try {
+        manifest = JSON.parse(details.manifest || '{}');
+      } catch {}
+      const label = details.localizedName || manifest.name || id;
+      const perms = [...(manifest.permissions || []), ...(manifest.host_permissions || [])].filter((p) => typeof p === 'string');
+      storeInstalling = true;
+      try {
+        const { response } = await dialog.showMessageBox(win, {
+          type: 'question',
+          buttons: [t('Ajouter l\'extension'), t('Annuler')],
+          defaultId: 0,
+          cancelId: 1,
+          message: t('Ajouter « {name} » à dev-brows ?', { name: label }),
+          detail: perms.length ? t('Elle pourra : {perms}', { perms: perms.join(', ') }) : '',
+        });
+        if (response !== 0) return { result: STORE.USER_CANCELLED, error: 'User cancelled install' };
+        const result = await exec(`ext add ${id}`);
+        if (result && result.lines && result.lines.length) print(result.lines);
+        const n = indexOf(id);
+        if (!n) return { result: STORE.ERROR, error: 'Install failed' };
+        sendStoreEvent('onInstalled', storeExtInfo(exts.get(n)));
+        return { result: STORE.SUCCESS, error: '' };
+      } finally {
+        storeInstalling = false;
+      }
+    }
+    case 'getAll':
+      return exts.list.filter((e) => e.id).map(storeExtInfo);
+    case 'get': {
+      const n = indexOf(args[0]);
+      return n ? storeExtInfo(exts.get(n)) : { error: 'No such extension', result: undefined };
+    }
+    case 'setEnabled': {
+      const n = indexOf(args[0]);
+      if (!n) return { error: 'No such extension', result: undefined };
+      const ext = await exts.setEnabled(n, !!args[1]);
+      sendStoreEvent(ext.enabled ? 'onEnabled' : 'onDisabled', storeExtInfo(ext));
+      sendState();
+      return undefined;
+    }
+    case 'uninstall': {
+      const n = indexOf(args[0]);
+      if (!n || !args[1]) return { error: n ? 'User gesture required' : 'No such extension', result: undefined };
+      const ext = exts.get(n);
+      const { response } = await dialog.showMessageBox(win, {
+        type: 'question',
+        buttons: [t('Désinstaller'), t('Annuler')],
+        defaultId: 0,
+        cancelId: 1,
+        message: t('désinstaller {name} ?', { name: ext.name }),
+      });
+      if (response !== 0) return { error: 'User cancelled uninstall', result: undefined };
+      exts.remove(n);
+      print([{ t: t('  ✓ extension désinstallée'), c: 'ok' }]);
+      sendStoreEvent('onUninstalled', ext.id);
+      sendState();
+      return undefined;
+    }
+    default:
+      throw new Error(`store: ${name}`);
+  }
+}
+
+async function installFromStore(tab) {
+  const wc = tab.view && tab.view.webContents;
+  const id = wc && storeExtensionId(wc.getURL());
+  if (!id || exts.list.some((e) => e.id === id)) return;
+  storeButton(tab, true);
+  try {
+    const result = await exec(`ext add ${id}`);
+    if (result && result.lines && result.lines.length) print(result.lines);
+  } finally {
+    storeButton(tab);
+  }
 }
 
 function wireWebContents(tab, wc) {
@@ -267,6 +471,8 @@ function wireWebContents(tab, wc) {
   wc.on('did-frame-finish-load', () => applyVolume(tab));
   wc.on('did-stop-loading', () => {
     tab.loading = false;
+    // Notre bouton seulement si le store n'a pas appelé webstorePrivate entre-temps (le sien marche alors).
+    setTimeout(() => storeButton(tab), 2000);
     // Une seconde plus tard aussi : l'extension a fini de traiter « page chargée » entre-temps.
     highlightForExtensions(tab);
     setTimeout(() => highlightForExtensions(tab), 1000);
@@ -299,9 +505,14 @@ function wireWebContents(tab, wc) {
     if (!isMainFrame) return;
     tab.url = url;
     storeHint(tab, url);
+    storeButton(tab);
     sendState();
     // Les sites d'une seule page changent leur contenu sans recharger : on relit le texte.
     if (tab.tty && tab.screen && tab.screen.kind === 'tty') setTimeout(() => tab.tty && tab.screen && tab.screen.kind === 'tty' && showTty(tab, true), 600);
+  });
+  wc.on('console-message', (event, ...old) => {
+    const message = event.message !== undefined ? event.message : old[1];
+    if (message === `${STORE_SECRET}:install`) installFromStore(tab).catch(() => {});
   });
   wc.on('did-fail-load', (e, code, desc, url, isMainFrame) => {
     if (isMainFrame && code !== -3) print([{ t: t('impossible de charger {url} : {desc}', { url, desc }), c: 'err' }]);
@@ -604,6 +815,10 @@ function addHistory(entry) {
   entries.push({ ...entry, time: Date.now() });
   if (entries.length > HISTORY_MAX) entries.splice(0, entries.length - HISTORY_MAX);
   history.save();
+  if (chromeApi && /^https?:/.test(entry.url || '') && !entry.query) {
+    const visitCount = entries.filter((e) => e.url === entry.url).length;
+    chromeApi.ctx.router.broadcastEvent('history.onVisited', { id: '0', url: entry.url, title: entry.title || '', lastVisitTime: Date.now(), visitCount, typedCount: 0 });
+  }
 }
 
 // ---------------------------------------------------------------- suggestions de l'adresse
@@ -1145,6 +1360,7 @@ async function setupPrivateSession() {
   watchWorkerLogs(privSes);
   privSes.registerPreloadScript({ id: 'dev-brows-browser-alias', type: 'frame', filePath: path.join(__dirname, 'ext-preload.js') });
   privSes.registerPreloadScript({ id: 'dev-brows-sw-events', type: 'service-worker', filePath: path.join(__dirname, 'ext-sw-preload.js') });
+  for (const type of ['frame', 'service-worker']) privSes.registerPreloadScript({ id: `dev-brows-storage-sync-${type}`, type, filePath: path.join(__dirname, 'ext-sync-preload.js') });
   setupDownloads(privSes);
   setupPermissions(privSes);
   setupWebAuthn(privSes);
@@ -2851,7 +3067,7 @@ function setupDownloads(s = ses) {
     let file = path.join(dir, parsed.base);
     for (let i = 1; fs.existsSync(file); i++) file = path.join(dir, `${parsed.name} (${i})${parsed.ext}`);
     item.setSavePath(file);
-    const d = { name: path.basename(file), path: file, state: 'progressing', received: 0, total: item.getTotalBytes() };
+    const d = { name: path.basename(file), path: file, url: item.getURL(), state: 'progressing', received: 0, total: item.getTotalBytes() };
     downloads.unshift(d);
     print([{ t: t('  ↓ téléchargement de {name} (dl ou Ctrl+Maj+J pour suivre)', { name: d.name }), c: 'dim' }]);
     sendState();
@@ -2930,10 +3146,12 @@ function setupIpc() {
     const t = getTab(id);
     if (t) showInPane(t, activePane);
   });
-  ipcMain.on('ui:tab-move', (e, id, targetId) => {
+  // gap : indice de l'onglet devant lequel poser celui qu'on déplace (tabs.length : à la fin).
+  ipcMain.on('ui:tab-move', (e, id, gap) => {
     const from = tabs.findIndex((t) => t.id === id);
-    const to = tabs.findIndex((t) => t.id === targetId);
-    if (from < 0 || to < 0 || from === to) return;
+    if (from < 0 || !Number.isInteger(gap) || gap < 0 || gap > tabs.length) return;
+    const to = gap > from ? gap - 1 : gap;
+    if (to === from) return;
     tabs.splice(to, 0, tabs.splice(from, 1)[0]);
     sendState();
   });
@@ -2971,6 +3189,15 @@ function setupIpc() {
     suggestList = historySuggestions(text);
     showSuggest(rect, -1);
     return suggestList;
+  });
+  ipcMain.handle('store:call', (e, name, ...args) => {
+    const tab = tabOfContents(e.sender);
+    let origin = '';
+    try {
+      origin = new URL(e.senderFrame.url).origin;
+    } catch {}
+    if (!tab || e.senderFrame !== e.sender.mainFrame || origin !== STORE_ORIGIN) throw new Error('refused');
+    return storeCall(tab, String(name), args);
   });
   ipcMain.on('ui:suggest-select', (e, i, rect) => showSuggest(rect, i));
   ipcMain.on('ui:suggest-hide', () => hideSuggest());
@@ -3039,6 +3266,7 @@ app.whenReady().then(async () => {
   watchExtensionLogs();
   ses.registerPreloadScript({ id: 'dev-brows-browser-alias', type: 'frame', filePath: path.join(__dirname, 'ext-preload.js') });
   ses.registerPreloadScript({ id: 'dev-brows-sw-events', type: 'service-worker', filePath: path.join(__dirname, 'ext-sw-preload.js') });
+  for (const type of ['frame', 'service-worker']) ses.registerPreloadScript({ id: `dev-brows-storage-sync-${type}`, type, filePath: path.join(__dirname, 'ext-sync-preload.js') });
   exts = new Extensions(ses, settings, path.join(dir, 'extensions'));
   exts.installBundledUblock(app.isPackaged ? path.join(process.resourcesPath, 'ublock-origin') : path.join(__dirname, '..', '..', 'vendor', 'ublock-origin'));
   await exts.loadAll();
