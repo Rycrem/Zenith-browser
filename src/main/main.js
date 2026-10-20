@@ -1247,6 +1247,15 @@ function extLogCommand(arg, say) {
 }
 
 function openExtPopup(n, x) {
+  // Sans popup, l'extension réagit au clic elle-même (chrome.action.onClicked), comme dans Chrome.
+  const ext = exts.get(n);
+  if (ext.enabled && !ext.popup && ext.id) {
+    const wc = activeTab()?.view?.webContents;
+    const details = wc && chromeApi.ctx.store.tabDetailsCache.get(wc.id);
+    // L'accueil n'est pas un onglet connu des extensions : l'événement part alors sans onglet.
+    chromeApi.ctx.router.sendEvent(ext.id, 'browserAction.onClicked', details || undefined);
+    return;
+  }
   const url = exts.popupUrl(n);
   // Un second clic (ou Alt+n) sur la même extension ferme sa popup.
   if (popupWin && !popupWin.isDestroyed()) {
