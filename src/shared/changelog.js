@@ -4,6 +4,11 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.22',
+    notes: ['Nouveau logo pour le bouton qui copie l\'adresse : deux feuilles, celle de devant avec un coin plié.'],
+    en: ['New icon for the copy-address button: two sheets, the front one with a folded corner.'],
+  },
+  {
     version: '0.1.21',
     notes: [
       'Le player du son tient dans une seule carte : lecture/pause à gauche, le volume, son pourcentage (un clic coupe ou remet le son), puis ▴ pour le son de chaque onglet.',

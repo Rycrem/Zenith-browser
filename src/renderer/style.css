@@ -145,6 +145,7 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
 #url:focus { text-align: left; border-color: var(--accent); background: var(--bg-raised); color: var(--text); }
 #url::placeholder { color: var(--dim); }
 #url-copy { flex: none; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 4px; color: var(--dim); }
+.copy-icon { width: 16px; height: 16px; display: block; }
 #url-copy:hover { background: var(--bg-raised); color: var(--text); }
 /* La bulle reste dans la barre : la page (vue native) recouvrirait tout ce qui dépasse dessous. */
 #copied { position: absolute; right: 32px; top: 50%; transform: translateY(-50%); padding: 1px 8px; border-radius: 3px; background: var(--accent); color: var(--on-accent); font-size: 12px; font-weight: 600; pointer-events: none; }

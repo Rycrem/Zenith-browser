@@ -95,14 +95,16 @@ function copyIcon() {
   const NS = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(NS, 'svg');
   svg.setAttribute('viewBox', '0 0 16 16');
-  svg.setAttribute('class', 'mode-icon');
-  for (const d of ['M5.5 5.5h7v8h-7z', 'M3.5 10.5v-8h7']) {
+  svg.setAttribute('class', 'copy-icon');
+  // Deux feuilles : celle de derrière dépasse, celle de devant a un coin plié et des lignes de texte.
+  for (const d of ['M4.5 4H3v10.5h7.5V13', 'M5 1.5h5.25L13 4.25V13H5z', 'M10.25 1.5v2.75H13', 'M7 6.5h4M7 8.5h4M7 10.5h4']) {
     const p = document.createElementNS(NS, 'path');
     p.setAttribute('d', d);
     p.setAttribute('fill', 'none');
     p.setAttribute('stroke', 'currentColor');
-    p.setAttribute('stroke-width', '1.5');
+    p.setAttribute('stroke-width', '1.2');
     p.setAttribute('stroke-linejoin', 'round');
+    p.setAttribute('stroke-linecap', 'round');
     svg.append(p);
   }
   return svg;
