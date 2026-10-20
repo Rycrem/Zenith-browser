@@ -188,6 +188,14 @@ function setTerminalHidden(hidden) {
 }
 
 api.on('term:print', print);
+// Popups de la barre du bas, au-dessus de leur bouton : ↓ (bord droit) ou ★ (bord gauche).
+function openPanel(kind) {
+  const b = $(kind === 'dl' ? '#dl-chip' : '#fav-chip');
+  const r = b && b.getBoundingClientRect();
+  api.panel(kind, r ? (kind === 'dl' ? r.right : r.left) : undefined);
+}
+// Ctrl+Maj+J et Ctrl+Maj+B.
+api.on('ui:panel', openPanel);
 api.on('term:toggle', () => setTerminalHidden(!app.classList.contains('term-hidden')));
 api.on('term:focus', (prefill) => {
   if (app.classList.contains('term-hidden')) setTerminalHidden(false);
@@ -351,7 +359,8 @@ function renderStatus() {
     onclick: (ev) => api.extPopup(e.n, ev.currentTarget.getBoundingClientRect().right),
   }, `${e.n} ${e.alias}${e.enabled ? '' : ' ⏸'}`));
   fill($('#status'), [
-    h('span', {}, s.mode),
+    h('button', { type: 'button', id: 'fav-chip', class: 'chip', title: t('Favoris (Ctrl+Maj+B)'), onclick: () => openPanel('fav') }, t('★ favoris')),
+    s.mode === 'TTY' ? h('span', {}, 'TTY') : null,
     h('span', { class: 'addr' }, s.host),
     s.fav ? h('span', {}, `★ ${s.fav}`) : null,
     s.split ? h('span', {}, t('split · écran {n}', { n: state.activePane + 1 })) : null,
@@ -364,8 +373,14 @@ function renderStatus() {
       h('button', { type: 'button', class: 'pill', title: t('Fermer les DevTools (F12)'), onclick: () => api.devtools('close') }, t('✕ fermer'))) : null,
     s.zoom !== 100 ? h('button', { type: 'button', class: 'pill zoom', title: t('Revenir à 100 % (Ctrl+0)'), onclick: () => api.resetZoom() }, t('zoom {zoom} %', { zoom: s.zoom })) : null,
     h('span', { class: 'grow' }),
-    state.downloads ? h('span', {}, `↓ ${state.downloads}`) : null,
     chips,
+    h('button', {
+      type: 'button',
+      id: 'dl-chip',
+      class: `chip${state.downloads ? ' busy' : ''}`,
+      title: t('Téléchargements (Ctrl+Maj+J)'),
+      onclick: () => openPanel('dl'),
+    }, state.downloads ? `↓ ${state.downloads}` : '↓'),
     h('span', { id: 'clock' }, clock()),
   ]);
 }

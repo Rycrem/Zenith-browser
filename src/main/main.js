@@ -1,11 +1,12 @@
 'use strict';
 
-const { app, BrowserWindow, WebContentsView, Menu, ipcMain, session, shell, clipboard, net } = require('electron');
+const { app, BrowserWindow, WebContentsView, Menu, ipcMain, session, shell, clipboard, net, dialog } = require('electron');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { JsonStore } = require('./store');
 const { Extensions, newer } = require('./extensions');
+const bookmarks = require('../shared/bookmarks-import');
 const { AdBlock } = require('./adblock');
 const { ElectronChromeExtensions } = require('electron-chrome-extensions');
 const ai = require('./ai');
@@ -118,6 +119,8 @@ const prompts = []; // questions oui/non en attente, la première est affichée
 let lastUndo = null;
 const downloads = [];
 let popupWin = null;
+let panel = null; // popup de la barre du bas : { kind: 'dl' | 'fav', win, place }
+let panelClosed = { kind: null, at: 0 };
 
 // ---------------------------------------------------------------- onglets
 
@@ -435,6 +438,22 @@ function focusTerminal(prefill) {
 }
 
 // ---------------------------------------------------------------- écrans internes
+
+// Enregistre les favoris et met à jour ce qui les affiche : accueil, liste des favoris, popup.
+function saveFavorites() {
+  favorites.save();
+  for (const tab of tabs) {
+    if (!tab.screen) continue;
+    try {
+      if (tab.screen.kind === 'home') showHome(tab);
+      else if (tab.screen.kind === 'fav') showFav(tab, tab.screen.folder);
+    } catch {
+      showFav(tab, ''); // le dossier affiché n'existe plus
+    }
+  }
+  sendPanel('fav');
+  sendState();
+}
 
 function showHome(tab) {
   const recent = fav.recent(favorites.data.tree, 6);
@@ -854,7 +873,193 @@ function openInOtherPane(url) {
   showInPane(tab, target);
 }
 
+// ---------------------------------------------------------------- popup des téléchargements
+
+function formatSize(bytes) {
+  let n = bytes;
+  let u = 0;
+  while (n >= 1024 && u < 3) {
+    n /= 1024;
+    u++;
+  }
+  const num = n.toLocaleString(getLang() === 'en' ? 'en-US' : 'fr-FR', { maximumFractionDigits: u ? 1 : 0 });
+  return [t('{n} o', { n: num }), t('{n} Ko', { n: num }), t('{n} Mo', { n: num }), t('{n} Go', { n: num })][u];
+}
+
+function formatEta(seconds) {
+  if (seconds < 60) return t('{n} s restantes', { n: Math.max(1, Math.round(seconds)) });
+  if (seconds < 3600) return t('{n} min restantes', { n: Math.round(seconds / 60) });
+  return t('{n} h restantes', { n: Math.round(seconds / 360) / 10 });
+}
+
+function dlRow(d, i) {
+  const pct = d.total ? Math.min(100, Math.round((d.received / d.total) * 100)) : null;
+  let label;
+  if (d.state === 'completed') label = `${formatSize(d.received)} · ${t('terminé')}`;
+  else if (d.state === 'progressing') {
+    const parts = [d.total ? `${formatSize(d.received)} / ${formatSize(d.total)}` : formatSize(d.received)];
+    if (d.paused) parts.push(t('en pause'));
+    else if (d.speed) {
+      parts.push(t('{speed}/s', { speed: formatSize(d.speed) }));
+      if (d.total) parts.push(formatEta((d.total - d.received) / d.speed));
+    }
+    label = parts.join(' · ');
+  } else label = t('interrompu');
+  return { i, name: d.name, state: d.state, pct, label };
+}
+
+function dlData() {
+  return {
+    title: t('téléchargements'),
+    rows: downloads.map(dlRow),
+    empty: t('Aucun téléchargement.'),
+    dir: t('ouvrir le dossier Téléchargements'),
+    hint: t('Ctrl+Maj+J'),
+    folder: t('dossier'),
+    folderTitle: t('Afficher dans le dossier'),
+    openTitle: t('Ouvrir le fichier'),
+  };
+}
+
+function favData() {
+  const tab = activeTab();
+  return {
+    title: t('favoris'),
+    tree: favorites.data.tree,
+    current: tab && !tab.screen ? tab.url : '',
+    empty: t('Aucun favori : « add nom » ajoute la page, « fav import » ceux d\'un autre navigateur.'),
+    none: t('Aucun favori ne correspond.'),
+    filter: t('filtrer…'),
+    hint: t('Ctrl+Maj+B · Ctrl+clic : nouvel onglet'),
+    openTitle: t('ouvrir (Ctrl+clic : nouvel onglet)'),
+  };
+}
+
+const PANELS = {
+  dl: { file: 'downloads.html', width: 420, data: dlData },
+  fav: { file: 'favorites.html', width: 380, data: favData },
+};
+
+function sendPanel(kind) {
+  if (!panel || panel.kind !== kind || panel.win.isDestroyed()) return;
+  panel.win.webContents.send('panel:data', PANELS[kind].data());
+}
+
+const sendDl = () => sendPanel('dl');
+
+// Ouvre la popup au-dessus de son bouton de la barre du bas, ou la ferme.
+// x : bord droit du bouton (téléchargements, à droite) ou bord gauche (favoris, à gauche).
+function togglePanel(kind, x) {
+  if (panel && !panel.win.isDestroyed()) {
+    const same = panel.kind === kind;
+    panel.win.close();
+    if (same) return;
+  }
+  // Le clic sur le bouton fait d'abord perdre le focus à la popup, qui se ferme : ce clic ne la rouvre pas.
+  if (panelClosed.kind === kind && Date.now() - panelClosed.at < 300) return;
+  const { file, width } = PANELS[kind];
+  const b = win.getContentBounds();
+  const place = (height) => {
+    let left;
+    if (kind === 'fav') left = b.x + (x !== undefined ? Math.round(x) : 0);
+    else left = x !== undefined ? b.x + Math.round(x) - width : b.x + b.width - width - 16;
+    return { x: Math.max(b.x, Math.min(left, b.x + b.width - width)), y: b.y + b.height - height - 28, width, height };
+  };
+  const pw = new BrowserWindow({
+    ...place(160),
+    parent: win,
+    frame: false,
+    resizable: false,
+    show: false,
+    skipTaskbar: true,
+    backgroundColor: '#0E1116',
+    webPreferences: { preload: path.join(__dirname, 'panel-preload.js'), sandbox: true, contextIsolation: true },
+  });
+  panel = { kind, win: pw, place };
+  pw.loadFile(path.join(__dirname, '../renderer', file), { query: { accent: THEMES[settings.data.theme] || THEMES.ambre } });
+  pw.webContents.once('did-finish-load', () => sendPanel(kind));
+  pw.once('ready-to-show', () => pw.show());
+  pw.on('blur', () => !pw.isDestroyed() && pw.close());
+  pw.on('closed', () => {
+    panelClosed = { kind, at: Date.now() };
+    if (panel && panel.win === pw) panel = null;
+  });
+  pw.webContents.on('before-input-event', (e, input) => {
+    if (input.key === 'Escape') pw.close();
+  });
+}
+
+// Actions demandées par une popup : seulement celles de son type, sur ses propres données.
+async function panelAction(kind, action, arg) {
+  if (kind === 'dl') {
+    if (action === 'dir') return void shell.openPath(app.getPath('downloads'));
+    const d = Number.isInteger(arg) ? downloads[arg] : null;
+    if (!d) return;
+    if (action === 'folder') shell.showItemInFolder(d.path);
+    else if (action === 'open' && d.state === 'completed') {
+      const err = await shell.openPath(d.path);
+      if (err) print([{ t: `  ${err}`, c: 'err' }]);
+    }
+  } else if (kind === 'fav' && action === 'open' && arg && typeof arg.url === 'string') {
+    // Seulement une adresse qui est bien dans les favoris.
+    if (!fav.allLinks(favorites.data.tree).some((l) => l.url === arg.url)) return;
+    if (panel && panel.kind === 'fav' && !panel.win.isDestroyed()) panel.win.close();
+    if (arg.newTab) createTab({ url: arg.url, background: true });
+    else navigate(activeTab(), arg.url);
+  }
+}
+
 // ---------------------------------------------------------------- extensions
+
+// Avertissements et erreurs des extensions (fond, pages, scripts injectés), pour « ext log ».
+const extLogs = new Map(); // identifiant → [{ time, where, text }]
+const EXT_URL = /^chrome-extension:\/\/([a-p]{32})\//;
+
+function logExt(id, where, text) {
+  if (!extLogs.has(id)) extLogs.set(id, []);
+  const list = extLogs.get(id);
+  list.push({ time: Date.now(), where, text: String(text).slice(0, 400) });
+  if (list.length > 100) list.shift();
+}
+
+// level : nombre de Chromium (2 avertissement, 3 erreur) ou nom (Electron récent).
+const isProblem = (level) => level === 2 || level === 3 || level === 'warning' || level === 'error';
+
+function watchExtensionLogs() {
+  ses.serviceWorkers.on('console-message', (e, d) => {
+    if (!d || !isProblem(d.level)) return;
+    const worker = ses.serviceWorkers.getAllRunning()[d.versionId];
+    const m = EXT_URL.exec((worker && worker.scope) || d.sourceUrl || '');
+    if (m) logExt(m[1], t('fond'), d.lineNumber ? `${d.message} (${t('ligne')} ${d.lineNumber})` : d.message);
+  });
+  app.on('web-contents-created', (e, wc) => {
+    wc.on('console-message', (event, ...old) => {
+      const level = event.level !== undefined ? event.level : old[0];
+      if (!isProblem(level)) return;
+      const message = event.message !== undefined ? event.message : old[1];
+      const line = event.lineNumber !== undefined ? event.lineNumber : old[2];
+      const source = (event.sourceId !== undefined ? event.sourceId : old[3]) || '';
+      // Script injecté dans un site (source chrome-extension://…), ou page de l'extension (popup, offscreen).
+      const fromScript = EXT_URL.exec(source);
+      const fromPage = EXT_URL.exec(wc.getURL());
+      const m = fromScript || fromPage;
+      if (!m) return;
+      const where = fromPage ? t('page') : wc.getURL().startsWith('file:') ? 'dev-brows' : hostOf(wc.getURL()) || t('page');
+      logExt(m[1], where, `${message} (${source.replace(EXT_URL, '')}${line ? `:${line}` : ''})`);
+    });
+  });
+}
+
+function extLogCommand(arg, say) {
+  const list = exts.summary();
+  const i = /^\d+$/.test(arg || '') ? Number(arg) - 1 : list.findIndex((x) => x.alias === arg || (x.name || '').toLowerCase().includes(String(arg || '').toLowerCase()));
+  if (!arg || !list[i]) throw new Error(t('ext log <n | alias>'));
+  const ext = exts.get(i + 1);
+  const lines = (ext.id && extLogs.get(ext.id)) || [];
+  if (!lines.length) return say(t('  aucune erreur de {name} depuis le lancement', { name: ext.name }), 'dim');
+  say(t('  erreurs et avertissements de {name} depuis le lancement :', { name: ext.name }), 'dim');
+  for (const l of lines.slice(-30)) say(`  ${new Date(l.time).toLocaleTimeString(getLang() === 'en' ? 'en-US' : 'fr-FR')} [${l.where}] ${l.text}`, 'err');
+}
 
 function openExtPopup(n, x) {
   const url = exts.popupUrl(n);
@@ -1110,7 +1315,7 @@ async function exec(raw, depth = 0) {
         if (!tab.view || !tab.url) throw new Error(t('aucune page ouverte à ajouter'));
         if (!args.length) throw new Error(t('il faut un nom : add [dossier/]nom'));
         const r = fav.addFavorite(favorites.data.tree, args.join(' '), tab.url, tab.view.webContents.getTitle());
-        favorites.save();
+        saveFavorites();
         if (r.createdFolders.length) say(t('  ✓ dossier {folder}/ créé', { folder: r.createdFolders.join('/') }), 'ok');
         say(r.updated ? t('  ✓ favori mis à jour : {path}', { path: r.path }) : t('  ✓ ajouté aux favoris : {path}', { path: r.path }), 'ok');
         sendState();
@@ -1119,10 +1324,9 @@ async function exec(raw, depth = 0) {
       case 'undo':
         if (!lastUndo) throw new Error(t('rien à annuler'));
         fav.restoreFavorite(favorites.data.tree, lastUndo);
-        favorites.save();
+        saveFavorites();
         say(t('  ✓ {name} restauré', { name: lastUndo.node.name }), 'ok');
         lastUndo = null;
-        if (tab.screen && tab.screen.kind === 'fav') showFav(tab, tab.screen.folder);
         break;
       case 'hist':
       case 'history':
@@ -1295,6 +1499,134 @@ function favPathArg(tab, arg) {
   return arg;
 }
 
+// ---------------------------------------------------------------- import des favoris
+
+// Navigateurs connus : dossier des profils selon le système (Chromium : un fichier Bookmarks par profil).
+const BROWSERS = [
+  { id: 'chrome', name: 'Chrome', kind: 'chromium', win: ['local', 'Google/Chrome/User Data'], mac: 'Google/Chrome', linux: 'google-chrome' },
+  { id: 'edge', name: 'Edge', kind: 'chromium', win: ['local', 'Microsoft/Edge/User Data'], mac: 'Microsoft Edge', linux: 'microsoft-edge' },
+  { id: 'brave', name: 'Brave', kind: 'chromium', win: ['local', 'BraveSoftware/Brave-Browser/User Data'], mac: 'BraveSoftware/Brave-Browser', linux: 'BraveSoftware/Brave-Browser' },
+  { id: 'vivaldi', name: 'Vivaldi', kind: 'chromium', win: ['local', 'Vivaldi/User Data'], mac: 'Vivaldi', linux: 'vivaldi' },
+  { id: 'opera', name: 'Opera', kind: 'chromium', win: ['roaming', 'Opera Software/Opera Stable'], mac: 'com.operasoftware.Opera', linux: 'opera' },
+  { id: 'chromium', name: 'Chromium', kind: 'chromium', win: ['local', 'Chromium/User Data'], mac: 'Chromium', linux: 'chromium' },
+  { id: 'firefox', name: 'Firefox', kind: 'firefox', win: ['roaming', 'Mozilla/Firefox/Profiles'], mac: 'Firefox/Profiles', linux: '../.mozilla/firefox' },
+];
+
+function browserDirs(b) {
+  const home = os.homedir();
+  if (process.platform === 'win32') {
+    const base = b.win[0] === 'local' ? process.env.LOCALAPPDATA || path.join(home, 'AppData', 'Local') : process.env.APPDATA || path.join(home, 'AppData', 'Roaming');
+    return [path.join(base, b.win[1])];
+  }
+  if (process.platform === 'darwin') return [path.join(home, 'Library', 'Application Support', b.mac)];
+  const dirs = [path.join(home, '.config', b.linux)];
+  if (b.id === 'firefox') dirs.push(path.join(home, 'snap', 'firefox', 'common', '.mozilla', 'firefox'));
+  return dirs;
+}
+
+const readDir = (dir) => {
+  try {
+    return fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+};
+
+// Liste les profils trouvés sur cet ordinateur : { id, label, kind, file }.
+function browserSources() {
+  const out = [];
+  for (const b of BROWSERS) {
+    for (const dir of browserDirs(b)) {
+      if (b.kind === 'chromium') {
+        let names = {};
+        try {
+          names = JSON.parse(fs.readFileSync(path.join(dir, 'Local State'), 'utf8')).profile.info_cache || {};
+        } catch {}
+        const profiles = [{ dir, profile: '' }, ...readDir(dir).filter((d) => d.isDirectory()).map((d) => ({ dir: path.join(dir, d.name), profile: d.name }))];
+        for (const p of profiles) {
+          const file = path.join(p.dir, 'Bookmarks');
+          if (!fs.existsSync(file)) continue;
+          const who = p.profile && ((names[p.profile] && names[p.profile].name) || p.profile);
+          out.push({ id: b.id, name: b.name, label: who ? `${b.name} (${who})` : b.name, kind: 'chromium', file });
+        }
+      } else {
+        for (const d of readDir(dir).filter((x) => x.isDirectory())) {
+          const backups = path.join(dir, d.name, 'bookmarkbackups');
+          const files = readDir(backups).filter((f) => /\.jsonlz4$/.test(f.name)).map((f) => path.join(backups, f.name));
+          if (!files.length) continue;
+          const file = files.sort((x, y) => fs.statSync(y).mtimeMs - fs.statSync(x).mtimeMs)[0];
+          const who = d.name.replace(/^[^.]*\./, '');
+          out.push({ id: b.id, name: b.name, label: `${b.name} (${who})`, kind: 'firefox', file });
+        }
+      }
+    }
+  }
+  return out;
+}
+
+function readBookmarks(source) {
+  const file = source.file;
+  if (source.kind === 'chromium' || /\.json$/i.test(file)) {
+    const json = JSON.parse(fs.readFileSync(file, 'utf8'));
+    return json.roots ? bookmarks.fromChromium(json) : bookmarks.fromFirefox(json);
+  }
+  if (source.kind === 'firefox' || /\.jsonlz4$/i.test(file)) return bookmarks.fromFirefox(JSON.parse(bookmarks.mozLz4(fs.readFileSync(file)).toString('utf8')));
+  return bookmarks.fromHtml(fs.readFileSync(file, 'utf8'));
+}
+
+function importFrom(tab, source, say) {
+  let nodes;
+  try {
+    nodes = readBookmarks(source);
+  } catch (err) {
+    throw new Error(t('impossible de lire les favoris de {name} : {error}', { name: source.label, error: err.message }));
+  }
+  const folder = source.name;
+  const r = bookmarks.mergeInto(favorites.data.tree, folder, nodes);
+  if (!r.added) return say(t('  rien de nouveau dans {name} ({skipped} déjà dans tes favoris)', { name: source.label, skipped: r.skipped }), 'dim');
+  saveFavorites();
+  const done = r.added === 1 ? t('  ✓ 1 favori importé de {name} dans {folder}/', { name: source.label, folder }) : t('  ✓ {count} favoris importés de {name} dans {folder}/', { count: r.added, name: source.label, folder });
+  say(done + (r.skipped ? t(' ({skipped} déjà là)', { skipped: r.skipped }) : ''), 'ok');
+  showFav(tab, folder);
+}
+
+// fav import : choisir un navigateur trouvé ; fav import chrome ; fav import <fichier.html> ; fav import fichier.
+async function importCommand(tab, arg, say) {
+  const file = arg.replace(/^~(?=$|[\\/])/, os.homedir()).replace(/^"(.*)"$/, '$1');
+  if (/^(fichier|file)$/i.test(arg)) {
+    const r = await dialog.showOpenDialog(win, {
+      title: t('Favoris exportés d\'un autre navigateur'),
+      properties: ['openFile'],
+      filters: [{ name: t('Favoris'), extensions: ['html', 'htm', 'json', 'jsonlz4'] }],
+    });
+    if (r.canceled || !r.filePaths.length) return say(t('  annulé'), 'dim');
+    return importFrom(tab, { label: path.basename(r.filePaths[0]), name: t('importés'), kind: 'file', file: r.filePaths[0] }, say);
+  }
+  if (file && /[\\/.]/.test(file)) {
+    if (!fs.existsSync(file)) throw new Error(t('fichier introuvable : {file}', { file }));
+    return importFrom(tab, { label: path.basename(file), name: t('importés'), kind: 'file', file }, say);
+  }
+  let sources = browserSources();
+  if (arg) {
+    sources = sources.filter((x) => x.id === arg.toLowerCase());
+    if (!sources.length) throw new Error(t('pas de favoris {name} trouvés sur cet ordinateur (« fav import » pour la liste)', { name: arg }));
+  }
+  if (sources.length === 1) return importFrom(tab, sources[0], say);
+  if (!sources.length) {
+    say(t('  aucun navigateur trouvé sur cet ordinateur'), 'dim');
+    return say(t('  exporte tes favoris en HTML depuis l\'autre navigateur, puis « fav import fichier »'), 'dim');
+  }
+  say(t('  favoris trouvés sur cet ordinateur :'), 'dim');
+  sources.forEach((x, i) => say(`  [${i + 1}] ${x.label}`));
+  say(t('  ou « fav import fichier » pour un export HTML'), 'dim');
+  const question = t('importer lesquels ? numéro (1-{max}), ou Entrée pour annuler', { max: sources.length });
+  for (const l of enqueue(question, async (input, s) => {
+    const x = sources[Number(input) - 1];
+    if (!input || !x) return s(t('  annulé'), 'dim');
+    importFrom(tab, x, s);
+  }, /^\d*$/)) say(l.t, l.c);
+}
+
 async function favCommand(tab, args, say) {
   const tree = favorites.data.tree;
   const sub = args[0];
@@ -1306,22 +1638,22 @@ async function favCommand(tab, args, say) {
     const question = node.type === 'folder' ? t('supprimer le dossier {path}/ et son contenu ?', { path: target }) : t('supprimer {path} ?', { path: target });
     ask(say, question, async (s) => {
       lastUndo = fav.removeFavorite(tree, target);
-      favorites.save();
+      saveFavorites();
       s(t('  ✓ supprimé (undo pour annuler)'), 'ok');
-      if (tab.screen && tab.screen.kind === 'fav') showFav(tab, tab.screen.folder);
       sendState();
     });
     return;
   }
+  if (sub === 'import') return importCommand(tab, args.slice(1).join(' '), say);
   if (sub === 'mv') {
     if (args.length < 3) throw new Error(t('fav mv <chemin> <destination>'));
     const node = fav.moveFavorite(tree, favPathArg(tab, args[1]), args[2]);
-    favorites.save();
+    saveFavorites();
     say(t('  ✓ {name} déplacé vers {dest}', { name: node.name, dest: args[2] }), 'ok');
   } else if (sub === 'rename') {
     if (args.length < 3) throw new Error(t('fav rename <chemin> <nouveau nom>'));
     fav.renameFavorite(tree, favPathArg(tab, args[1]), args[2]);
-    favorites.save();
+    saveFavorites();
     say(t('  ✓ renommé en {name}', { name: args[2] }), 'ok');
   }
   const folder = !sub || ['mv', 'rename'].includes(sub) ? (tab.screen && tab.screen.kind === 'fav' ? tab.screen.folder : '') : args.join(' ');
@@ -1370,6 +1702,9 @@ async function extCommand(tab, args, say) {
       });
       return;
     }
+    case 'log':
+      extLogCommand(args.slice(1).join(' '), say);
+      break;
     case 'alias':
       exts.rename(n, args[2]);
       say(t('  ✓ alias : {alias}', { alias: args[2] }), 'ok');
@@ -1906,6 +2241,8 @@ const SHORTCUTS = [
   [mark('Ctrl+Maj+S / F6'), mark('split / changer d\'écran')],
   [mark('F12, clic droit › Inspecter'), mark('outils de développement')],
   ['Alt+1…9', mark('popup de l\'extension n')],
+  [mark('Ctrl+Maj+J'), mark('téléchargements (ou le bouton ↓ de la barre du bas)')],
+  [mark('Ctrl+Maj+B'), mark('favoris (ou le bouton ★ en bas à gauche)')],
   [mark('Ctrl+molette, Ctrl+= / Ctrl+-'), 'zoom'],
   ['↑ ↓ / Tab', mark('historique des commandes / autocomplétion')],
 ];
@@ -1963,6 +2300,8 @@ function buildMenu() {
         { label: t('Changer d\'écran'), accelerator: 'F6', click: () => panes.length > 1 && runCommand('focus') },
         { label: t('Outils de développement'), accelerator: 'F12', click: act(() => toggleDevtools(activeTab())) },
         { label: t('Outils de développement'), accelerator: 'CmdOrCtrl+Shift+I', visible: false, click: act(() => toggleDevtools(activeTab())) },
+        { label: t('Téléchargements'), accelerator: 'CmdOrCtrl+Shift+J', click: () => win.webContents.send('ui:panel', 'dl') },
+        { label: t('Favoris'), accelerator: 'CmdOrCtrl+Shift+B', click: () => win.webContents.send('ui:panel', 'fav') },
         ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({
           label: `Extension ${n}`, accelerator: `Alt+${n}`, visible: false, click: act(() => openExtPopup(n)),
         })),
@@ -1992,10 +2331,26 @@ function setupDownloads() {
     item.setSavePath(file);
     const d = { name: path.basename(file), path: file, state: 'progressing', received: 0, total: item.getTotalBytes() };
     downloads.unshift(d);
-    print([{ t: t('  ↓ téléchargement de {name} (dl pour suivre)', { name: d.name }), c: 'dim' }]);
+    print([{ t: t('  ↓ téléchargement de {name} (dl ou Ctrl+Maj+J pour suivre)', { name: d.name }), c: 'dim' }]);
     sendState();
+    sendDl();
+    let last = { time: Date.now(), bytes: 0 };
+    let refreshed = 0;
     item.on('updated', () => {
       d.received = item.getReceivedBytes();
+      d.total = item.getTotalBytes();
+      d.paused = item.isPaused();
+      // Vitesse lissée, mesurée sur au moins une demi-seconde.
+      const now = Date.now();
+      if (now - last.time >= 500) {
+        const speed = ((d.received - last.bytes) * 1000) / (now - last.time);
+        d.speed = d.speed ? d.speed * 0.6 + speed * 0.4 : speed;
+        last = { time: now, bytes: d.received };
+      }
+      if (now - refreshed >= 250) {
+        refreshed = now;
+        sendDl();
+      }
     });
     item.once('done', (ev, state) => {
       d.state = state;
@@ -2004,6 +2359,7 @@ function setupDownloads() {
       const tab = activeTab();
       if (tab.screen && tab.screen.kind === 'dl') showDl(tab);
       sendState();
+      sendDl();
     });
   });
 }
@@ -2077,6 +2433,16 @@ function setupIpc() {
       sendState();
     }
   });
+  ipcMain.on('ui:panel', (e, kind, x) => PANELS[kind] && togglePanel(kind, Number.isFinite(x) ? x : undefined));
+  const fromPanel = (e) => (panel && !panel.win.isDestroyed() && e.sender === panel.win.webContents ? panel : null);
+  ipcMain.on('panel:act', (e, action, arg) => {
+    const p = fromPanel(e);
+    if (p) panelAction(p.kind, action, arg).catch((err) => print([{ t: `  ${err.message}`, c: 'err' }]));
+  });
+  ipcMain.on('panel:size', (e, height) => {
+    const p = fromPanel(e);
+    if (p && Number.isFinite(height)) p.win.setBounds(p.place(Math.min(Math.max(Math.ceil(height), 60), 520)));
+  });
   ipcMain.on('ui:ext-popup', (e, n, x) => {
     try {
       openExtPopup(n, x);
@@ -2112,6 +2478,7 @@ app.whenReady().then(async () => {
   ai.migrate(settings);
   setLang(initialLang());
   setupChromeApi(); // avant le chargement des extensions, pour lire leurs manifestes
+  watchExtensionLogs();
   ses.registerPreloadScript({ id: 'dev-brows-browser-alias', type: 'frame', filePath: path.join(__dirname, 'ext-preload.js') });
   exts = new Extensions(ses, settings, path.join(dir, 'extensions'));
   exts.installBundledUblock(app.isPackaged ? path.join(process.resourcesPath, 'ublock-origin') : path.join(__dirname, '..', '..', 'vendor', 'ublock-origin'));

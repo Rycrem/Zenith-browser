@@ -183,3 +183,42 @@ test('notes d\'une Release GitHub : section de la langue, sinon les puces', () =
   assert.deepStrictEqual(releaseNotes(old, 'en'), ['README : remettre l\'installation']);
   assert.deepStrictEqual(releaseNotes('', 'fr'), []);
 });
+
+test('import des favoris : Chromium, Firefox (.jsonlz4), export HTML, fusion sans doublons', () => {
+  const b = require('../src/shared/bookmarks-import');
+  const chrome = {
+    roots: {
+      bookmark_bar: { type: 'folder', name: 'Barre de favoris', children: [
+        { type: 'url', name: 'GitHub', url: 'https://github.com/', date_added: '13300000000000000' },
+        { type: 'folder', name: 'Dev/Web', children: [{ type: 'url', name: 'MDN', url: 'https://developer.mozilla.org/' }, { type: 'url', name: 'js', url: 'javascript:void(0)' }] },
+      ] },
+      other: { type: 'folder', name: 'Autres favoris', children: [{ type: 'url', name: 'Wiki', url: 'https://fr.wikipedia.org/' }] },
+      synced: { type: 'folder', name: 'Mobile', children: [] },
+    },
+  };
+  const c = b.fromChromium(chrome);
+  assert.deepStrictEqual(c.map((n) => n.name), ['GitHub', 'Dev-Web', 'Autres favoris']);
+  assert.deepStrictEqual(c[1].children.map((n) => n.name), ['MDN']);
+  assert.strictEqual(new Date(c[0].addedAt).getUTCFullYear(), 2022);
+
+  const ff = b.fromFirefox(b.mozLz4(Buffer.from('bW96THo0MAA5AwAA8SF7InR5cGUiOiAidGV4dC94LW1vei1wbGFjZS1jb250YWluZXIiLCAicm9vdCI6ICIbAP8Gc1Jvb3QiLCAiY2hpbGRyZW4iOiBbSgAdsnRvb2xiYXJGb2xkYwBCdGl0bIoAAhoAD2EAFwk+APg6TUROIFdlYiBEb2NzIiwgInVyaSI6ICJodHRwczovL2RldmVsb3Blci5tb3ppbGxhLm9yZy8iLCAiZGF0ZUFkZGVkIjogMTcwMAIAP30sIOAAFQXHAJFEZXYvT3V0aWyHAA8rARMJygBvR2l0SHVixAAAz2dpdGh1Yi5jb20vIpoACglPADdzZXBMAAHJAc86c29ydD04In1dfV1JAAoPDQID/wF1bmZpbGVkQm9va21hcmtzzAEAAyMAD8wBJOdXaWtpcFx1MDBlOWRpYb4ABM4Bs2ZyLndpa2lwZWRpyQEPyQAib21vYmlsZb8AAAIZAAu+AFBbXX1dfQ==', 'base64')).toString('utf8'));
+  assert.deepStrictEqual(ff.map((n) => n.name), ['MDN Web Docs', 'Dev-Outils', 'Autres']);
+  assert.deepStrictEqual(ff[1].children.map((n) => n.url), ['https://github.com/']);
+  assert.throws(() => b.mozLz4(Buffer.from('pas un fichier')));
+
+  const html = '<!DOCTYPE NETSCAPE-Bookmark-file-1>\n<DL><p>\n<DT><H3 ADD_DATE="1">Barre</H3>\n<DL><p>\n'
+    + '<DT><A HREF="https://example.com/?a=1&amp;b=2" ADD_DATE="1700000000">Ex &amp; co</A>\n<DT><H3>Vide</H3>\n<DL><p>\n</DL><p>\n</DL><p>\n'
+    + '<DT><A HREF="https://github.com/">GitHub</A>\n</DL><p>';
+  const hb = b.fromHtml(html);
+  assert.deepStrictEqual(hb.map((n) => n.name), ['Barre', 'GitHub']);
+  assert.deepStrictEqual(hb[0].children, [{ type: 'link', name: 'Ex & co', url: 'https://example.com/?a=1&b=2', title: 'Ex & co', addedAt: 1700000000000 }]);
+  assert.throws(() => b.fromHtml('<html>rien</html>'));
+
+  const tree = { type: 'folder', name: '', children: [{ type: 'link', name: 'gh', url: 'https://github.com/' }] };
+  assert.deepStrictEqual(b.mergeInto(tree, 'Chrome', c), { added: 2, skipped: 1 });
+  const chromeFolder = tree.children.find((n) => n.name === 'Chrome');
+  assert.deepStrictEqual(chromeFolder.children.map((n) => n.name), ['Dev-Web', 'Autres favoris']);
+  assert.deepStrictEqual(b.mergeInto(tree, 'Chrome', c), { added: 0, skipped: 3 });
+  assert.deepStrictEqual(b.mergeInto(tree, 'Firefox', [b.fromChromium(chrome)[0]]), { added: 0, skipped: 1 });
+  assert.ok(!tree.children.some((n) => n.name === 'Firefox'));
+});

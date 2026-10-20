@@ -17,11 +17,12 @@ contextBridge.exposeInMainWorld('brows', {
   newTab: () => ipcRenderer.send('ui:tab-new'),
   pane: (i) => ipcRenderer.send('ui:pane', i),
   extPopup: (n, x) => ipcRenderer.send('ui:ext-popup', n, x),
+  panel: (kind, x) => ipcRenderer.send('ui:panel', kind, x),
   readClipboard: () => ipcRenderer.invoke('ui:clipboard-read'),
   writeClipboard: (text) => ipcRenderer.send('ui:clipboard-write', text),
   resetZoom: () => ipcRenderer.send('ui:zoom-reset'),
   on: (channel, fn) => {
-    if (!['state', 'term:print', 'term:focus', 'term:toggle'].includes(channel)) return;
+    if (!['state', 'term:print', 'term:focus', 'term:toggle', 'ui:panel'].includes(channel)) return;
     ipcRenderer.on(channel, (e, ...args) => fn(...args));
   },
 });
