@@ -9,6 +9,7 @@ const { Extensions, newer } = require('./extensions');
 const bookmarks = require('../shared/bookmarks-import');
 const { AdBlock } = require('./adblock');
 const { ElectronChromeExtensions } = require('electron-chrome-extensions');
+const { registerExtraApis } = require('./ext-api');
 const ai = require('./ai');
 const updater = require('./updater');
 const fav = require('../shared/favorites');
@@ -186,7 +187,13 @@ function highlightForExtensions(tab) {
 
 // chrome.tabs / chrome.windows des extensions, branchés sur les onglets de dev-brows.
 function setupChromeApi(s) {
-  return new ElectronChromeExtensions({
+  // Avant le préchargement de la bibliothèque, qui fige l'objet chrome une fois ses API posées,
+  // puis après lui, pour remplacer ses chrome.downloads qui ne font rien.
+  const apiPreload = (when) => {
+    for (const type of ['frame', 'service-worker']) s.registerPreloadScript({ id: `dev-brows-api-${when}-${type}`, type, filePath: path.join(__dirname, 'ext-api-preload.js') });
+  };
+  apiPreload('early');
+  const api = new ElectronChromeExtensions({
     license: 'GPL-3.0',
     session: s,
     createTab(details) {
@@ -219,6 +226,37 @@ function setupChromeApi(s) {
       if (!w.isDestroyed()) w.close();
     },
   });
+  apiPreload('late');
+  registerExtraApis(api, {
+    window: () => win,
+    activeContents: () => activeTab()?.view?.webContents,
+    search(text, here) {
+      const tab = (here && activeTab()) || createTab({});
+      runSearch(tab, text).then((lines) => print(lines)).catch(() => {});
+    },
+    history: () => history.data.entries,
+    favorites: () => favorites.data.tree,
+    downloads: () => downloads,
+    download: (url) => s.downloadURL(url),
+    showItem: (p) => shell.showItemInFolder(p),
+    openItem: (p) => shell.openPath(p),
+    showDownloadsFolder: () => shell.openPath(app.getPath('downloads')),
+    openSidePanel(url, title) {
+      const b = win.getBounds();
+      const side = new BrowserWindow({
+        x: b.x + b.width - 400,
+        y: b.y,
+        width: 400,
+        height: b.height,
+        parent: win,
+        title,
+        webPreferences: { session: s, sandbox: true, contextIsolation: true },
+      });
+      side.setMenuBarVisibility(false);
+      side.loadURL(url);
+    },
+  });
+  return api;
 }
 
 // Le Chrome Web Store grise « Ajouter à Chrome » hors de Chrome : on ajoute dans la page
@@ -668,6 +706,10 @@ function addHistory(entry) {
   entries.push({ ...entry, time: Date.now() });
   if (entries.length > HISTORY_MAX) entries.splice(0, entries.length - HISTORY_MAX);
   history.save();
+  if (chromeApi && /^https?:/.test(entry.url || '') && !entry.query) {
+    const visitCount = entries.filter((e) => e.url === entry.url).length;
+    chromeApi.ctx.router.broadcastEvent('history.onVisited', { id: '0', url: entry.url, title: entry.title || '', lastVisitTime: Date.now(), visitCount, typedCount: 0 });
+  }
 }
 
 // ---------------------------------------------------------------- suggestions de l'adresse
@@ -2916,7 +2958,7 @@ function setupDownloads(s = ses) {
     let file = path.join(dir, parsed.base);
     for (let i = 1; fs.existsSync(file); i++) file = path.join(dir, `${parsed.name} (${i})${parsed.ext}`);
     item.setSavePath(file);
-    const d = { name: path.basename(file), path: file, state: 'progressing', received: 0, total: item.getTotalBytes() };
+    const d = { name: path.basename(file), path: file, url: item.getURL(), state: 'progressing', received: 0, total: item.getTotalBytes() };
     downloads.unshift(d);
     print([{ t: t('  ↓ téléchargement de {name} (dl ou Ctrl+Maj+J pour suivre)', { name: d.name }), c: 'dim' }]);
     sendState();
@@ -2995,10 +3037,12 @@ function setupIpc() {
     const t = getTab(id);
     if (t) showInPane(t, activePane);
   });
-  ipcMain.on('ui:tab-move', (e, id, targetId) => {
+  // gap : indice de l'onglet devant lequel poser celui qu'on déplace (tabs.length : à la fin).
+  ipcMain.on('ui:tab-move', (e, id, gap) => {
     const from = tabs.findIndex((t) => t.id === id);
-    const to = tabs.findIndex((t) => t.id === targetId);
-    if (from < 0 || to < 0 || from === to) return;
+    if (from < 0 || !Number.isInteger(gap) || gap < 0 || gap > tabs.length) return;
+    const to = gap > from ? gap - 1 : gap;
+    if (to === from) return;
     tabs.splice(to, 0, tabs.splice(from, 1)[0]);
     sendState();
   });
