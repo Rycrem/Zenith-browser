@@ -152,7 +152,10 @@
     '{alias} est désactivée (ext on {n})': '{alias} is disabled (ext on {n})',
     "{alias} n'a pas de popup": '{alias} has no popup',
     '  extension déjà installée (« ext » pour la gérer)': '  extension already installed (“ext” to manage it)',
-    '  ↓ le bouton « Ajouter à Chrome » ne marche pas ici : tape « ext add » pour installer cette extension': '  ↓ the “Add to Chrome” button does not work here: type “ext add” to install this extension',
+    '  ↓ « Ajouter à dev-brows » en bas à droite de la page (ou « ext add ») installe cette extension': '  ↓ “Add to dev-brows” at the bottom right of the page (or “ext add”) installs this extension',
+    'Ajouter à dev-brows': 'Add to dev-brows',
+    '✓ installée dans dev-brows': '✓ installed in dev-brows',
+    'installation…': 'installing…',
 
     // pages et onglets
     'impossible de charger {url} : {desc}': 'cannot load {url}: {desc}',

@@ -221,13 +221,71 @@ function setupChromeApi(s) {
   });
 }
 
-// Le Chrome Web Store grise « Ajouter à Chrome » hors de Chrome : on propose « ext add » à la place.
+// Le Chrome Web Store grise « Ajouter à Chrome » hors de Chrome : on ajoute dans la page
+// un bouton « Ajouter à dev-brows ». Il vit dans un monde isolé (le site ne voit ni son code
+// ni le secret) et signale le clic par un message console que seul ce secret authentifie.
+const STORE_WORLD = 1042;
+const STORE_SECRET = `dev-brows-store-${require('crypto').randomBytes(12).toString('hex')}`;
+
 function storeHint(tab, url) {
   const id = storeExtensionId(url);
   if (!id || tab.storeHint === id) return;
   tab.storeHint = id;
   const installed = exts.list.some((e) => e.id === id);
-  print([{ t: installed ? t('  extension déjà installée (« ext » pour la gérer)') : t('  ↓ le bouton « Ajouter à Chrome » ne marche pas ici : tape « ext add » pour installer cette extension'), c: installed ? 'dim' : 'warn' }]);
+  print([{ t: installed ? t('  extension déjà installée (« ext » pour la gérer)') : t('  ↓ « Ajouter à dev-brows » en bas à droite de la page (ou « ext add ») installe cette extension'), c: installed ? 'dim' : 'warn' }]);
+}
+
+function storeButton(tab, busy = false) {
+  const wc = tab.view && tab.view.webContents;
+  if (!wc || wc.isDestroyed()) return;
+  let host = '';
+  try {
+    host = new URL(wc.getURL()).hostname;
+  } catch {}
+  if (host !== 'chromewebstore.google.com' && host !== 'chrome.google.com') return;
+  const id = storeExtensionId(wc.getURL());
+  const installed = !!id && exts.list.some((e) => e.id === id);
+  const opts = {
+    show: !!id,
+    label: busy ? t('installation…') : installed ? t('✓ installée dans dev-brows') : t('Ajouter à dev-brows'),
+    disabled: busy || installed,
+    accent: accentColor(),
+    secret: STORE_SECRET,
+  };
+  const code = `(${(o) => {
+    let b = document.getElementById('dev-brows-store-install');
+    if (!o.show) {
+      if (b) b.remove();
+      return;
+    }
+    if (!b) {
+      b = document.createElement('button');
+      b.id = 'dev-brows-store-install';
+      b.addEventListener('click', (e) => {
+        if (e.isTrusted && !b.disabled) console.info(`${o.secret}:install`);
+      });
+      document.documentElement.append(b);
+    }
+    b.textContent = o.label;
+    b.disabled = o.disabled;
+    b.style.cssText = `position:fixed;right:24px;bottom:24px;z-index:2147483647;padding:12px 20px;border:0;border-radius:24px;
+      font:600 15px/1 system-ui,sans-serif;color:#0E1116;background:${o.accent};box-shadow:0 4px 16px rgba(0,0,0,.3);
+      cursor:${o.disabled ? 'default' : 'pointer'};opacity:${o.disabled ? 0.75 : 1}`;
+  }})(${JSON.stringify(opts)})`;
+  wc.executeJavaScriptInIsolatedWorld(STORE_WORLD, [{ code }]).catch(() => {});
+}
+
+async function installFromStore(tab) {
+  const wc = tab.view && tab.view.webContents;
+  const id = wc && storeExtensionId(wc.getURL());
+  if (!id || exts.list.some((e) => e.id === id)) return;
+  storeButton(tab, true);
+  try {
+    const result = await exec(`ext add ${id}`);
+    if (result && result.lines && result.lines.length) print(result.lines);
+  } finally {
+    storeButton(tab);
+  }
 }
 
 function wireWebContents(tab, wc) {
@@ -267,6 +325,7 @@ function wireWebContents(tab, wc) {
   wc.on('did-frame-finish-load', () => applyVolume(tab));
   wc.on('did-stop-loading', () => {
     tab.loading = false;
+    storeButton(tab);
     // Une seconde plus tard aussi : l'extension a fini de traiter « page chargée » entre-temps.
     highlightForExtensions(tab);
     setTimeout(() => highlightForExtensions(tab), 1000);
@@ -299,9 +358,14 @@ function wireWebContents(tab, wc) {
     if (!isMainFrame) return;
     tab.url = url;
     storeHint(tab, url);
+    storeButton(tab);
     sendState();
     // Les sites d'une seule page changent leur contenu sans recharger : on relit le texte.
     if (tab.tty && tab.screen && tab.screen.kind === 'tty') setTimeout(() => tab.tty && tab.screen && tab.screen.kind === 'tty' && showTty(tab, true), 600);
+  });
+  wc.on('console-message', (event, ...old) => {
+    const message = event.message !== undefined ? event.message : old[1];
+    if (message === `${STORE_SECRET}:install`) installFromStore(tab).catch(() => {});
   });
   wc.on('did-fail-load', (e, code, desc, url, isMainFrame) => {
     if (isMainFrame && code !== -3) print([{ t: t('impossible de charger {url} : {desc}', { url, desc }), c: 'err' }]);

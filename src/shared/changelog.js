@@ -5,8 +5,14 @@
 const CHANGELOG = [
   {
     version: '0.1.22',
-    notes: ['Nouveau logo pour le bouton qui copie l\'adresse : deux feuilles, celle de devant avec un coin plié.'],
-    en: ['New icon for the copy-address button: two sheets, the front one with a folded corner.'],
+    notes: [
+      'Nouveau logo pour le bouton qui copie l\'adresse : deux feuilles, celle de devant avec un coin plié.',
+      'Sur une page du Chrome Web Store, un bouton « Ajouter à dev-brows » en bas à droite installe l\'extension.',
+    ],
+    en: [
+      'New icon for the copy-address button: two sheets, the front one with a folded corner.',
+      'On a Chrome Web Store page, an “Add to dev-brows” button at the bottom right installs the extension.',
+    ],
   },
   {
     version: '0.1.21',
