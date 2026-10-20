@@ -541,21 +541,21 @@ panesEl.forEach((p, i) => p.addEventListener('pointerdown', () => state && state
 // Player du son : lecture/pause, haut-parleur (couper tout), volume du navigateur avec son pourcentage,
 // et ▴ pour régler chaque onglet.
 let volumeDragging = false;
+// Le player tient dans une seule carte : lecture/pause, volume, pourcentage (clic : muet), son de chaque onglet.
 function player(a) {
   const pct = Math.round(a.volume * 100);
   const play = h('button', {
     type: 'button',
-    class: 'chip player-btn',
+    class: 'pl-btn',
     title: a.playing ? t('Mettre en pause') : t('Reprendre la lecture'),
     onclick: () => api.mediaToggle(),
   }, playIcon(a.playing));
-  const mute = h('button', {
+  const value = h('button', {
     type: 'button',
-    class: `chip player-btn${a.muted ? ' muted' : ''}`,
+    class: 'pl-btn volume-pct',
     title: a.muted ? t('Remettre le son') : t('Couper le son'),
     onclick: () => api.muteAll(),
-  }, speaker(a.muted));
-  const value = h('span', { class: 'volume-pct' }, `${pct} %`);
+  }, `${pct} %`);
   const slider = h('input', {
     type: 'range',
     class: 'volume',
@@ -574,11 +574,11 @@ function player(a) {
   const tabsBtn = h('button', {
     type: 'button',
     id: 'audio-chip',
-    class: 'chip player-btn',
+    class: 'pl-btn',
     title: t('Son de chaque onglet'),
     onclick: () => openPanel('audio'),
   }, '▴');
-  return h('span', { class: 'player' }, play, mute, h('span', { class: `volume-box${a.muted ? ' muted' : ''}` }, slider, value), tabsBtn);
+  return h('span', { class: `player${a.muted ? ' muted' : ''}` }, play, h('span', { class: 'pl-sep' }), slider, value, h('span', { class: 'pl-sep' }), tabsBtn);
 }
 
 function playIcon(playing) {

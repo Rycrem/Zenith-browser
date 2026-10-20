@@ -301,15 +301,16 @@ th { color: var(--dim); }
 .tab .speaker { width: 20px; height: 18px; display: grid; place-items: center; border-radius: 3px; color: var(--accent); flex: none; }
 .tab .speaker.muted { color: var(--dim); }
 .tab .speaker:hover { background: var(--line); color: var(--text); }
-.player { display: flex; align-items: center; gap: 8px; }
-.player-btn { color: var(--text); padding: 0 6px; min-width: 26px; }
-.player-btn.muted { color: var(--dim); }
+.player { box-sizing: border-box; height: 22px; display: inline-flex; align-items: center; gap: 6px; padding: 0 4px; border-radius: 3px; background: var(--bg); color: var(--text); font-size: 12px; font-weight: 600; }
+.pl-btn { height: 18px; min-width: 20px; display: inline-flex; align-items: center; justify-content: center; padding: 0 4px; border-radius: 3px; background: none; color: inherit; font: inherit; cursor: pointer; }
+.pl-btn:hover { background: var(--line); }
+.pl-sep { width: 1px; height: 14px; background: var(--line); }
 #audio-chip { font-size: 11px; }
-/* Volume : barre remplie jusqu'au niveau + pourcentage lisible. */
-.volume-box { height: 22px; display: inline-flex; align-items: center; gap: 8px; padding: 0 8px; border-radius: 3px; background: var(--bg); }
-.volume-box.muted .volume { opacity: .45; }
-.volume-pct { min-width: 4ch; text-align: right; color: var(--text); font-size: 12px; font-variant-numeric: tabular-nums; }
-.player .volume { -webkit-appearance: none; appearance: none; width: 90px; height: 6px; margin: 0; border-radius: 3px; cursor: pointer;
+/* Volume : barre remplie jusqu'au niveau ; le pourcentage coupe le son, barré quand c'est coupé. */
+.volume-pct { min-width: 5ch; justify-content: flex-end; font-variant-numeric: tabular-nums; }
+.player.muted .volume-pct { color: var(--dim); text-decoration: line-through; }
+.player.muted .volume { opacity: .45; }
+.player .volume { -webkit-appearance: none; appearance: none; width: 90px; height: 6px; margin: 0 2px; border-radius: 3px; cursor: pointer;
   background: linear-gradient(to right, var(--accent) var(--fill, 50%), var(--line) var(--fill, 50%)); }
 .player .volume::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--text); border: 2px solid var(--accent); }
 .chip:hover { outline: 2px solid var(--bg); outline-offset: 1px; }

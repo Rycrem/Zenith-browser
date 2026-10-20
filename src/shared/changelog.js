@@ -4,6 +4,15 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.21',
+    notes: [
+      'Le player du son tient dans une seule carte : lecture/pause à gauche, le volume, son pourcentage (un clic coupe ou remet le son), puis ▴ pour le son de chaque onglet.',
+    ],
+    en: [
+      'The sound player fits in a single card: play/pause on the left, the volume, its percentage (click to mute or unmute), then ▴ for each tab\'s sound.',
+    ],
+  },
+  {
     version: '0.1.20',
     notes: [
       'En tapant dans l\'adresse, des pages de ton historique sont proposées : ↑/↓ pour choisir, clic ou Entrée pour y aller.',
