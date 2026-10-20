@@ -4,6 +4,11 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.16',
+    notes: ['« update -v » liste les versions publiées : choisis-en une pour lire ses notes et l\'installer (même une plus ancienne).'],
+    en: ['“update -v” lists published versions: pick one to read its notes and install it (even an older one).'],
+  },
+  {
     version: '0.1.15',
     notes: ['Rien de nouveau dans l\'appli : le README retrouve sa partie installation et ne décrit plus la publication des versions.'],
     en: ['Nothing new in the app: the README has its install section back and no longer describes publishing versions.'],
@@ -85,4 +90,24 @@ function notesFor(version, lang = 'fr') {
   return { version: e.version, notes: lang === 'en' && e.en ? e.en : e.notes };
 }
 
-module.exports = { CHANGELOG, notesFor };
+// Notes d'une version précise, ou null si cette version n'est pas dans le journal.
+function exactNotes(version, lang = 'fr') {
+  const e = CHANGELOG.find((x) => x.version === version);
+  return e ? (lang === 'en' && e.en ? e.en : e.notes) : null;
+}
+
+// Notes d'une Release GitHub (texte Markdown) : la section « Français » ou « English » si
+// elle existe, sinon toutes les puces ; « … by @x in https://… » est retiré.
+function releaseNotes(body, lang = 'fr') {
+  const text = String(body || '').replace(/\r/g, '');
+  const sections = text.split(/^#+\s*/m);
+  const title = lang === 'en' ? /^english\b/i : /^fran[cç]ais\b/i;
+  const own = sections.find((part) => title.test(part));
+  return (own || text)
+    .split('\n')
+    .filter((l) => /^\s*[-*]\s+/.test(l))
+    .map((l) => l.replace(/^\s*[-*]\s+/, '').replace(/\s+by @\S+ in https?:\/\/\S+$/, '').trim())
+    .filter(Boolean);
+}
+
+module.exports = { CHANGELOG, notesFor, exactNotes, releaseNotes };

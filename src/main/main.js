@@ -5,14 +5,14 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { JsonStore } = require('./store');
-const { Extensions } = require('./extensions');
+const { Extensions, newer } = require('./extensions');
 const { AdBlock } = require('./adblock');
 const { ElectronChromeExtensions } = require('electron-chrome-extensions');
 const ai = require('./ai');
 const updater = require('./updater');
 const fav = require('../shared/favorites');
 const C = require('../shared/commands');
-const { notesFor } = require('../shared/changelog');
+const { notesFor, exactNotes, releaseNotes } = require('../shared/changelog');
 const { t, mark, setLang, getLang } = require('../shared/i18n');
 
 const tr = t; // là où une variable locale « t » (un onglet) cache t()
@@ -1442,6 +1442,10 @@ async function updateCommand(args, say) {
     say(`  ${arg ? '✓ ' : ''}${state}`, arg ? 'ok' : '');
     return;
   }
+  if (sub === '-v' || sub === 'versions') {
+    await versionsCommand(args[1], say);
+    return;
+  }
   if (updater.installed()) {
     if (sub === 'electron') {
       say(t('  Electron est inclus dans l\'installateur : « update install » installe la dernière version publiée'), 'dim');
@@ -1489,6 +1493,67 @@ async function updateCommand(args, say) {
   settings.data.lastUpdateCheck = Date.now();
   settings.save();
   for (const l of updateLines(r)) say(l.t, l.c);
+}
+
+// « update -v » : liste les versions publiées ; un numéro affiche les notes de cette version
+// puis propose de l'installer (plus récente ou plus ancienne).
+async function versionsCommand(wanted, say) {
+  const releases = await updater.listReleases();
+  if (!releases.length) throw new Error(t('aucune version publiée sur GitHub'));
+  const current = app.getVersion();
+  if (wanted) {
+    const r = releases.find((x) => x.version === wanted.replace(/^v/, ''));
+    if (!r) throw new Error(t('pas de version {version} publiée (« update -v » pour la liste)', { version: wanted }));
+    return showVersion(r, say);
+  }
+  say(t('  versions publiées (installée : {version})', { version: current }), 'dim');
+  releases.forEach((r, i) => {
+    const date = r.date ? new Date(r.date).toLocaleDateString(getLang() === 'en' ? 'en-US' : 'fr-FR') : '';
+    const mark = r.version === current ? t('  ← installée') : '';
+    say(`  [${i + 1}] ${r.version}  ${date}${mark}`, r.version === current ? 'ok' : '');
+  });
+  const question = t('quelle version ? numéro (1-{max}), ou Entrée pour annuler', { max: releases.length });
+  for (const l of enqueue(question, async (input, s) => {
+    const r = releases[Number(input) - 1];
+    if (!input || !r) return s(t('  annulé'), 'dim');
+    await showVersion(r, s);
+  }, /^\d*$/)) say(l.t, l.c);
+}
+
+async function showVersion(r, say) {
+  const lang = getLang();
+  const notes = exactNotes(r.version, lang) || releaseNotes(r.body, lang);
+  say(`  dev-brows ${r.version}`, 'ok');
+  if (notes.length) for (const n of notes) say(`  · ${n}`);
+  else say(t('  pas de notes pour cette version'), 'dim');
+  const current = app.getVersion();
+  if (r.version === current) return say(t('  c\'est la version installée'), 'dim');
+  if (!updater.installed()) return say(t('  appli lancée depuis le code : « update install » suit le dépôt, pas les versions publiées'), 'dim');
+  if (process.platform === 'darwin') {
+    createTab({ url: r.url });
+    return say(t('  page de la version ouverte : télécharge son .dmg'), 'dim');
+  }
+  const older = newer(current, r.version);
+  const question = older
+    ? t('installer la version {version}, plus ancienne que la tienne ({current}) ? l\'appli redémarrera', { version: r.version, current })
+    : t('installer la version {version} ? l\'appli redémarrera', { version: r.version });
+  ask(say, question, async (s) => {
+    print([{ t: t('  téléchargement de l\'installateur…'), c: 'dim' }]);
+    let last = -10;
+    try {
+      const started = await updater.installVersion(r.version, (pct) => {
+        if (pct - last >= 10 || pct === 100) {
+          last = pct;
+          print([{ t: `  ↓ ${pct} %`, c: 'dim' }]);
+        }
+      });
+      if (!started) s(t('  rien à installer pour cette version'), 'dim');
+    } catch (err) {
+      s(t('  installation impossible : {error}', { error: err.message }), 'err');
+      createTab({ url: r.url });
+      s(t('  page de la version ouverte pour l\'installer à la main'), 'dim');
+    }
+  });
 }
 
 function updateLines(r) {

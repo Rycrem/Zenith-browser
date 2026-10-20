@@ -54,7 +54,7 @@ Tests de la logique (favoris, alias, lecture des résultats, extensions) : `npm 
 | `adblock [on\|off]` | bloqueur de pub de secours, éteint par défaut (uBlock Origin est préinstallé) |
 | `engine ddg\|google\|bing\|qwant`, `theme ambre\|vert\|cyan\|rose\|violet`, `lang [fr\|en]` | réglages |
 | `perm`, `perm reset [site]` | autorisations données aux sites |
-| `update`, `update install`, `update electron`, `update auto [on\|off]` | mises à jour (voir plus bas) |
+| `update`, `update install`, `update -v [version]`, `update electron`, `update auto [on\|off]` | mises à jour (voir plus bas) |
 | `devtools [detach\|close]`, `term`, `fullscreen [on\|off]`, `quit` (ou `exit`, `q`), `help`, `clear` | divers (DevTools : à côté de la page, dans une fenêtre, ou fermées ; boutons aussi dans la barre d'état ; `quit` ferme le navigateur) |
 
 Tout ce qui n'est ni une commande, ni un alias, ni une adresse lance une recherche ; une adresse (`exemple.fr`, `localhost:3000`) s'ouvre directement. Une commande suivie de mots qu'elle n'attend pas (« home depot », « close friends ») est aussi une recherche.
@@ -109,6 +109,7 @@ Une vérification se fait à chaque lancement (`update auto off` la coupe) ; `up
 **Appli installée** (depuis un installateur des Releases) :
 
 - `update` compare la version installée avec la dernière Release GitHub et signale quand un nouvel installateur est publié.
+- `update -v` liste les versions publiées ; tape un numéro pour lire les notes de cette version dans le terminal, puis l'installer si tu veux (même une plus ancienne). `update -v 0.1.12` va directement à cette version.
 - `update install` télécharge le nouvel installateur, l'applique et relance l'appli. Sur macOS (appli non signée, la mise à jour automatique y est impossible), il ouvre la page de la Release pour télécharger le `.dmg`.
 - Electron et Chromium sont livrés avec l'installateur : chaque nouvelle Release les met à jour.
 

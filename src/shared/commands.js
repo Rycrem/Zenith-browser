@@ -78,6 +78,7 @@ const COMMANDS = [
   ['fullscreen', '[on | off]', 'plein écran (F11)'],
   ['quit / exit', '', 'quitter le navigateur'],
   ['update', '[install | electron]', 'vérifier ou installer les mises à jour (appli et Electron)'],
+  ['update -v', '[version]', 'versions publiées : choisir une version, lire ses notes et l\'installer'],
   ['update auto', '[on | off]', 'vérification automatique au lancement (dev-brows et extensions)'],
   ['help', '', 'cette aide'],
 ];
@@ -97,7 +98,7 @@ const SUBCOMMANDS = {
   adblock: ['on', 'off'],
   perm: ['reset'],
   ia: ['use', 'connect', 'key', 'logout', 'model'],
-  update: ['install', 'electron', 'auto'],
+  update: ['install', 'electron', 'auto', '-v'],
   engine: Object.keys(ENGINES),
   theme: ['ambre', 'vert', 'cyan', 'rose', 'violet'],
   lang: ['fr', 'en'],
@@ -108,7 +109,7 @@ const SUBCOMMANDS = {
 const ARG_SHAPES = {
   help: null, '?': null, clear: null, home: null, accueil: null, back: null, b: null, fwd: null, f: null,
   reload: null, r: null, n: null, next: null, p: null, prev: null, links: null, l: null, term: null, quit: null, exit: null, q: null, fullscreen: /^(on|off)$/i, fs: /^(on|off)$/i,
-  undo: null, focus: null, lang: /^(fr|en)$/i, langue: /^(fr|en)$/i, update: /^(install|electron|auto)$/i,
+  undo: null, focus: null, lang: /^(fr|en)$/i, langue: /^(fr|en)$/i, update: /^(install|electron|auto|-v|versions)$/i,
   tab: /^(\d+|new|save)$/i, tabs: /^(\d+|new|save)$/i, close: /^\d+$/, dl: /^\d+$/, split: /^(off|close)$/i, adblock: /^(on|off)$/i, pub: /^(on|off)$/i,
   devtools: /^(detach|detacher|attach|rattacher|close|off)$/i, dev: /^(detach|detacher|attach|rattacher|close|off)$/i,
 };

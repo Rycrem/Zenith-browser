@@ -1,6 +1,6 @@
 'use strict';
 
-const { app } = require('electron');
+const { app, net } = require('electron');
 const { execFile, spawn } = require('child_process');
 const fs = require('fs');
 const { t } = require('../shared/i18n');
@@ -89,6 +89,40 @@ async function installRelease(onProgress) {
   return true;
 }
 
+// Versions publiées sur GitHub, de la plus récente à la plus ancienne (sans les brouillons).
+async function listReleases() {
+  const res = await net.fetch('https://api.github.com/repos/Rycrem/dev-brows/releases?per_page=30', { headers: { accept: 'application/vnd.github+json' } });
+  if (!res.ok) throw new Error(t('GitHub ne répond pas ({status})', { status: res.status }));
+  const list = await res.json();
+  return list
+    .filter((r) => !r.draft && /^v?\d+\.\d+\.\d+/.test(r.tag_name || ''))
+    .map((r) => ({ version: r.tag_name.replace(/^v/, ''), date: r.published_at, body: r.body || '', url: r.html_url }));
+}
+
+// Installe une version précise (plus récente ou plus ancienne) : un updater à part, qui lit
+// le latest.yml de cette Release, pour ne pas changer celui qui suit la dernière version.
+async function installVersion(version, onProgress) {
+  const eu = require('electron-updater');
+  const options = { provider: 'generic', url: `https://github.com/Rycrem/dev-brows/releases/download/v${version}` };
+  const Updater = win ? eu.NsisUpdater : process.env.APPIMAGE ? eu.AppImageUpdater : eu.DebUpdater;
+  const updater = new Updater(options);
+  updater.autoDownload = false;
+  updater.autoInstallOnAppQuit = false;
+  updater.allowDowngrade = true;
+  updater.logger = null;
+  const result = await updater.checkForUpdates();
+  if (!result || !result.isUpdateAvailable) return false;
+  const progress = (p) => onProgress(Math.round(p.percent));
+  updater.on('download-progress', progress);
+  try {
+    await updater.downloadUpdate();
+  } finally {
+    updater.removeListener('download-progress', progress);
+  }
+  updater.quitAndInstall();
+  return true;
+}
+
 // Code source : lance scripts/update.js avec le node du système puis ferme l'appli ; le script la relance.
 function launchSource(mode) {
   return new Promise((resolve, reject) => {
@@ -119,4 +153,4 @@ function lastReport() {
   }
 }
 
-module.exports = { check, installed, installRelease, launchSource, lastReport, major, RELEASES_URL };
+module.exports = { check, installed, installRelease, installVersion, listReleases, launchSource, lastReport, major, RELEASES_URL };

@@ -10,6 +10,22 @@
   'use strict';
 
   const EN = {
+    'aucune version publiée sur GitHub': "no version published on GitHub",
+    'pas de version {version} publiée (« update -v » pour la liste)': "no published version {version} (“update -v” for the list)",
+    '  versions publiées (installée : {version})': "  published versions (installed: {version})",
+    '  ← installée': "  ← installed",
+    'quelle version ? numéro (1-{max}), ou Entrée pour annuler': "which version? number (1-{max}), or Enter to cancel",
+    '  pas de notes pour cette version': "  no notes for this version",
+    "  c'est la version installée": "  this is the installed version",
+    '  appli lancée depuis le code : « update install » suit le dépôt, pas les versions publiées': "  app run from source: “update install” follows the repository, not published versions",
+    '  page de la version ouverte : télécharge son .dmg': "  version page opened: download its .dmg",
+    "installer la version {version}, plus ancienne que la tienne ({current}) ? l'appli redémarrera": "install version {version}, older than yours ({current})? the app will restart",
+    "installer la version {version} ? l'appli redémarrera": "install version {version}? the app will restart",
+    '  rien à installer pour cette version': "  nothing to install for this version",
+    '  installation impossible : {error}': "  installation failed: {error}",
+    "  page de la version ouverte pour l'installer à la main": "  version page opened to install it by hand",
+    '[version]': "[version]",
+    "versions publiées : choisir une version, lire ses notes et l'installer": "published versions: pick one, read its notes and install it",
     'Ollama (sur ton ordinateur)': 'Ollama (on your computer)',
     'OpenRouter (modèles gratuits)': 'OpenRouter (free models)',
     // IA
