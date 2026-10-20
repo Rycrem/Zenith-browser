@@ -5,8 +5,14 @@
 const CHANGELOG = [
   {
     version: '0.1.16',
-    notes: ['« update -v » liste les versions publiées : choisis-en une pour lire ses notes et l\'installer (même une plus ancienne).'],
-    en: ['“update -v” lists published versions: pick one to read its notes and install it (even an older one).'],
+    notes: [
+      '« update -v » liste les versions publiées : choisis-en une pour lire ses notes et l\'installer (même une plus ancienne).',
+      'Mode « tty » : la page en texte simple, comme dans un terminal, avec les liens en bleu soulignés et numérotés (tape le numéro ou clique).',
+    ],
+    en: [
+      '“update -v” lists published versions: pick one to read its notes and install it (even an older one).',
+      '“tty” mode: the page as plain text, like in a terminal, with links underlined in blue and numbered (type the number or click).',
+    ],
   },
   {
     version: '0.1.15',

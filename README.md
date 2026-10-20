@@ -46,6 +46,7 @@ Logic tests (bookmarks, aliases, result parsing, extensions, translations): `npm
 | `<n>` / `<n>t` | opens item n of the list on screen, `t` for a new tab |
 | `go <url>` | opens an address (typing an address directly works too) |
 | `links` | numbers the page's links and buttons, then type a number |
+| `tty [on\|off]` | shows pages as plain text, like a terminal: links are underlined in blue and numbered, type the number or click them (stays on while you browse) |
 | `back`, `fwd`, `reload`, `home` | navigation |
 | `tab`, `tab <n>`, `tab new [url…]`, `tab save <name>`, `close [n]` | tabs (`tab new` with several addresses opens a tab for each) |
 | `split`, `split off [1\|2]`, `focus` | two panes side by side, close a pane (the other one by default, or the ✕ at the top of the pane), switch pane |

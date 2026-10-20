@@ -39,6 +39,7 @@ Tests de la logique (favoris, alias, lecture des résultats, extensions) : `npm 
 | `<n>` / `<n>t` | ouvre l'élément n de la liste affichée, `t` pour un nouvel onglet |
 | `go <url>` | ouvre une adresse (taper directement une adresse marche aussi) |
 | `links` | numérote les liens et boutons de la page, puis tape un numéro |
+| `tty [on\|off]` | affiche les pages en texte simple, comme un terminal : liens soulignés en bleu et numérotés, tape le numéro ou clique dessus (reste actif pendant la navigation) |
 | `back`, `fwd`, `reload`, `home` | navigation |
 | `tab`, `tab <n>`, `tab new [url…]`, `tab save <nom>`, `close [n]` | onglets (`tab new` avec plusieurs adresses ouvre un onglet pour chacune) |
 | `split`, `split off [1\|2]`, `focus` | deux écrans côte à côte, fermer un écran (l'autre par défaut, ou le ✕ en haut de l'écran), changer d'écran |

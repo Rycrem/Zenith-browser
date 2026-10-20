@@ -606,6 +606,26 @@ const screens = {
     ];
   },
 
+  tty(s) {
+    // Les espaces autour du texte d'un lien restent hors du soulignement.
+    const link = (p) => {
+      const [, before, text, after] = p.text.match(/^(\s*)([\s\S]*?)(\s*)$/);
+      return [before, h('span', { class: 'tty-link', role: 'link', title: t('ouvrir (Ctrl+clic : nouvel onglet)'), onclick: click(String(p.link)), onauxclick: click(String(p.link)) }, text || '↗', h('span', { class: 'tty-n' }, `[${p.link}]`)), after];
+    };
+    const parts = (b) => b.parts.flatMap((p) => (p.link ? link(p) : p.text));
+    return [
+      head(`tty ${s.host}`, s.loading ? t('chargement…') : s.error ? s.error : t('{count} liens', { count: s.links })),
+      s.title ? h('h3', {}, s.title) : null,
+      h('div', { class: 'tty' }, s.blocks.map((b) => {
+        if (b.type === 'pre') return h('pre', {}, b.parts[0].text);
+        if (b.type === 'h') return h('div', { class: 'tty-h' }, parts(b));
+        if (b.type === 'li') return h('div', { class: 'tty-li' }, '• ', parts(b));
+        return h('div', { class: 'tty-p' }, parts(b));
+      })),
+      h('div', { class: 'hint' }, t('Tape un numéro ou clique un lien · '), h('b', {}, '3t'), t(' nouvel onglet · '), h('b', {}, 'tty off'), t(' revient à la page')),
+    ];
+  },
+
   alias(s) {
     return [
       head('alias', `${s.rows.length} alias`),

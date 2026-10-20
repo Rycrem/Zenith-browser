@@ -10,6 +10,15 @@
   'use strict';
 
   const EN = {
+    'aucune page ouverte : « tty » affiche la page en texte': "no page open: “tty” shows the page as text",
+    '  mode tty : la page en texte, liens numérotés (« tty off » pour revenir à la page)': "  tty mode: the page as text, numbered links (“tty off” to go back to the page)",
+    '  mode tty désactivé': "  tty mode off",
+    'ouvrir (Ctrl+clic : nouvel onglet)': "open (Ctrl+click: new tab)",
+    'chargement…': "loading…",
+    '{count} liens': "{count} links",
+    'Tape un numéro ou clique un lien · ': "Type a number or click a link · ",
+    ' revient à la page': " goes back to the page",
+    'la page en texte simple, liens numérotés en bleu (clic ou numéro)': "the page as plain text, blue numbered links (click or number)",
     'aucune version publiée sur GitHub': "no version published on GitHub",
     'pas de version {version} publiée (« update -v » pour la liste)': "no published version {version} (“update -v” for the list)",
     '  versions publiées (installée : {version})': "  published versions (installed: {version})",
