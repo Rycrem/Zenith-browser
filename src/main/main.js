@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, WebContentsView, Menu, ipcMain, session, shell, clipboard, net, dialog } = require('electron');
+const { app, BrowserWindow, WebContentsView, Menu, ipcMain, session, shell, clipboard, net, dialog, nativeTheme } = require('electron');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -422,6 +422,8 @@ function sendState() {
     user: os.userInfo().username,
     lang: getLang(),
     accent: THEMES[settings.data.theme] || THEMES.ambre,
+    light: isLight(),
+    platform: process.platform,
     engine: settings.data.engine,
     tabs: tabs.map((t, i) => ({ id: t.id, n: i + 1, title: tabTitle(t), loading: t.loading, pane: paneOf(t), audible: !!t.audible, muted: isMuted(t) })),
     panes: panes.map((p) => {
@@ -987,6 +989,18 @@ function setMuted(tab, muted) {
   audioChanged();
 }
 
+// Mode nuit (par défaut) ou jour : l'interface, et les sites qui suivent prefers-color-scheme.
+const isLight = () => settings.data.mode === 'jour';
+
+function setMode(light) {
+  settings.data.mode = light ? 'jour' : 'nuit';
+  settings.save();
+  nativeTheme.themeSource = light ? 'light' : 'dark';
+  if (win && !win.isDestroyed()) win.setBackgroundColor(light ? '#F6F7F9' : '#0E1116');
+  if (panel && !panel.win.isDestroyed()) panel.win.close();
+  sendState();
+}
+
 function setGlobalVolume(v) {
   settings.data.volume = Math.min(1, Math.max(0, Math.round(v * 100) / 100));
   settings.save();
@@ -1036,6 +1050,18 @@ function audioData() {
       muted: isMuted(tb),
       volume: tabVolume(tb),
     })),
+  };
+}
+
+// ---------------------------------------------------------------- popup des extensions
+
+function extData() {
+  return {
+    title: t('extensions'),
+    hint: t('★ épingle l\'extension dans la barre du bas · « ext » pour les gérer'),
+    empty: t('aucune extension (« ext add »)'),
+    labels: { pin: t('Épingler dans la barre du bas'), unpin: t('Retirer de la barre du bas'), open: t('Ouvrir (Alt+{n})'), on: t('Activer'), off: t('Désactiver') },
+    list: exts.summary(),
   };
 }
 
@@ -1105,6 +1131,7 @@ const PANELS = {
   dl: { file: 'downloads.html', width: 420, data: dlData },
   fav: { file: 'favorites.html', width: 380, data: favData },
   audio: { file: 'audio.html', width: 440, data: audioData },
+  ext: { file: 'extensions.html', width: 360, data: extData },
 };
 
 function sendPanel(kind) {
@@ -1139,11 +1166,11 @@ function togglePanel(kind, x) {
     resizable: false,
     show: false,
     skipTaskbar: true,
-    backgroundColor: '#0E1116',
+    backgroundColor: isLight() ? '#F6F7F9' : '#0E1116',
     webPreferences: { preload: path.join(__dirname, 'panel-preload.js'), sandbox: true, contextIsolation: true },
   });
   panel = { kind, win: pw, place };
-  pw.loadFile(path.join(__dirname, '../renderer', file), { query: { accent: THEMES[settings.data.theme] || THEMES.ambre } });
+  pw.loadFile(path.join(__dirname, '../renderer', file), { query: { accent: THEMES[settings.data.theme] || THEMES.ambre, mode: isLight() ? 'jour' : 'nuit' } });
   pw.webContents.once('did-finish-load', () => sendPanel(kind));
   pw.once('ready-to-show', () => pw.show());
   pw.on('blur', () => !pw.isDestroyed() && pw.close());
@@ -1183,6 +1210,17 @@ async function panelAction(kind, action, arg) {
       showInPane(tab, activePane);
       if (panel && !panel.win.isDestroyed()) panel.win.close();
     }
+  } else if (kind === 'ext') {
+    const n = Number(arg && arg.n);
+    if (!exts.summary()[n - 1]) return;
+    if (action === 'pin') exts.pin(n);
+    else if (action === 'toggle') await exts.setEnabled(n, !exts.get(n).enabled);
+    else if (action === 'open') {
+      if (panel && !panel.win.isDestroyed()) panel.win.close();
+      return openExtPopup(n);
+    }
+    sendState();
+    sendPanel('ext');
   } else if (kind === 'fav' && action === 'open' && arg && typeof arg.url === 'string') {
     // Seulement une adresse qui est bien dans les favoris.
     if (!fav.allLinks(favorites.data.tree).some((l) => l.url === arg.url)) return;
@@ -1602,6 +1640,13 @@ async function exec(raw, depth = 0) {
           sendState();
         }
         break;
+      case 'mode': {
+        const modes = { nuit: false, night: false, jour: true, day: true };
+        if (!args.length) say(t('  mode : {mode} (nuit | jour)', { mode: isLight() ? t('jour') : t('nuit') }));
+        else if (!(args[0] in modes)) throw new Error(t('modes : nuit, jour'));
+        else setMode(modes[args[0]]);
+        break;
+      }
       case 'perm':
         permCommand(args, say);
         break;
@@ -1895,6 +1940,12 @@ async function extCommand(tab, args, say) {
     case 'off': {
       const ext = await exts.setEnabled(n, sub === 'on');
       say(sub === 'on' ? t('  ✓ {alias} activée', { alias: ext.alias }) : t('  ✓ {alias} désactivée', { alias: ext.alias }), 'ok');
+      break;
+    }
+    case 'pin': {
+      const ext = exts.pin(n);
+      say(ext.pinned === false ? t('  ✓ {alias} retirée de la barre du bas', { alias: ext.alias }) : t('  ✓ {alias} épinglée dans la barre du bas', { alias: ext.alias }), 'ok');
+      sendState();
       break;
     }
     case 'rm': {
@@ -2537,6 +2588,7 @@ function buildMenu() {
         { label: t('Outils de développement'), accelerator: 'CmdOrCtrl+Shift+I', visible: false, click: act(() => toggleDevtools(activeTab())) },
         { label: t('Téléchargements'), accelerator: 'CmdOrCtrl+Shift+J', click: () => win.webContents.send('ui:panel', 'dl') },
         { label: t('Favoris'), accelerator: 'CmdOrCtrl+Shift+B', click: () => win.webContents.send('ui:panel', 'fav') },
+        { label: 'Extensions', accelerator: 'CmdOrCtrl+Shift+E', click: () => win.webContents.send('ui:panel', 'ext') },
         ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({
           label: `Extension ${n}`, accelerator: `Alt+${n}`, visible: false, click: act(() => openExtPopup(n)),
         })),
@@ -2673,6 +2725,7 @@ function setupIpc() {
     if (tab) setMuted(tab, !isMuted(tab));
   });
   ipcMain.on('ui:volume', (e, v) => Number.isFinite(v) && setGlobalVolume(v));
+  ipcMain.on('ui:mode', () => setMode(!isLight()));
   ipcMain.on('ui:panel', (e, kind, x) => PANELS[kind] && togglePanel(kind, Number.isFinite(x) ? x : undefined));
   const fromPanel = (e) => (panel && !panel.win.isDestroyed() && e.sender === panel.win.webContents ? panel : null);
   ipcMain.on('panel:act', (e, action, arg) => {
@@ -2693,13 +2746,17 @@ function setupIpc() {
 }
 
 function createWindow() {
+  // Les onglets montent dans la barre de titre, noire, à côté des boutons de la fenêtre.
+  const mac = process.platform === 'darwin';
   win = new BrowserWindow({
     width: 1280,
     height: 820,
     minWidth: 640,
     minHeight: 420,
-    backgroundColor: '#0E1116',
+    backgroundColor: isLight() ? '#F6F7F9' : '#0E1116',
     title: 'dev-brows',
+    titleBarStyle: 'hidden',
+    ...(mac ? { trafficLightPosition: { x: 12, y: 13 } } : { titleBarOverlay: { color: '#000000', symbolColor: '#D6DEE8', height: 40 } }),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), sandbox: true, contextIsolation: true },
   });
   win.setMenuBarVisibility(false);
@@ -2716,6 +2773,7 @@ app.whenReady().then(async () => {
   history = new JsonStore(path.join(dir, 'historique.json'), { entries: [] });
   settings = new JsonStore(path.join(dir, 'reglages.json'), { engine: 'ddg', theme: 'ambre', aliases: {}, extensions: [], builtinAdblock: false });
   ai.migrate(settings);
+  nativeTheme.themeSource = isLight() ? 'light' : 'dark';
   setLang(initialLang());
   setupChromeApi(); // avant le chargement des extensions, pour lire leurs manifestes
   watchExtensionLogs();

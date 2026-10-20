@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('brows', {
   panel: (kind, x) => ipcRenderer.send('ui:panel', kind, x),
   tabMute: (id) => ipcRenderer.send('ui:tab-mute', id),
   volume: (v) => ipcRenderer.send('ui:volume', v),
+  toggleMode: () => ipcRenderer.send('ui:mode'),
   readClipboard: () => ipcRenderer.invoke('ui:clipboard-read'),
   writeClipboard: (text) => ipcRenderer.send('ui:clipboard-write', text),
   resetZoom: () => ipcRenderer.send('ui:zoom-reset'),

@@ -91,6 +91,43 @@ function downloadIcon() {
   return svg;
 }
 
+function puzzleIcon() {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 16 16');
+  svg.setAttribute('class', 'mode-icon');
+  const p = document.createElementNS(NS, 'path');
+  p.setAttribute('d', 'M6 3.2a1.6 1.6 0 0 1 3.2 0V4.4h3.4v3.4h-1.2a1.6 1.6 0 0 0 0 3.2h1.2v3.4H9.2v-1.2a1.6 1.6 0 0 0-3.2 0v1.2H2.6v-3.4h1.2a1.6 1.6 0 0 0 0-3.2H2.6V4.4H6z');
+  p.setAttribute('fill', 'none');
+  p.setAttribute('stroke', 'currentColor');
+  p.setAttribute('stroke-width', '1.5');
+  p.setAttribute('stroke-linejoin', 'round');
+  svg.append(p);
+  return svg;
+}
+
+// Lune en mode jour (passer en nuit), soleil en mode nuit (passer en jour).
+function modeIcon(light) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 16 16');
+  svg.setAttribute('class', 'mode-icon');
+  const d = light
+    ? ['M13.2 9.6A5.6 5.6 0 1 1 6.4 2.8a4.4 4.4 0 0 0 6.8 6.8z']
+    : ['M8 5.2a2.8 2.8 0 1 0 0 5.6a2.8 2.8 0 1 0 0-5.6z', 'M8 1.2v1.4', 'M8 13.4v1.4', 'M1.2 8h1.4', 'M13.4 8h1.4', 'M3.2 3.2l1 1', 'M11.8 11.8l1 1', 'M3.2 12.8l1-1', 'M11.8 4.2l1-1'];
+  for (const x of d) {
+    const p = document.createElementNS(NS, 'path');
+    p.setAttribute('d', x);
+    p.setAttribute('fill', 'none');
+    p.setAttribute('stroke', 'currentColor');
+    p.setAttribute('stroke-width', '1.6');
+    p.setAttribute('stroke-linecap', 'round');
+    p.setAttribute('stroke-linejoin', 'round');
+    svg.append(p);
+  }
+  return svg;
+}
+
 function fill(el, children) {
   el.replaceChildren(...children.flat(Infinity).filter((c) => c !== null && c !== undefined && c !== false));
 }
@@ -231,11 +268,11 @@ function setTerminalHidden(hidden) {
 api.on('term:print', print);
 // Popups de la barre du bas, au-dessus de leur bouton : ↓ (bord droit) ou ★ (bord gauche).
 function openPanel(kind) {
-  const b = $({ dl: '#dl-chip', fav: '#fav-chip', audio: '#audio-chip' }[kind]);
+  const b = $({ dl: '#dl-chip', fav: '#fav-chip', audio: '#audio-chip', ext: '#ext-chip' }[kind]);
   const r = b && b.getBoundingClientRect();
   api.panel(kind, r ? (kind === 'fav' ? r.left : r.right) : undefined);
 }
-// Ctrl+Maj+J et Ctrl+Maj+B.
+// Ctrl+Maj+J, Ctrl+Maj+B et Ctrl+Maj+E.
 api.on('ui:panel', openPanel);
 api.on('term:toggle', () => setTerminalHidden(!app.classList.contains('term-hidden')));
 api.on('term:focus', (prefill) => {
@@ -321,6 +358,8 @@ api.on('state', (s) => {
     applyStaticLabels();
   }
   document.documentElement.style.setProperty('--accent', s.accent);
+  document.documentElement.dataset.mode = s.light ? 'jour' : 'nuit';
+  document.documentElement.dataset.platform = s.platform;
   showTerm(s.panes[s.activePane].tabId, new Set(s.tabs.map((t) => t.id)));
   renderTabs();
   renderPanes();
@@ -434,7 +473,8 @@ function renderStatus() {
   // Pendant qu'on fait glisser le volume, ne pas recréer la barre (le curseur serait lâché).
   if (volumeDragging) return;
   const s = state.status;
-  const chips = state.exts.map((e) => h('button', {
+  // Seules les extensions épinglées (★ dans la popup des extensions) ont leur pastille.
+  const chips = state.exts.filter((e) => e.pinned).map((e) => h('button', {
     type: 'button',
     class: `chip${e.enabled ? '' : ' off'}`,
     title: `${e.name}${e.enabled ? '' : t(' (désactivée)')}${e.error ? ` : ${e.error}` : ''} · Alt+${e.n}`,
@@ -456,7 +496,21 @@ function renderStatus() {
     s.zoom !== 100 ? h('button', { type: 'button', class: 'pill zoom', title: t('Revenir à 100 % (Ctrl+0)'), onclick: () => api.resetZoom() }, t('zoom {zoom} %', { zoom: s.zoom })) : null,
     h('span', { class: 'grow' }),
     state.audio.show ? player(state.audio) : null,
+    h('button', {
+      type: 'button',
+      id: 'mode-chip',
+      class: 'chip',
+      title: state.light ? t('Passer en mode nuit') : t('Passer en mode jour'),
+      onclick: () => api.toggleMode(),
+    }, modeIcon(state.light)),
     chips,
+    h('button', {
+      type: 'button',
+      id: 'ext-chip',
+      class: 'chip',
+      title: t('Extensions (Ctrl+Maj+E)'),
+      onclick: () => openPanel('ext'),
+    }, puzzleIcon()),
     h('button', {
       type: 'button',
       id: 'dl-chip',

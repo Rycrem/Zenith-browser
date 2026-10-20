@@ -67,12 +67,13 @@ const COMMANDS = [
   ['hist', '[texte]', 'historique, filtré si besoin'],
   ['clean', '[all]', 'vider l\'historique ; « all » vide aussi les cookies et le cache'],
   ['find', '[texte]', 'chercher dans la page (« find » seul efface)'],
-  ['ext', '[add | on | off | rm | alias | log | n]', 'gérer les extensions ; « ext log n » montre leurs erreurs'],
+  ['ext', '[add | on | off | pin | rm | alias | log | n]', 'gérer les extensions ; « ext pin n » l\'épingle dans la barre du bas, « ext log n » montre ses erreurs'],
   ['dl', '[n]', 'téléchargements ; n ouvre le fichier'],
   ['alias', '[nom = commande]', 'créer un raccourci ; « unalias nom » le supprime'],
   ['adblock', '[on | off]', 'bloqueur de pub de secours, éteint par défaut (uBlock Origin est préinstallé)'],
   ['engine', '[ddg | google | bing | qwant]', 'moteur de recherche'],
   ['theme', '[ambre | vert | cyan | rose | violet]', 'couleur d\'accent'],
+  ['mode', '[nuit | jour]', 'mode nuit (par défaut) ou jour ; aussi le bouton lune/soleil en bas'],
   ['lang', '[fr | en]', 'langue de l\'interface (français ou anglais)'],
   ['perm', '[reset [site]]', 'autorisations accordées aux sites (caméra, micro, position…)'],
   ['devtools', '[detach | close]', 'outils de développement : ouvrir, détacher dans une fenêtre, fermer'],
@@ -88,12 +89,12 @@ const COMMANDS = [
 const COMMAND_NAMES = [
   'brows', 'ia', 'go', 'links', 'back', 'fwd', 'reload', 'home', 'tab', 'close', 'split', 'focus',
   'fav', 'add', 'undo', 'hist', 'clean', 'find', 'ext', 'dl', 'alias', 'unalias', 'engine',
-  'theme', 'lang', 'tty', 'adblock', 'perm', 'update', 'devtools', 'term', 'fullscreen', 'quit', 'exit', 'help', 'clear',
+  'theme', 'mode', 'lang', 'tty', 'adblock', 'perm', 'update', 'devtools', 'term', 'fullscreen', 'quit', 'exit', 'help', 'clear',
 ];
 
 const SUBCOMMANDS = {
   fav: ['rm', 'mv', 'rename', 'import'],
-  ext: ['add', 'on', 'off', 'rm', 'alias', 'log'],
+  ext: ['add', 'on', 'off', 'pin', 'rm', 'alias', 'log'],
   tab: ['new', 'save'],
   split: ['off'],
   clean: ['all'],
@@ -103,6 +104,7 @@ const SUBCOMMANDS = {
   update: ['install', 'electron', 'auto', '-v'],
   engine: Object.keys(ENGINES),
   theme: ['ambre', 'vert', 'cyan', 'rose', 'violet'],
+  mode: ['nuit', 'jour'],
   lang: ['fr', 'en'],
   devtools: ['detach', 'close'],
   tty: ['on', 'off'],

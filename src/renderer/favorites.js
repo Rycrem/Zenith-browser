@@ -3,6 +3,7 @@
 // Popup des favoris : l'arbre (dossiers repliables) ou, en tapant, les favoris qui correspondent.
 const accent = new URLSearchParams(location.search).get('accent');
 if (accent && /^#[0-9a-f]{6}$/i.test(accent)) document.documentElement.style.setProperty('--accent', accent);
+if (new URLSearchParams(location.search).get('mode') === 'jour') document.documentElement.dataset.mode = 'jour';
 
 const $ = (sel) => document.querySelector(sel);
 const filter = $('#filter');

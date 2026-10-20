@@ -285,6 +285,14 @@ class Extensions {
     return ext;
   }
 
+  // Épinglée : affichée dans la barre du bas (par défaut). Sinon, seulement dans la popup des extensions.
+  pin(n) {
+    const ext = this.get(n);
+    ext.pinned = ext.pinned === false;
+    this.settings.save();
+    return ext;
+  }
+
   popupUrl(n) {
     const ext = this.get(n);
     if (!ext.enabled) throw new Error(t('{alias} est désactivée (ext on {n})', { alias: ext.alias, n }));
@@ -298,6 +306,7 @@ class Extensions {
       alias: e.alias,
       name: e.name,
       enabled: e.enabled,
+      pinned: e.pinned !== false,
       popup: !!e.popup,
       dnrOnly: !!e.dnrOnly,
       error: e.error || null,

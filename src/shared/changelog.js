@@ -13,6 +13,9 @@ const CHANGELOG = [
       'Les extensions ne s\'injectent plus dans l\'interface de dev-brows.',
       'Nouvelle icône pour le bouton des téléchargements.',
       'Une extension sans popup (Elasticvue…) réagit maintenant au clic sur sa pastille, par exemple en ouvrant sa page.',
+      'Les onglets montent dans la barre de titre, noire, à côté des boutons de la fenêtre.',
+      'Mode nuit par défaut et mode jour : le bouton soleil/lune à droite du son (ou « mode jour|nuit ») passe de l\'un à l\'autre.',
+      'Bouton puzzle (ou Ctrl+Maj+E) : la popup des extensions, avec une ★ pour épingler celles qui restent dans la barre du bas.',
     ],
     en: [
       'A tab playing sound shows a speaker: click it to mute or unmute the tab.',
@@ -22,6 +25,9 @@ const CHANGELOG = [
       'Extensions no longer inject into dev-brows\'s own interface.',
       'New icon for the downloads button.',
       'An extension without a popup (Elasticvue…) now reacts to a click on its badge, for example by opening its page.',
+      'Tabs move up into the black title bar, next to the window buttons.',
+      'Night mode by default and a day mode: the sun/moon button right of the sound (or “mode jour|nuit”) switches between them.',
+      'Puzzle button (or Ctrl+Shift+E): the extensions popup, with a ★ to pin the ones that stay in the bottom bar.',
     ],
   },
   {
