@@ -468,6 +468,25 @@ api.on('state', (s) => {
   requestAnimationFrame(sendRects);
 });
 
+let dragTabId = null;
+
+// Emplacement visé pendant le glissement d'un onglet : l'indice devant lequel il sera posé
+// (selon la moitié de l'onglet survolée), ou -1 s'il ne bougerait pas.
+function tabGapAt(e, overId) {
+  const i = state.tabs.findIndex((tb) => tb.id === overId);
+  const r = e.currentTarget.getBoundingClientRect();
+  const gap = e.clientX < r.left + r.width / 2 ? i : i + 1;
+  const from = state.tabs.findIndex((tb) => tb.id === dragTabId);
+  return from >= 0 && (gap === from || gap === from + 1) ? -1 : gap;
+}
+
+function markTabGap(gap) {
+  $('#tabs').querySelectorAll('.tab').forEach((el, i) => {
+    el.classList.toggle('drop-r', gap >= 0 && i === gap - 1);
+    el.classList.toggle('drop-l', gap >= 0 && i === gap);
+  });
+}
+
 function renderTabs() {
   const activeId = state.panes[state.activePane].tabId;
   fill($('#tabs'), state.tabs.map((tb) => h(
@@ -478,15 +497,28 @@ function renderTabs() {
       // Clic molette : ferme l'onglet.
       onmousedown: (e) => { if (e.button === 1) e.preventDefault(); },
       onauxclick: (e) => { if (e.button === 1) api.closeTab(tb.id); },
-      // Glisser-déposer pour changer l'ordre des onglets.
-      ondragstart: (e) => { e.dataTransfer.setData('text/x-tab', String(tb.id)); e.dataTransfer.effectAllowed = 'move'; },
-      ondragover: (e) => { if (e.dataTransfer.types.includes('text/x-tab')) { e.preventDefault(); e.currentTarget.classList.add('drop'); } },
-      ondragleave: (e) => e.currentTarget.classList.remove('drop'),
+      // Glisser-déposer pour changer l'ordre des onglets : les deux bords qui entourent
+      // l'emplacement visé s'allument (droite de l'onglet de gauche, gauche de celui de droite).
+      ondragstart: (e) => {
+        dragTabId = tb.id;
+        e.dataTransfer.setData('text/x-tab', String(tb.id));
+        e.dataTransfer.effectAllowed = 'move';
+      },
+      ondragend: () => {
+        dragTabId = null;
+        markTabGap(-1);
+      },
+      ondragover: (e) => {
+        if (!e.dataTransfer.types.includes('text/x-tab')) return;
+        e.preventDefault();
+        markTabGap(tabGapAt(e, tb.id));
+      },
       ondrop: (e) => {
         e.preventDefault();
-        e.currentTarget.classList.remove('drop');
+        const gap = tabGapAt(e, tb.id);
+        markTabGap(-1);
         const id = Number(e.dataTransfer.getData('text/x-tab'));
-        if (id && id !== tb.id) api.moveTab(id, tb.id);
+        if (id && gap >= 0) api.moveTab(id, gap);
       },
     },
     h('button', { type: 'button', class: 'label', title: tb.title, onclick: () => api.tab(tb.id) }, `[${tb.n}] `, tb.loading ? h('span', { class: 'spin' }, '◌ ') : null, tb.title),

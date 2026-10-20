@@ -134,7 +134,8 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
 .tab .close { width: 18px; height: 18px; border-radius: 3px; color: var(--dim); }
 .tab .close:hover { background: var(--line); color: var(--text); }
 .tab .spin { color: var(--accent); }
-.tab.drop { box-shadow: inset 2px 0 0 var(--accent); }
+.tab.drop-l { box-shadow: inset 2px 0 0 var(--accent); }
+.tab.drop-r { box-shadow: inset -2px 0 0 var(--accent); }
 
 #new-tab { width: 26px; height: 26px; border-radius: 4px; color: var(--dim); font-size: 16px; }
 #new-tab:hover { background: var(--bg-raised); color: var(--text); }
