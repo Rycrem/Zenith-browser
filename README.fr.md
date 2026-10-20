@@ -46,6 +46,7 @@ Tests de la logique (favoris, alias, lecture des résultats, extensions) : `npm 
 | `fav [dossier]` | favoris en arbre |
 | `add [dossier/]nom` | ajoute la page, crée les dossiers manquants |
 | `fav rm <chemin\|n>`, `fav mv <chemin> <dest>`, `fav rename <chemin> <nom>`, `undo` | gérer les favoris |
+| `fav import [chrome\|edge\|brave\|vivaldi\|opera\|firefox\|fichier\|<fichier>]` | importe les favoris d'un autre navigateur de cet ordinateur, ou d'un export HTML (`fav import fichier` ouvre un sélecteur) ; ils arrivent dans un dossier au nom du navigateur, sans doublons |
 | `hist [texte]` | historique, filtrable |
 | `clean`, `clean all` | vide l'historique ; `all` vide aussi cookies et cache (avec confirmation) |
 | `find [texte]` | chercher dans la page |
@@ -70,9 +71,9 @@ Chaque onglet a son propre terminal ; l'historique des commandes (↑ ↓) est c
 
 ## Raccourcis
 
-Ctrl+L terminal · Ctrl+J cacher/montrer le terminal · F11 plein écran · Échap rendre la main à la page · Ctrl+T / Ctrl+W onglets · Ctrl+Tab, Ctrl+1…9 · Alt+←/→ · F5 · Ctrl+F chercher · Ctrl+D favori · Ctrl+Maj+S split · F6 changer d'écran · F12 ou clic droit › Inspecter pour les DevTools · Alt+1…9 popup d'extension · ↑/↓ historique des commandes · Tab autocomplétion.
+Ctrl+L terminal · Ctrl+J cacher/montrer le terminal · F11 plein écran · Échap rendre la main à la page · Ctrl+T / Ctrl+W onglets · Ctrl+Tab, Ctrl+1…9 · Alt+←/→ · F5 · Ctrl+F chercher · Ctrl+D favori · Ctrl+Maj+S split · F6 changer d'écran · F12 ou clic droit › Inspecter pour les DevTools · Alt+1…9 popup d'extension · Ctrl+Maj+B popup des favoris · Ctrl+Maj+J popup des téléchargements · ↑/↓ historique des commandes · Tab autocomplétion.
 
-À la souris : un clic sur l'adresse en haut à droite la copie, le + ouvre un onglet, le zoom s'affiche dans la barre d'état quand il n'est pas à 100 % (clic pour revenir à 100 %), et la barre au-dessus des DevTools les détache (⇱) ou les ferme (✕). La barre entre la page et le terminal se glisse pour changer sa hauteur (double-clic pour revenir à la taille par défaut), la barre entre les deux écrans du split aussi. Les onglets, résultats, favoris et pastilles d'extensions sont cliquables (Ctrl+clic pour un nouvel onglet). Clic molette sur un onglet pour le fermer, glisser-déposer pour changer leur ordre. Dans le terminal, le clic droit copie le texte sélectionné, ou colle le presse-papier dans la ligne de commande s'il n'y a pas de sélection.
+À la souris : un clic sur l'adresse en haut à droite la copie, le + ouvre un onglet, le zoom s'affiche dans la barre d'état quand il n'est pas à 100 % (clic pour revenir à 100 %), et la barre au-dessus des DevTools les détache (⇱) ou les ferme (✕). La barre entre la page et le terminal se glisse pour changer sa hauteur (double-clic pour revenir à la taille par défaut), la barre entre les deux écrans du split aussi. Les onglets, résultats, favoris et pastilles d'extensions sont cliquables (Ctrl+clic pour un nouvel onglet). Dans la barre d'état, ★ favoris (en bas à gauche) ouvre tes favoris en popup avec un filtre (tape, ↑/↓, Entrée), et ↓ (à droite des pastilles d'extensions) ouvre la popup des téléchargements, avec une roue de progression, le poids, la vitesse et le temps restant de chacun. Clic molette sur un onglet pour le fermer, glisser-déposer pour changer leur ordre. Dans le terminal, le clic droit copie le texte sélectionné, ou colle le presse-papier dans la ligne de commande s'il n'y a pas de sélection.
 
 ## Extensions
 

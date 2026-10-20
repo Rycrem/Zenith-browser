@@ -62,6 +62,7 @@ const COMMANDS = [
   ['fav rm', '<chemin | n>', 'supprimer un favori ou un dossier'],
   ['fav mv', '<chemin> <destination>', 'déplacer un favori'],
   ['fav rename', '<chemin> <nom>', 'renommer un favori'],
+  ['fav import', '[chrome | edge | brave | firefox | fichier]', 'importer les favoris d\'un autre navigateur (ou d\'un export HTML)'],
   ['undo', '', 'annuler la dernière suppression de favori'],
   ['hist', '[texte]', 'historique, filtré si besoin'],
   ['clean', '[all]', 'vider l\'historique ; « all » vide aussi les cookies et le cache'],
@@ -91,7 +92,7 @@ const COMMAND_NAMES = [
 ];
 
 const SUBCOMMANDS = {
-  fav: ['rm', 'mv', 'rename'],
+  fav: ['rm', 'mv', 'rename', 'import'],
   ext: ['add', 'on', 'off', 'rm', 'alias'],
   tab: ['new', 'save'],
   split: ['off'],

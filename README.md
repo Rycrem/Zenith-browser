@@ -53,6 +53,7 @@ Logic tests (bookmarks, aliases, result parsing, extensions, translations): `npm
 | `fav [folder]` | bookmarks as a tree |
 | `add [folder/]name` | bookmarks the page, creating missing folders |
 | `fav rm <path\|n>`, `fav mv <path> <dest>`, `fav rename <path> <name>`, `undo` | manage bookmarks |
+| `fav import [chrome\|edge\|brave\|vivaldi\|opera\|firefox\|file\|<file>]` | imports bookmarks from another browser on this computer, or from an HTML export (`fav import file` opens a file picker); they land in a folder named after the browser, without duplicates |
 | `hist [text]` | history, filterable |
 | `clean`, `clean all` | clears history; `all` also clears cookies and cache (asks first) |
 | `find [text]` | find in page |
@@ -77,9 +78,9 @@ Each tab has its own terminal; command history (↑ ↓) is shared by all of the
 
 ## Shortcuts
 
-Ctrl+L terminal · Ctrl+J hide/show the terminal · F11 fullscreen · Esc hand over to the page · Ctrl+T / Ctrl+W tabs · Ctrl+Tab, Ctrl+1…9 · Alt+←/→ · F5 · Ctrl+F find · Ctrl+D bookmark · Ctrl+Shift+S split · F6 switch pane · F12 or right-click › Inspect for DevTools · Alt+1…9 extension popup · ↑/↓ command history · Tab completion.
+Ctrl+L terminal · Ctrl+J hide/show the terminal · F11 fullscreen · Esc hand over to the page · Ctrl+T / Ctrl+W tabs · Ctrl+Tab, Ctrl+1…9 · Alt+←/→ · F5 · Ctrl+F find · Ctrl+D bookmark · Ctrl+Shift+S split · F6 switch pane · F12 or right-click › Inspect for DevTools · Alt+1…9 extension popup · Ctrl+Shift+B bookmarks popup · Ctrl+Shift+J downloads popup · ↑/↓ command history · Tab completion.
 
-With the mouse: clicking the address at the top right copies it, + opens a tab, the zoom level shows in the status bar when it is not 100% (click it to go back to 100%), and the bar above DevTools detaches them (⇱) or closes them (✕). The bar between the page and the terminal can be dragged to change its height (double-click for the default size), and so can the bar between the two split panes. Tabs, results, bookmarks and extension badges are clickable (Ctrl+click for a new tab). Middle-click a tab to close it, drag and drop to reorder. In the terminal, right-click copies the selected text, or pastes the clipboard into the command line when nothing is selected.
+With the mouse: clicking the address at the top right copies it, + opens a tab, the zoom level shows in the status bar when it is not 100% (click it to go back to 100%), and the bar above DevTools detaches them (⇱) or closes them (✕). The bar between the page and the terminal can be dragged to change its height (double-click for the default size), and so can the bar between the two split panes. Tabs, results, bookmarks and extension badges are clickable (Ctrl+click for a new tab). In the status bar, ★ bookmarks (bottom left) opens your bookmarks in a popup with a filter (type, ↑/↓, Enter), and ↓ (right of the extension badges) opens the downloads popup, with a progress ring, size, speed and time left for each download. Middle-click a tab to close it, drag and drop to reorder. In the terminal, right-click copies the selected text, or pastes the clipboard into the command line when nothing is selected.
 
 ## Extensions
 

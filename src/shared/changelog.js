@@ -4,6 +4,21 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.17',
+    notes: [
+      'Bouton ↓ à droite des extensions (ou Ctrl+Maj+J) : les téléchargements en popup, avec une roue de progression, le poids, la vitesse et le temps restant.',
+      'Bouton ★ favoris en bas à gauche (ou Ctrl+Maj+B) : tes favoris en popup, avec un filtre.',
+      '« fav import » importe les favoris de Chrome, Edge, Brave, Vivaldi, Opera, Firefox ou d\'un export HTML.',
+      'L\'accueil se met à jour tout de suite quand un favori est ajouté, déplacé ou supprimé.',
+    ],
+    en: [
+      '↓ button right of the extensions (or Ctrl+Shift+J): downloads in a popup, with a progress ring, size, speed and time left.',
+      '★ bookmarks button at the bottom left (or Ctrl+Shift+B): your bookmarks in a popup, with a filter.',
+      '“fav import” imports bookmarks from Chrome, Edge, Brave, Vivaldi, Opera, Firefox or an HTML export.',
+      'The home screen updates right away when a bookmark is added, moved or removed.',
+    ],
+  },
+  {
     version: '0.1.16',
     notes: [
       '« update -v » liste les versions publiées : choisis-en une pour lire ses notes et l\'installer (même une plus ancienne).',

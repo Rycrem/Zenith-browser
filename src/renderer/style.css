@@ -234,6 +234,8 @@ th { color: var(--dim); }
 #status .pill.zoom { background: var(--bg); color: var(--text); font-size: 12px; }
 .chip { padding: 2px 8px; border-radius: 3px; background: var(--bg); color: var(--green); font-size: 12px; font-weight: 600; }
 .chip.off { color: var(--dim); }
+#dl-chip, #fav-chip { color: var(--text); }
+#dl-chip.busy { color: var(--accent); }
 .chip:hover { outline: 2px solid var(--bg); outline-offset: 1px; }
 .link-btn { padding: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-align: left; }
 .link-btn:hover { color: var(--accent); text-decoration: underline; }
