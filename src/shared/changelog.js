@@ -4,6 +4,27 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.20',
+    notes: [
+      'En tapant dans l\'adresse, des pages de ton historique sont proposées : ↑/↓ pour choisir, clic ou Entrée pour y aller.',
+      'L\'adresse est plus compacte et alignée à droite.',
+      'Le bouton soleil/lune prend la place de l\'heure et a la même hauteur que les extensions épinglées.',
+      'Le player du son a un bouton lecture/pause, un bouton muet et un curseur de volume avec son pourcentage.',
+      'Une vidéo en plein écran prend toute la fenêtre : les onglets et la barre d\'état disparaissent.',
+      'Dans la popup des favoris, un glisser-déposer les range : avant, après ou dans un dossier.',
+      'Dashlane détecte à nouveau les champs de connexion : les extensions sont prévenues quand un onglet est affiché.',
+    ],
+    en: [
+      'Typing in the address suggests pages from your history: ↑/↓ to pick, click or Enter to go.',
+      'The address is more compact and right-aligned.',
+      'The sun/moon button replaces the clock and matches the height of pinned extensions.',
+      'The sound player has a play/pause button, a mute button and a volume slider with its percentage.',
+      'A fullscreen video takes the whole window: tabs and the status bar disappear.',
+      'In the bookmarks popup, drag and drop reorders them: before, after or into a folder.',
+      'Dashlane detects login fields again: extensions are told when a tab is shown.',
+    ],
+  },
+  {
     version: '0.1.19',
     notes: [
       'L\'adresse en haut se modifie à la main : Entrée pour y aller, Échap pour annuler.',

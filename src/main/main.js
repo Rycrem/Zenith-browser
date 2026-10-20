@@ -173,6 +173,17 @@ function ensureView(tab) {
 
 const tabOfContents = (wc) => tabs.find((t) => t.view && t.view.webContents === wc);
 
+// electron-chrome-extensions n'envoie jamais tabs.onHighlighted, et le sender des messages n'a
+// tab.active vrai que si la page a le focus clavier. Dashlane attend l'un ou l'autre pour
+// analyser les champs : on signale l'onglet affiché quand il est choisi, chargé ou cliqué.
+function highlightForExtensions(tab) {
+  const wc = tab && tab.view && tab.view.webContents;
+  if (!wc || wc.isDestroyed() || paneOf(tab) < 0 || !win) return;
+  try {
+    apiOf(tab).ctx.router.broadcastEvent('tabs.onHighlighted', { tabIds: [wc.id], windowId: win.id });
+  } catch {}
+}
+
 // chrome.tabs / chrome.windows des extensions, branchés sur les onglets de dev-brows.
 function setupChromeApi(s) {
   return new ElectronChromeExtensions({
@@ -243,8 +254,12 @@ function wireWebContents(tab, wc) {
   });
   wc.on('media-paused', () => {
     tab.media = 'paused';
+    tab.pausedAt = Date.now();
     audioChanged();
   });
+  // Vidéo en plein écran : la page couvre toute la fenêtre, onglets et barre d'état cachés.
+  wc.on('enter-html-full-screen', () => setHtmlFullscreen(tab, true));
+  wc.on('leave-html-full-screen', () => setHtmlFullscreen(tab, false));
   wc.on('did-navigate', () => {
     tab.media = null;
     audioChanged();
@@ -252,6 +267,9 @@ function wireWebContents(tab, wc) {
   wc.on('did-frame-finish-load', () => applyVolume(tab));
   wc.on('did-stop-loading', () => {
     tab.loading = false;
+    // Une seconde plus tard aussi : l'extension a fini de traiter « page chargée » entre-temps.
+    highlightForExtensions(tab);
+    setTimeout(() => highlightForExtensions(tab), 1000);
     sendState();
     if (tab.tty && (!tab.screen || tab.screen.kind === 'tty')) showTty(tab, true);
   });
@@ -289,6 +307,7 @@ function wireWebContents(tab, wc) {
     if (isMainFrame && code !== -3) print([{ t: t('impossible de charger {url} : {desc}', { url, desc }), c: 'err' }]);
   });
   wc.on('focus', () => {
+    highlightForExtensions(tab);
     const p = paneOf(tab);
     if (p >= 0 && p !== activePane) {
       activePane = p;
@@ -342,6 +361,7 @@ function showInPane(tab, idx) {
   panes[idx].tabId = tab.id;
   activePane = idx;
   if (tab.view?.webContents) apiOf(tab).selectTab(tab.view.webContents);
+  highlightForExtensions(tab);
   layout();
   sendState();
 }
@@ -403,8 +423,33 @@ function tabTitle(tab) {
 
 // ---------------------------------------------------------------- disposition
 
+let fullTab = null; // onglet dont une vidéo est en plein écran
+let fullSetWin = false; // la fenêtre est passée en plein écran pour la vidéo
+
+function setHtmlFullscreen(tab, on) {
+  if (!win || win.isDestroyed()) return;
+  if (on) {
+    fullTab = tab;
+    if (!win.isFullScreen()) { fullSetWin = true; win.setFullScreen(true); }
+  } else if (fullTab === tab) {
+    fullTab = null;
+    if (fullSetWin) { fullSetWin = false; win.setFullScreen(false); }
+  }
+  layout();
+}
+
 function layout() {
   if (!win) return;
+  if (fullTab && (!tabs.includes(fullTab) || !fullTab.view || paneOf(fullTab) < 0)) setHtmlFullscreen(fullTab, false);
+  if (fullTab) {
+    const [width, height] = win.getContentSize();
+    tabs.forEach((tab) => {
+      if (tab.view) tab.view.setVisible(tab === fullTab);
+      if (tab.dev && !tab.devWin) tab.dev.setVisible(false);
+    });
+    fullTab.view.setBounds({ x: 0, y: 0, width, height });
+    return;
+  }
   tabs.forEach((tab) => {
     const p = paneOf(tab);
     const r = rects[p];
@@ -559,6 +604,95 @@ function addHistory(entry) {
   entries.push({ ...entry, time: Date.now() });
   if (entries.length > HISTORY_MAX) entries.splice(0, entries.length - HISTORY_MAX);
   history.save();
+}
+
+// ---------------------------------------------------------------- suggestions de l'adresse
+
+// Les pages de l'historique qui correspondent à ce qui est tapé : d'abord celles dont
+// l'adresse commence par le texte, puis celles qui le contiennent, puis par le titre ;
+// à égalité, les plus visitées puis les plus récentes.
+function historySuggestions(text, max = 8) {
+  const q = String(text || '').trim().toLowerCase();
+  if (!q) return [];
+  const byUrl = new Map();
+  const entries = history.data.entries;
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const e = entries[i];
+    if (!e.url || e.query || !/^https?:/.test(e.url)) continue;
+    let s = byUrl.get(e.url);
+    if (!s) byUrl.set(e.url, (s = { url: e.url, title: e.title || '', visits: 0, time: e.time || 0 }));
+    s.visits++;
+    if (!s.title && e.title) s.title = e.title;
+  }
+  const out = [];
+  for (const s of byUrl.values()) {
+    const bare = s.url.replace(/^https?:\/\/(www\.)?/, '').toLowerCase();
+    const score = bare.startsWith(q) ? 3 : bare.includes(q) ? 2 : s.title.toLowerCase().includes(q) ? 1 : 0;
+    if (score) out.push({ ...s, score });
+  }
+  out.sort((a, b) => b.score - a.score || b.visits - a.visits || b.time - a.time);
+  return out.slice(0, max).map(({ url, title }) => ({ url, title }));
+}
+
+// Fenêtre sous le champ d'adresse : la page (vue native) couvrirait une liste dans l'interface.
+let suggest = null; // { win, key, ready, data }
+let suggestList = [];
+
+function hideSuggest() {
+  suggestList = [];
+  if (suggest && !suggest.win.isDestroyed()) suggest.win.hide();
+}
+
+function showSuggest(rect, selected) {
+  if (!win || win.isDestroyed() || !suggestList.length || !rect) return hideSuggest();
+  const b = win.getContentBounds();
+  const width = Math.max(340, Math.round(rect.width));
+  const bounds = {
+    x: Math.max(b.x, Math.min(b.x + Math.round(rect.x), b.x + b.width - width)),
+    y: b.y + Math.round(rect.y + rect.height) + 2,
+    width,
+    height: suggestList.length * 26 + 8,
+  };
+  const key = `${accentColor()}|${isLight()}|${!!privateMode}`;
+  if (suggest && (suggest.win.isDestroyed() || suggest.key !== key)) {
+    if (!suggest.win.isDestroyed()) suggest.win.destroy();
+    suggest = null;
+  }
+  if (!suggest) {
+    const sw = new BrowserWindow({
+      ...bounds,
+      parent: win,
+      frame: false,
+      resizable: false,
+      focusable: false,
+      show: false,
+      skipTaskbar: true,
+      backgroundColor: isLight() ? '#F6F7F9' : privateMode ? '#1A1024' : '#0E1116',
+      webPreferences: { preload: path.join(__dirname, 'panel-preload.js'), sandbox: true, contextIsolation: true },
+    });
+    suggest = { win: sw, key, ready: false, data: null };
+    const s = suggest;
+    sw.webContents.on('did-finish-load', () => {
+      s.ready = true;
+      if (!s.data || sw.isDestroyed() || !suggestList.length) return;
+      sw.webContents.send('panel:data', s.data);
+      sw.showInactive();
+    });
+    sw.loadFile(path.join(__dirname, '../renderer/suggest.html'), { query: { accent: accentColor(), mode: isLight() ? 'jour' : 'nuit', private: privateMode ? '1' : '' } });
+  }
+  suggest.data = { list: suggestList, selected };
+  suggest.win.setBounds(bounds);
+  if (!suggest.ready) return;
+  suggest.win.webContents.send('panel:data', suggest.data);
+  if (!suggest.win.isVisible()) suggest.win.showInactive();
+}
+
+function suggestAction(action, arg) {
+  if (action !== 'open' || !arg || !suggestList.some((s) => s.url === arg.url)) return;
+  hideSuggest();
+  win.webContents.send('suggest:done');
+  if (arg.newTab) createTab({ url: arg.url, background: true });
+  else navigate(activeTab(), arg.url);
 }
 
 // ---------------------------------------------------------------- recherche
@@ -979,7 +1113,7 @@ function audioState() {
   const list = audioTabs();
   return {
     show: list.length > 0,
-    playing: list.some((t) => t.audible),
+    playing: list.some((t) => t.media === 'playing' || t.audible),
     volume: globalVolume(),
     muted: !!settings.data.muteAll,
   };
@@ -1010,6 +1144,7 @@ async function setupPrivateSession() {
   privApi = setupChromeApi(privSes);
   watchWorkerLogs(privSes);
   privSes.registerPreloadScript({ id: 'dev-brows-browser-alias', type: 'frame', filePath: path.join(__dirname, 'ext-preload.js') });
+  privSes.registerPreloadScript({ id: 'dev-brows-sw-events', type: 'service-worker', filePath: path.join(__dirname, 'ext-sw-preload.js') });
   setupDownloads(privSes);
   setupPermissions(privSes);
   setupWebAuthn(privSes);
@@ -1089,6 +1224,18 @@ function setMuteAll(on) {
     }
   }
   audioChanged();
+}
+
+// Bouton lecture/pause du player : met en pause tout ce qui joue, sinon reprend le dernier mis en pause.
+async function togglePlayAll() {
+  const list = audioTabs();
+  const playing = list.filter((t) => t.media === 'playing' || (!t.media && t.audible));
+  if (playing.length) {
+    for (const t of playing) await togglePlay(t);
+    return;
+  }
+  const last = list.filter((t) => t.media === 'paused').sort((a, b) => (b.pausedAt || 0) - (a.pausedAt || 0))[0];
+  if (last) await togglePlay(last);
 }
 
 async function togglePlay(tab) {
@@ -1188,7 +1335,7 @@ function favData() {
     empty: t('Aucun favori : « add nom » ajoute la page, « fav import » ceux d\'un autre navigateur.'),
     none: t('Aucun favori ne correspond.'),
     filter: t('filtrer…'),
-    hint: t('Ctrl+Maj+B · Ctrl+clic : nouvel onglet'),
+    hint: t('Ctrl+Maj+B · Ctrl+clic : nouvel onglet · glisser pour ranger'),
     openTitle: t('ouvrir (Ctrl+clic : nouvel onglet)'),
   };
 }
@@ -1293,6 +1440,14 @@ async function panelAction(kind, action, arg) {
     if (panel && panel.kind === 'fav' && !panel.win.isDestroyed()) panel.win.close();
     if (arg.newTab) createTab({ url: arg.url, background: true });
     else navigate(activeTab(), arg.url);
+  } else if (kind === 'fav' && action === 'move' && arg && typeof arg.src === 'string' && typeof arg.target === 'string' && ['before', 'after', 'into'].includes(arg.where)) {
+    try {
+      fav.reorderFavorite(favorites.data.tree, arg.src, arg.target, arg.where);
+    } catch (err) {
+      sendPanel('fav'); // remet l'arbre tel qu'il était
+      return;
+    }
+    saveFavorites();
   }
 }
 
@@ -2808,9 +2963,19 @@ function setupIpc() {
   });
   ipcMain.on('ui:volume', (e, v) => Number.isFinite(v) && setGlobalVolume(v));
   ipcMain.on('ui:mode', () => setMode(!isLight()));
+  ipcMain.on('ui:media-toggle', () => togglePlayAll().catch(() => {}));
+  ipcMain.on('ui:mute-all', () => setMuteAll(!settings.data.muteAll));
   ipcMain.on('ui:panel', (e, kind, x) => PANELS[kind] && togglePanel(kind, Number.isFinite(x) ? x : undefined));
   const fromPanel = (e) => (panel && !panel.win.isDestroyed() && e.sender === panel.win.webContents ? panel : null);
+  ipcMain.handle('ui:suggest', (e, text, rect) => {
+    suggestList = historySuggestions(text);
+    showSuggest(rect, -1);
+    return suggestList;
+  });
+  ipcMain.on('ui:suggest-select', (e, i, rect) => showSuggest(rect, i));
+  ipcMain.on('ui:suggest-hide', () => hideSuggest());
   ipcMain.on('panel:act', (e, action, arg) => {
+    if (suggest && !suggest.win.isDestroyed() && e.sender === suggest.win.webContents) return suggestAction(action, arg);
     const p = fromPanel(e);
     if (p) panelAction(p.kind, action, arg).catch((err) => print([{ t: `  ${err.message}`, c: 'err' }]));
   });
@@ -2843,6 +3008,19 @@ function createWindow() {
   });
   win.setMenuBarVisibility(false);
   win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
+  win.on('resize', () => {
+    hideSuggest();
+    if (fullTab) layout();
+  });
+  win.on('move', () => hideSuggest());
+  // F11 ou la fenêtre qui sort du plein écran : la vidéo en sort aussi.
+  win.on('leave-full-screen', () => {
+    if (!fullTab) return;
+    fullSetWin = false;
+    const wc = fullTab.view.webContents;
+    setHtmlFullscreen(fullTab, false);
+    wc.executeJavaScript('document.fullscreenElement && document.exitFullscreen()', true).catch(() => {});
+  });
   win.on('closed', () => {
     win = null;
   });
@@ -2860,6 +3038,7 @@ app.whenReady().then(async () => {
   chromeApi = setupChromeApi(ses); // avant le chargement des extensions, pour lire leurs manifestes
   watchExtensionLogs();
   ses.registerPreloadScript({ id: 'dev-brows-browser-alias', type: 'frame', filePath: path.join(__dirname, 'ext-preload.js') });
+  ses.registerPreloadScript({ id: 'dev-brows-sw-events', type: 'service-worker', filePath: path.join(__dirname, 'ext-sw-preload.js') });
   exts = new Extensions(ses, settings, path.join(dir, 'extensions'));
   exts.installBundledUblock(app.isPackaged ? path.join(process.resourcesPath, 'ublock-origin') : path.join(__dirname, '..', '..', 'vendor', 'ublock-origin'));
   await exts.loadAll();

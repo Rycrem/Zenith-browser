@@ -230,32 +230,71 @@ function renderPs1() {
 $('#new-tab').addEventListener('click', () => api.newTab());
 
 // L'adresse en haut se modifie à la main (Entrée : y aller, Échap : annuler) ; le bouton à droite la copie.
+// En tapant, l'historique propose des pages (↑/↓ pour choisir, clic pour y aller).
 const urlInput = $('#url');
+let suggestions = [];
+let suggestSel = -1;
+let suggestTyped = '';
+const urlRect = () => {
+  const r = $('#url-form').getBoundingClientRect();
+  return { x: r.x, y: r.y, width: r.width, height: r.height };
+};
+function closeSuggest() {
+  suggestions = [];
+  suggestSel = -1;
+  api.suggestHide();
+}
 $('#url-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const url = urlInput.value.trim();
+  closeSuggest();
   urlInput.blur();
   if (!url || url === state.status.url) return;
   await run(`go ${url}`);
   api.focusPage();
 });
 urlInput.addEventListener('focus', () => urlInput.select());
+urlInput.addEventListener('input', async () => {
+  suggestTyped = urlInput.value;
+  suggestSel = -1;
+  const list = await api.suggest(urlInput.value, urlRect());
+  if (document.activeElement === urlInput) suggestions = list;
+  else api.suggestHide();
+});
 urlInput.addEventListener('keydown', async (e) => {
+  if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && suggestions.length) {
+    e.preventDefault();
+    const n = suggestions.length;
+    // -1 : ce qui a été tapé ; 0..n-1 : une suggestion.
+    suggestSel = ((suggestSel + 1 + (e.key === 'ArrowDown' ? 1 : -1) + n + 1) % (n + 1)) - 1;
+    urlInput.value = suggestSel >= 0 ? suggestions[suggestSel].url : suggestTyped;
+    api.suggestSelect(suggestSel, urlRect());
+    return;
+  }
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
     e.preventDefault();
     const url = urlInput.value.trim();
+    closeSuggest();
     urlInput.blur();
     if (url) await run(`tab new ${url}`);
     return;
   }
   if (e.key !== 'Escape') return;
   e.preventDefault();
+  if (suggestions.length) {
+    urlInput.value = suggestTyped;
+    closeSuggest();
+    return;
+  }
   urlInput.value = state.status.url;
   urlInput.blur();
 });
 urlInput.addEventListener('blur', () => {
   urlInput.value = state.status.url;
+  // Laisse passer un clic sur une suggestion avant de fermer la liste.
+  setTimeout(() => { if (document.activeElement !== urlInput) closeSuggest(); }, 200);
 });
+api.on('suggest:done', () => urlInput.blur());
 let copiedTimer = null;
 $('#url-copy').append(copyIcon());
 $('#url-copy').addEventListener('click', () => {
@@ -499,27 +538,65 @@ function renderPanes() {
 
 panesEl.forEach((p, i) => p.addEventListener('pointerdown', () => state && state.activePane !== i && api.pane(i)));
 
-// Player du son : barre animée (clic : popup par onglet) et volume du navigateur.
+// Player du son : lecture/pause, haut-parleur (couper tout), volume du navigateur avec son pourcentage,
+// et ▴ pour régler chaque onglet.
 let volumeDragging = false;
 function player(a) {
-  const bars = h('button', {
+  const pct = Math.round(a.volume * 100);
+  const play = h('button', {
     type: 'button',
-    id: 'audio-chip',
-    class: `chip eq${a.playing && !a.muted ? ' on' : ''}`,
-    title: t('Son des onglets : lecture, pause, volume'),
-    onclick: () => openPanel('audio'),
-  }, a.muted ? speaker(true) : [1, 2, 3, 4].map((i) => h('span', { class: `bar b${i}` })));
+    class: 'chip player-btn',
+    title: a.playing ? t('Mettre en pause') : t('Reprendre la lecture'),
+    onclick: () => api.mediaToggle(),
+  }, playIcon(a.playing));
+  const mute = h('button', {
+    type: 'button',
+    class: `chip player-btn${a.muted ? ' muted' : ''}`,
+    title: a.muted ? t('Remettre le son') : t('Couper le son'),
+    onclick: () => api.muteAll(),
+  }, speaker(a.muted));
+  const value = h('span', { class: 'volume-pct' }, `${pct} %`);
   const slider = h('input', {
     type: 'range',
     class: 'volume',
     min: '0',
     max: '100',
-    value: String(Math.round(a.volume * 100)),
-    title: t('Volume du navigateur : {v} %', { v: Math.round(a.volume * 100) }),
+    value: String(pct),
+    title: t('Volume du navigateur : {v} %', { v: pct }),
     onpointerdown: () => { volumeDragging = true; },
-    oninput: (e) => api.volume(Number(e.target.value) / 100),
+    oninput: (e) => {
+      value.textContent = `${e.target.value} %`;
+      e.target.style.setProperty('--fill', `${e.target.value}%`);
+      api.volume(Number(e.target.value) / 100);
+    },
   });
-  return h('span', { class: 'player' }, bars, slider);
+  slider.style.setProperty('--fill', `${pct}%`);
+  const tabsBtn = h('button', {
+    type: 'button',
+    id: 'audio-chip',
+    class: 'chip player-btn',
+    title: t('Son de chaque onglet'),
+    onclick: () => openPanel('audio'),
+  }, '▴');
+  return h('span', { class: 'player' }, play, mute, h('span', { class: `volume-box${a.muted ? ' muted' : ''}` }, slider, value), tabsBtn);
+}
+
+function playIcon(playing) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 16 16');
+  svg.setAttribute('class', 'mode-icon');
+  for (const d of playing ? ['M5 3.5v9', 'M11 3.5v9'] : ['M5 3.2v9.6L12.6 8z']) {
+    const p = document.createElementNS(NS, 'path');
+    p.setAttribute('d', d);
+    p.setAttribute('fill', playing ? 'none' : 'currentColor');
+    p.setAttribute('stroke', 'currentColor');
+    p.setAttribute('stroke-width', playing ? '2.2' : '1.2');
+    p.setAttribute('stroke-linecap', 'round');
+    p.setAttribute('stroke-linejoin', 'round');
+    svg.append(p);
+  }
+  return svg;
 }
 
 // Le bouton peut être relâché hors du curseur.
@@ -556,13 +633,6 @@ function renderStatus() {
     s.zoom !== 100 ? h('button', { type: 'button', class: 'pill zoom', title: t('Revenir à 100 % (Ctrl+0)'), onclick: () => api.resetZoom() }, t('zoom {zoom} %', { zoom: s.zoom })) : null,
     h('span', { class: 'grow' }),
     state.audio.show ? player(state.audio) : null,
-    h('button', {
-      type: 'button',
-      id: 'mode-chip',
-      class: 'chip',
-      title: state.light ? t('Passer en mode nuit') : t('Passer en mode jour'),
-      onclick: () => api.toggleMode(),
-    }, modeIcon(state.light)),
     chips,
     h('button', {
       type: 'button',
@@ -578,19 +648,16 @@ function renderStatus() {
       title: t('Téléchargements (Ctrl+Maj+J)'),
       onclick: () => openPanel('dl'),
     }, downloadIcon(), state.downloads ? ` ${state.downloads}` : null),
-    // Le player prend la place de l'heure.
-    state.audio.show ? null : h('span', { id: 'clock' }, clock()),
+    // Le bouton du thème est à la place de l'ancienne heure.
+    h('button', {
+      type: 'button',
+      id: 'mode-chip',
+      class: 'chip',
+      title: state.light ? t('Passer en mode nuit') : t('Passer en mode jour'),
+      onclick: () => api.toggleMode(),
+    }, modeIcon(state.light))
   ]);
 }
-
-function clock() {
-  return new Date().toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
-}
-
-setInterval(() => {
-  const c = $('#clock');
-  if (c) c.textContent = clock();
-}, 15000);
 
 // ------------------------------------------------ écrans internes
 
