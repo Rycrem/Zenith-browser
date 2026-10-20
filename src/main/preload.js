@@ -21,6 +21,8 @@ contextBridge.exposeInMainWorld('brows', {
   tabMute: (id) => ipcRenderer.send('ui:tab-mute', id),
   volume: (v) => ipcRenderer.send('ui:volume', v),
   toggleMode: () => ipcRenderer.send('ui:mode'),
+  mediaToggle: () => ipcRenderer.send('ui:media-toggle'),
+  muteAll: () => ipcRenderer.send('ui:mute-all'),
   readClipboard: () => ipcRenderer.invoke('ui:clipboard-read'),
   writeClipboard: (text) => ipcRenderer.send('ui:clipboard-write', text),
   resetZoom: () => ipcRenderer.send('ui:zoom-reset'),

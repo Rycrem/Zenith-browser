@@ -139,10 +139,10 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
 #new-tab { width: 26px; height: 26px; border-radius: 4px; color: var(--dim); font-size: 16px; }
 #new-tab:hover { background: var(--bg-raised); color: var(--text); }
 
-.url { margin-left: auto; display: flex; align-items: center; gap: 4px; position: relative; width: 45%; min-width: 160px; }
-#url { flex: 1; min-width: 0; height: 26px; padding: 0 8px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--green); font: inherit; text-overflow: ellipsis; outline: none; }
+.url { margin-left: auto; display: flex; align-items: center; gap: 4px; position: relative; width: 30%; min-width: 160px; max-width: 420px; }
+#url { flex: 1; min-width: 0; height: 26px; padding: 0 8px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--green); font: inherit; text-align: right; text-overflow: ellipsis; outline: none; }
 #url:hover { border-color: var(--line); }
-#url:focus { border-color: var(--accent); background: var(--bg-raised); color: var(--text); }
+#url:focus { text-align: left; border-color: var(--accent); background: var(--bg-raised); color: var(--text); }
 #url::placeholder { color: var(--dim); }
 #url-copy { flex: none; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 4px; color: var(--dim); }
 #url-copy:hover { background: var(--bg-raised); color: var(--text); }
@@ -287,13 +287,13 @@ th { color: var(--dim); }
 #status .dev .pill { background: var(--bg); color: var(--text); font-size: 12px; }
 #status .dev .pill:hover { color: var(--accent); }
 #status .pill.zoom { background: var(--bg); color: var(--text); font-size: 12px; }
-.chip { padding: 2px 8px; border-radius: 3px; background: var(--bg); color: var(--green); font-size: 12px; font-weight: 600; }
+.chip { box-sizing: border-box; height: 22px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 0 8px; border-radius: 3px; background: var(--bg); color: var(--green); font-size: 12px; font-weight: 600; }
 .chip.off { color: var(--dim); }
 #dl-chip, #fav-chip { color: var(--text); }
 #dl-chip.busy { color: var(--accent); }
 #dl-chip { display: flex; align-items: center; gap: 4px; }
 .dl-icon { width: 14px; height: 14px; display: block; }
-#mode-chip, #ext-chip { display: flex; align-items: center; color: var(--text); padding: 2px 6px; }
+#mode-chip, #ext-chip { color: var(--text); padding: 0 6px; min-width: 26px; }
 .mode-icon { width: 14px; height: 14px; display: block; }
 
 /* Son : haut-parleur dans l'onglet, player dans la barre d'état */
@@ -302,14 +302,16 @@ th { color: var(--dim); }
 .tab .speaker.muted { color: var(--dim); }
 .tab .speaker:hover { background: var(--line); color: var(--text); }
 .player { display: flex; align-items: center; gap: 8px; }
-.eq { display: flex; align-items: flex-end; gap: 2px; height: 20px; padding: 3px 8px; color: var(--accent); }
-.eq .bar { width: 3px; height: 4px; background: currentColor; border-radius: 1px; }
-.eq.on .bar { animation: eq 0.9s ease-in-out infinite alternate; }
-.eq.on .b2 { animation-delay: -0.3s; }
-.eq.on .b3 { animation-delay: -0.6s; }
-.eq.on .b4 { animation-delay: -0.15s; }
-@keyframes eq { 0% { height: 3px; } 100% { height: 13px; } }
-.player .volume { width: 80px; accent-color: var(--on-accent); cursor: pointer; }
+.player-btn { color: var(--text); padding: 0 6px; min-width: 26px; }
+.player-btn.muted { color: var(--dim); }
+#audio-chip { font-size: 11px; }
+/* Volume : barre remplie jusqu'au niveau + pourcentage lisible. */
+.volume-box { height: 22px; display: inline-flex; align-items: center; gap: 8px; padding: 0 8px; border-radius: 3px; background: var(--bg); }
+.volume-box.muted .volume { opacity: .45; }
+.volume-pct { min-width: 4ch; text-align: right; color: var(--text); font-size: 12px; font-variant-numeric: tabular-nums; }
+.player .volume { -webkit-appearance: none; appearance: none; width: 90px; height: 6px; margin: 0; border-radius: 3px; cursor: pointer;
+  background: linear-gradient(to right, var(--accent) var(--fill, 50%), var(--line) var(--fill, 50%)); }
+.player .volume::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--text); border: 2px solid var(--accent); }
 .chip:hover { outline: 2px solid var(--bg); outline-offset: 1px; }
 .link-btn { padding: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-align: left; }
 .link-btn:hover { color: var(--accent); text-decoration: underline; }

@@ -243,6 +243,7 @@ function wireWebContents(tab, wc) {
   });
   wc.on('media-paused', () => {
     tab.media = 'paused';
+    tab.pausedAt = Date.now();
     audioChanged();
   });
   wc.on('did-navigate', () => {
@@ -979,7 +980,7 @@ function audioState() {
   const list = audioTabs();
   return {
     show: list.length > 0,
-    playing: list.some((t) => t.audible),
+    playing: list.some((t) => t.media === 'playing' || t.audible),
     volume: globalVolume(),
     muted: !!settings.data.muteAll,
   };
@@ -1089,6 +1090,18 @@ function setMuteAll(on) {
     }
   }
   audioChanged();
+}
+
+// Bouton lecture/pause du player : met en pause tout ce qui joue, sinon reprend le dernier mis en pause.
+async function togglePlayAll() {
+  const list = audioTabs();
+  const playing = list.filter((t) => t.media === 'playing' || (!t.media && t.audible));
+  if (playing.length) {
+    for (const t of playing) await togglePlay(t);
+    return;
+  }
+  const last = list.filter((t) => t.media === 'paused').sort((a, b) => (b.pausedAt || 0) - (a.pausedAt || 0))[0];
+  if (last) await togglePlay(last);
 }
 
 async function togglePlay(tab) {
@@ -2808,6 +2821,8 @@ function setupIpc() {
   });
   ipcMain.on('ui:volume', (e, v) => Number.isFinite(v) && setGlobalVolume(v));
   ipcMain.on('ui:mode', () => setMode(!isLight()));
+  ipcMain.on('ui:media-toggle', () => togglePlayAll().catch(() => {}));
+  ipcMain.on('ui:mute-all', () => setMuteAll(!settings.data.muteAll));
   ipcMain.on('ui:panel', (e, kind, x) => PANELS[kind] && togglePanel(kind, Number.isFinite(x) ? x : undefined));
   const fromPanel = (e) => (panel && !panel.win.isDestroyed() && e.sender === panel.win.webContents ? panel : null);
   ipcMain.on('panel:act', (e, action, arg) => {
