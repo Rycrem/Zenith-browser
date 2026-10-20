@@ -37,7 +37,8 @@ jobs:
             echo "::error::la Release $TAG existe déjà : augmente la version dans package.json"
             exit 1
           fi
-          gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "dev-brows $TAG" --generate-notes
+          node scripts/release-notes.js > release-notes.md
+          gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "dev-brows $TAG" --notes-file release-notes.md --generate-notes
 
   build:
     needs: prepare

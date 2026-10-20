@@ -50,6 +50,7 @@ const COMMANDS = [
   ['go', '<url>', 'ouvrir une adresse'],
   ['<n>', '', 'ouvrir l\'élément numéro n de la liste affichée ; « nt » dans un nouvel onglet'],
   ['links', '', 'numéroter les liens de la page'],
+  ['tty', '[on | off]', 'la page en texte simple, liens numérotés en bleu (clic ou numéro)'],
   ['back / fwd / reload', '', 'précédent, suivant, recharger'],
   ['home', '', 'revenir à l\'accueil'],
   ['tab', '[n | new [url…]]', 'lister, changer ou ouvrir un ou plusieurs onglets'],
@@ -78,6 +79,7 @@ const COMMANDS = [
   ['fullscreen', '[on | off]', 'plein écran (F11)'],
   ['quit / exit', '', 'quitter le navigateur'],
   ['update', '[install | electron]', 'vérifier ou installer les mises à jour (appli et Electron)'],
+  ['update -v', '[version]', 'versions publiées : choisir une version, lire ses notes et l\'installer'],
   ['update auto', '[on | off]', 'vérification automatique au lancement (dev-brows et extensions)'],
   ['help', '', 'cette aide'],
 ];
@@ -85,7 +87,7 @@ const COMMANDS = [
 const COMMAND_NAMES = [
   'brows', 'ia', 'go', 'links', 'back', 'fwd', 'reload', 'home', 'tab', 'close', 'split', 'focus',
   'fav', 'add', 'undo', 'hist', 'clean', 'find', 'ext', 'dl', 'alias', 'unalias', 'engine',
-  'theme', 'lang', 'adblock', 'perm', 'update', 'devtools', 'term', 'fullscreen', 'quit', 'exit', 'help', 'clear',
+  'theme', 'lang', 'tty', 'adblock', 'perm', 'update', 'devtools', 'term', 'fullscreen', 'quit', 'exit', 'help', 'clear',
 ];
 
 const SUBCOMMANDS = {
@@ -97,18 +99,19 @@ const SUBCOMMANDS = {
   adblock: ['on', 'off'],
   perm: ['reset'],
   ia: ['use', 'connect', 'key', 'logout', 'model'],
-  update: ['install', 'electron', 'auto'],
+  update: ['install', 'electron', 'auto', '-v'],
   engine: Object.keys(ENGINES),
   theme: ['ambre', 'vert', 'cyan', 'rose', 'violet'],
   lang: ['fr', 'en'],
   devtools: ['detach', 'close'],
+  tty: ['on', 'off'],
 };
 
 // Commandes qui n'acceptent pas de texte libre : ce qu'elles acceptent après leur nom.
 const ARG_SHAPES = {
   help: null, '?': null, clear: null, home: null, accueil: null, back: null, b: null, fwd: null, f: null,
-  reload: null, r: null, n: null, next: null, p: null, prev: null, links: null, l: null, term: null, quit: null, exit: null, q: null, fullscreen: /^(on|off)$/i, fs: /^(on|off)$/i,
-  undo: null, focus: null, lang: /^(fr|en)$/i, langue: /^(fr|en)$/i, update: /^(install|electron|auto)$/i,
+  reload: null, r: null, n: null, next: null, p: null, prev: null, links: null, l: null, term: null, quit: null, exit: null, q: null, fullscreen: /^(on|off)$/i, fs: /^(on|off)$/i, tty: /^(on|off)$/i,
+  undo: null, focus: null, lang: /^(fr|en)$/i, langue: /^(fr|en)$/i, update: /^(install|electron|auto|-v|versions)$/i,
   tab: /^(\d+|new|save)$/i, tabs: /^(\d+|new|save)$/i, close: /^\d+$/, dl: /^\d+$/, split: /^(off|close)$/i, adblock: /^(on|off)$/i, pub: /^(on|off)$/i,
   devtools: /^(detach|detacher|attach|rattacher|close|off)$/i, dev: /^(detach|detacher|attach|rattacher|close|off)$/i,
 };

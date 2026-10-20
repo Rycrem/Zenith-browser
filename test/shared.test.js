@@ -173,3 +173,13 @@ test('chaque phrase passée à t() a sa traduction anglaise', () => {
   }
   assert.deepStrictEqual(missing, []);
 });
+
+test('notes d\'une Release GitHub : section de la langue, sinon les puces', () => {
+  const { releaseNotes } = require('../src/shared/changelog');
+  const body = '### Français\n\n- Nouveau A\n\n### English\n\n- New A\n\n## What\'s Changed\n* Titre de PR by @Rycrem in https://github.com/Rycrem/dev-brows/pull/19\n';
+  assert.deepStrictEqual(releaseNotes(body, 'fr'), ['Nouveau A']);
+  assert.deepStrictEqual(releaseNotes(body, 'en'), ['New A']);
+  const old = '## What\'s Changed\n* README : remettre l\'installation by @Rycrem in https://github.com/Rycrem/dev-brows/pull/19\n\n**Full Changelog**: https://x';
+  assert.deepStrictEqual(releaseNotes(old, 'en'), ['README : remettre l\'installation']);
+  assert.deepStrictEqual(releaseNotes('', 'fr'), []);
+});

@@ -46,6 +46,7 @@ Logic tests (bookmarks, aliases, result parsing, extensions, translations): `npm
 | `<n>` / `<n>t` | opens item n of the list on screen, `t` for a new tab |
 | `go <url>` | opens an address (typing an address directly works too) |
 | `links` | numbers the page's links and buttons, then type a number |
+| `tty [on\|off]` | shows pages as plain text, like a terminal: links are underlined in blue and numbered, type the number or click them (stays on while you browse) |
 | `back`, `fwd`, `reload`, `home` | navigation |
 | `tab`, `tab <n>`, `tab new [url…]`, `tab save <name>`, `close [n]` | tabs (`tab new` with several addresses opens a tab for each) |
 | `split`, `split off [1\|2]`, `focus` | two panes side by side, close a pane (the other one by default, or the ✕ at the top of the pane), switch pane |
@@ -61,7 +62,7 @@ Logic tests (bookmarks, aliases, result parsing, extensions, translations): `npm
 | `adblock [on\|off]` | fallback ad blocker, off by default (uBlock Origin is preinstalled) |
 | `engine ddg\|google\|bing\|qwant`, `theme ambre\|vert\|cyan\|rose\|violet`, `lang [en\|fr]` | settings |
 | `perm`, `perm reset [site]` | permissions given to sites |
-| `update`, `update install`, `update electron`, `update auto [on\|off]` | updates (see below) |
+| `update`, `update install`, `update -v [version]`, `update electron`, `update auto [on\|off]` | updates (see below) |
 | `devtools [detach\|close]`, `term`, `fullscreen [on\|off]`, `quit` (or `exit`, `q`), `help`, `clear` | misc (DevTools: next to the page, in a window, or closed; also buttons in the status bar; `quit` closes the browser) |
 
 Anything that is not a command, an alias or an address runs a search; an address (`example.com`, `localhost:3000`) opens directly. A command followed by words it does not expect ("home depot", "close friends") is a search too.
@@ -115,6 +116,7 @@ A check runs at every launch (`update auto off` turns it off); `update` runs it 
 **Installed app** (from a Releases installer):
 
 - `update` compares the installed version with the latest GitHub Release and says when a new installer is out.
+- `update -v` lists the published versions; type a number to read that version's notes in the terminal, then install it if you want (an older one too). `update -v 0.1.12` goes straight to that version.
 - `update install` downloads the new installer, applies it and restarts the app. On macOS (unsigned app, where automatic updates are impossible), it opens the Release page to download the `.dmg`.
 - Electron and Chromium ship with the installer: each new Release updates them.
 

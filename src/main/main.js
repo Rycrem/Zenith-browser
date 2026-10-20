@@ -5,14 +5,14 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { JsonStore } = require('./store');
-const { Extensions } = require('./extensions');
+const { Extensions, newer } = require('./extensions');
 const { AdBlock } = require('./adblock');
 const { ElectronChromeExtensions } = require('electron-chrome-extensions');
 const ai = require('./ai');
 const updater = require('./updater');
 const fav = require('../shared/favorites');
 const C = require('../shared/commands');
-const { notesFor } = require('../shared/changelog');
+const { notesFor, exactNotes, releaseNotes } = require('../shared/changelog');
 const { t, mark, setLang, getLang } = require('../shared/i18n');
 
 const tr = t; // là où une variable locale « t » (un onglet) cache t()
@@ -216,6 +216,11 @@ function wireWebContents(tab, wc) {
   wc.on('did-stop-loading', () => {
     tab.loading = false;
     sendState();
+    if (tab.tty && (!tab.screen || tab.screen.kind === 'tty')) showTty(tab, true);
+  });
+  // Le texte s'affiche dès que la page est lue, sans attendre les images ou ce qui traîne.
+  wc.on('dom-ready', () => {
+    if (tab.tty && (!tab.screen || tab.screen.kind === 'tty')) showTty(tab, true);
   });
   wc.on('page-title-updated', (e, title) => {
     tab.title = title;
@@ -229,6 +234,8 @@ function wireWebContents(tab, wc) {
   wc.on('did-navigate', (e, url) => {
     tab.url = url;
     if (tab.numberedKind === 'links') tab.numbered = [];
+    // En mode tty, l'ancien texte laisse place à « chargement… » (aussi après back et fwd).
+    if (tab.tty && tab.screen && tab.screen.kind === 'tty') setScreen(tab, ttyLoading(url), []);
     addHistory({ url, title: wc.getTitle() });
     storeHint(tab, url);
     sendState();
@@ -238,6 +245,8 @@ function wireWebContents(tab, wc) {
     tab.url = url;
     storeHint(tab, url);
     sendState();
+    // Les sites d'une seule page changent leur contenu sans recharger : on relit le texte.
+    if (tab.tty && tab.screen && tab.screen.kind === 'tty') setTimeout(() => tab.tty && tab.screen && tab.screen.kind === 'tty' && showTty(tab, true), 600);
   });
   wc.on('did-fail-load', (e, code, desc, url, isMainFrame) => {
     if (isMainFrame && code !== -3) print([{ t: t('impossible de charger {url} : {desc}', { url, desc }), c: 'err' }]);
@@ -282,7 +291,7 @@ function wireWebContents(tab, wc) {
 
 function navigate(tab, url) {
   const view = ensureView(tab);
-  tab.screen = null;
+  tab.screen = tab.tty ? ttyLoading(url) : null;
   tab.url = url;
   tab.title = shortUrl(url);
   view.webContents.loadURL(url).catch(() => {});
@@ -352,7 +361,7 @@ function setScreen(tab, screen, numbered = [], kind = screen.kind) {
 function tabTitle(tab) {
   if (!tab.screen) return tab.title || shortUrl(tab.url) || t('nouvel onglet');
   const s = tab.screen;
-  return { home: t('accueil'), ai: `ia: ${s.question}`, results: `brows: ${s.query}`, fav: 'fav', hist: 'hist', ext: 'ext', dl: 'dl', tabs: 'tab', help: 'help', alias: 'alias', aiproviders: 'ia' }[s.kind] || s.kind;
+  return { home: t('accueil'), ai: `ia: ${s.question}`, results: `brows: ${s.query}`, fav: 'fav', hist: 'hist', ext: 'ext', dl: 'dl', tabs: 'tab', help: 'help', alias: 'alias', aiproviders: 'ia', tty: `tty: ${s.title || s.host}` }[s.kind] || s.kind;
 }
 
 // ---------------------------------------------------------------- disposition
@@ -381,7 +390,7 @@ function sendState() {
   if (!win || win.isDestroyed()) return;
   const tab = activeTab();
   if (!tab || panes.some((p) => !getTab(p.tabId))) return; // pendant la création d'un écran
-  const favHere = tab && !tab.screen && fav.findByUrl(favorites.data.tree, tab.url);
+  const favHere = tab && (!tab.screen || tab.screen.kind === 'tty') && fav.findByUrl(favorites.data.tree, tab.url);
   win.webContents.send('state', {
     user: os.userInfo().username,
     lang: getLang(),
@@ -395,8 +404,8 @@ function sendState() {
     activePane,
     status: {
       mode: tab.screen ? tabTitle(tab).split(':')[0].toUpperCase() : 'SITE',
-      host: tab.screen ? tabTitle(tab) : hostOf(tab.url),
-      url: tab.screen ? '' : tab.url,
+      host: tab.screen && tab.screen.kind !== 'tty' ? tabTitle(tab) : hostOf(tab.url),
+      url: tab.screen && tab.screen.kind !== 'tty' ? '' : tab.url,
       fav: favHere ? favHere.path : null,
       split: panes.length > 1,
       devtools: tab.devOpen ? (tab.devWin ? 'detached' : 'docked') : null,
@@ -566,6 +575,121 @@ const LINKS_SCRIPT = `(() => {
   });
   return els.map((el) => ({ href: el.href || null, text: (el.innerText || el.value || el.getAttribute('aria-label') || '').trim().slice(0, 80) }));
 })()`;
+
+// Mode tty : la page en texte simple. Titres, paragraphes, listes et blocs de code ; chaque
+// lien a un numéro (le même pour une même adresse). Les éléments cachés sont ignorés.
+const TTY_SCRIPT = `(() => {
+  const SKIP = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'SVG', 'TEMPLATE', 'IFRAME', 'CANVAS', 'VIDEO', 'AUDIO', 'SELECT', 'BUTTON', 'INPUT', 'TEXTAREA', 'OBJECT', 'EMBED']);
+  const BLOCK = new Set(['block', 'flex', 'grid', 'list-item', 'table', 'table-row', 'flow-root']);
+  const blocks = [];
+  const links = [];
+  const seen = new Map();
+  let cur = null;
+  const flush = () => {
+    if (cur) {
+      if (cur.parts.length) {
+        cur.parts[0].text = cur.parts[0].text.replace(/^\\s+/, '');
+        const last = cur.parts[cur.parts.length - 1];
+        last.text = last.text.replace(/\\s+$/, '');
+      }
+      if (cur.parts.some((p) => p.text.trim())) blocks.push(cur);
+    }
+    cur = null;
+  };
+  const add = (raw, link) => {
+    let text = raw.replace(/\\s+/g, ' ');
+    if (!text || (text === ' ' && !cur)) return;
+    if (!cur) cur = { type: 'p', parts: [] };
+    const last = cur.parts[cur.parts.length - 1];
+    // « CopilotWrite » : deux morceaux de texte collés sans style, on les sépare.
+    if (link && last && last.link === link && /[a-z0-9.]$/.test(last.text) && /^[A-Z]/.test(text)) text = ' ' + text;
+    if (last && last.link === link) last.text += text;
+    else cur.parts.push(link ? { text, link } : { text });
+  };
+  const walk = (node, link) => {
+    for (const n of node.childNodes) {
+      if (blocks.length > 3000) return;
+      if (n.nodeType === 3) {
+        add(n.textContent, link);
+        continue;
+      }
+      if (n.nodeType !== 1 || SKIP.has(n.tagName.toUpperCase())) continue;
+      const tag = n.tagName.toUpperCase();
+      const cs = getComputedStyle(n);
+      if (cs.display === 'none' || cs.visibility === 'hidden' || n.getAttribute('aria-hidden') === 'true') continue;
+      if (tag === 'IMG') {
+        if (link && n.alt && n.alt.trim()) add(n.alt.trim(), link);
+        continue;
+      }
+      if (tag === 'BR') {
+        flush();
+        continue;
+      }
+      if (tag === 'PRE') {
+        flush();
+        if (n.innerText.trim()) blocks.push({ type: 'pre', parts: [{ text: n.innerText.replace(/\\s+$/, '') }] });
+        continue;
+      }
+      if (tag === 'A' && !link && /^https?:/.test(n.href)) {
+        const href = n.href;
+        let k = seen.get(href);
+        if (!k) {
+          links.push(href);
+          k = links.length;
+          seen.set(href, k);
+        }
+        walk(n, k);
+        continue;
+      }
+      const heading = /^H[1-6]$/.test(tag);
+      const block = heading || tag === 'LI' || tag === 'P' || tag === 'TR' || BLOCK.has(cs.display);
+      if (block && link) {
+        // Bloc dans un lien : on reste dans le lien, séparé par une espace.
+        add(' ', link);
+        walk(n, link);
+        add(' ', link);
+        continue;
+      }
+      if (heading || tag === 'LI') {
+        flush();
+        cur = { type: heading ? 'h' : 'li', parts: [] };
+        walk(n, link);
+        flush();
+        continue;
+      }
+      if (block) {
+        flush();
+        walk(n, link);
+        flush();
+        continue;
+      }
+      walk(n, link);
+    }
+  };
+  walk(document.body || document.documentElement, 0);
+  flush();
+  return { title: document.title, blocks, links };
+})()`;
+
+function ttyLoading(url) {
+  return { kind: 'tty', host: hostOf(url), url, title: '', blocks: [], links: 0, loading: true };
+}
+
+async function showTty(tab, ready) {
+  if (!tab.view) return;
+  const wc = tab.view.webContents;
+  if (!ready && wc.isLoading()) {
+    setScreen(tab, ttyLoading(tab.url), []);
+    return; // dom-ready ou did-stop-loading rappelle showTty
+  }
+  try {
+    const r = await wc.executeJavaScript(TTY_SCRIPT);
+    if (!tab.tty) return;
+    setScreen(tab, { kind: 'tty', host: hostOf(tab.url), url: tab.url, title: r.title, blocks: r.blocks, links: r.links.length }, r.links.map((url) => ({ kind: 'url', url })));
+  } catch (err) {
+    setScreen(tab, { kind: 'tty', host: hostOf(tab.url), url: tab.url, title: '', blocks: [], links: 0, error: err.message }, []);
+  }
+}
 
 async function numberLinks(tab) {
   if (!tab.view || tab.screen) throw new Error(t('aucune page ouverte'));
@@ -882,6 +1006,22 @@ async function exec(raw, depth = 0) {
         if (!rest) throw new Error(t('quelle adresse ? go <url>'));
         navigate(tab, C.normalizeUrl(rest));
         break;
+      case 'tty': {
+        const arg = (args[0] || '').toLowerCase();
+        const on = arg ? arg === 'on' : !tab.tty;
+        tab.tty = on;
+        if (on) {
+          if (!tab.view || !tab.url) throw new Error(t('aucune page ouverte : « tty » affiche la page en texte'));
+          await showTty(tab);
+          say(t('  mode tty : la page en texte, liens numérotés (« tty off » pour revenir à la page)'), 'dim');
+        } else {
+          if (tab.screen && tab.screen.kind === 'tty') tab.screen = null;
+          layout();
+          sendState();
+          say(t('  mode tty désactivé'), 'dim');
+        }
+        break;
+      }
       case 'links':
       case 'l': {
         const count = await numberLinks(tab);
@@ -890,10 +1030,13 @@ async function exec(raw, depth = 0) {
       }
       case 'back':
       case 'b':
-        if (tab.screen && tab.view) {
-          tab.screen = null;
-          layout();
-          sendState();
+        if (tab.screen && tab.view && tab.screen.kind !== 'tty') {
+          if (tab.tty) showTty(tab);
+          else {
+            tab.screen = null;
+            layout();
+            sendState();
+          }
         } else if (tab.view && tab.view.webContents.navigationHistory.canGoBack()) tab.view.webContents.navigationHistory.goBack();
         else if (tab.view) showHome(tab);
         else throw new Error(t('rien avant'));
@@ -901,7 +1044,7 @@ async function exec(raw, depth = 0) {
       case 'fwd':
       case 'f':
         if (!tab.view || !tab.view.webContents.navigationHistory.canGoForward()) throw new Error(t('rien après'));
-        tab.screen = null;
+        if (!tab.tty) tab.screen = null;
         tab.view.webContents.navigationHistory.goForward();
         layout();
         break;
@@ -1442,6 +1585,10 @@ async function updateCommand(args, say) {
     say(`  ${arg ? '✓ ' : ''}${state}`, arg ? 'ok' : '');
     return;
   }
+  if (sub === '-v' || sub === 'versions') {
+    await versionsCommand(args[1], say);
+    return;
+  }
   if (updater.installed()) {
     if (sub === 'electron') {
       say(t('  Electron est inclus dans l\'installateur : « update install » installe la dernière version publiée'), 'dim');
@@ -1489,6 +1636,67 @@ async function updateCommand(args, say) {
   settings.data.lastUpdateCheck = Date.now();
   settings.save();
   for (const l of updateLines(r)) say(l.t, l.c);
+}
+
+// « update -v » : liste les versions publiées ; un numéro affiche les notes de cette version
+// puis propose de l'installer (plus récente ou plus ancienne).
+async function versionsCommand(wanted, say) {
+  const releases = await updater.listReleases();
+  if (!releases.length) throw new Error(t('aucune version publiée sur GitHub'));
+  const current = app.getVersion();
+  if (wanted) {
+    const r = releases.find((x) => x.version === wanted.replace(/^v/, ''));
+    if (!r) throw new Error(t('pas de version {version} publiée (« update -v » pour la liste)', { version: wanted }));
+    return showVersion(r, say);
+  }
+  say(t('  versions publiées (installée : {version})', { version: current }), 'dim');
+  releases.forEach((r, i) => {
+    const date = r.date ? new Date(r.date).toLocaleDateString(getLang() === 'en' ? 'en-US' : 'fr-FR') : '';
+    const mark = r.version === current ? t('  ← installée') : '';
+    say(`  [${i + 1}] ${r.version}  ${date}${mark}`, r.version === current ? 'ok' : '');
+  });
+  const question = t('quelle version ? numéro (1-{max}), ou Entrée pour annuler', { max: releases.length });
+  for (const l of enqueue(question, async (input, s) => {
+    const r = releases[Number(input) - 1];
+    if (!input || !r) return s(t('  annulé'), 'dim');
+    await showVersion(r, s);
+  }, /^\d*$/)) say(l.t, l.c);
+}
+
+async function showVersion(r, say) {
+  const lang = getLang();
+  const notes = exactNotes(r.version, lang) || releaseNotes(r.body, lang);
+  say(`  dev-brows ${r.version}`, 'ok');
+  if (notes.length) for (const n of notes) say(`  · ${n}`);
+  else say(t('  pas de notes pour cette version'), 'dim');
+  const current = app.getVersion();
+  if (r.version === current) return say(t('  c\'est la version installée'), 'dim');
+  if (!updater.installed()) return say(t('  appli lancée depuis le code : « update install » suit le dépôt, pas les versions publiées'), 'dim');
+  if (process.platform === 'darwin') {
+    createTab({ url: r.url });
+    return say(t('  page de la version ouverte : télécharge son .dmg'), 'dim');
+  }
+  const older = newer(current, r.version);
+  const question = older
+    ? t('installer la version {version}, plus ancienne que la tienne ({current}) ? l\'appli redémarrera', { version: r.version, current })
+    : t('installer la version {version} ? l\'appli redémarrera', { version: r.version });
+  ask(say, question, async (s) => {
+    print([{ t: t('  téléchargement de l\'installateur…'), c: 'dim' }]);
+    let last = -10;
+    try {
+      const started = await updater.installVersion(r.version, (pct) => {
+        if (pct - last >= 10 || pct === 100) {
+          last = pct;
+          print([{ t: `  ↓ ${pct} %`, c: 'dim' }]);
+        }
+      });
+      if (!started) s(t('  rien à installer pour cette version'), 'dim');
+    } catch (err) {
+      s(t('  installation impossible : {error}', { error: err.message }), 'err');
+      createTab({ url: r.url });
+      s(t('  page de la version ouverte pour l\'installer à la main'), 'dim');
+    }
+  });
 }
 
 function updateLines(r) {
