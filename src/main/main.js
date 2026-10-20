@@ -67,14 +67,16 @@ function setGoogleFilter(id, on) {
   else onGoogleLogin.delete(id);
   if (!before && onGoogleLogin.size) {
     const ua = firefoxUserAgent();
-    ses.webRequest.onBeforeSendHeaders({ urls: [`https://${GOOGLE_LOGIN}/*`] }, (details, callback) => {
-      const headers = details.requestHeaders;
-      for (const name of Object.keys(headers)) if (/^sec-ch-ua/i.test(name)) delete headers[name];
-      headers['User-Agent'] = ua;
-      callback({ requestHeaders: headers });
-    });
+    for (const s of [ses, privSes].filter(Boolean)) {
+      s.webRequest.onBeforeSendHeaders({ urls: [`https://${GOOGLE_LOGIN}/*`] }, (details, callback) => {
+        const headers = details.requestHeaders;
+        for (const name of Object.keys(headers)) if (/^sec-ch-ua/i.test(name)) delete headers[name];
+        headers['User-Agent'] = ua;
+        callback({ requestHeaders: headers });
+      });
+    }
   } else if (before && !onGoogleLogin.size) {
-    ses.webRequest.onBeforeSendHeaders(null);
+    for (const s of [ses, privSes].filter(Boolean)) s.webRequest.onBeforeSendHeaders(null);
   }
 }
 
@@ -122,6 +124,14 @@ let popupWin = null;
 let extPopupClosed = { n: 0, at: 0 };
 let panel = null; // popup de la barre du bas : { kind: 'dl' | 'fav', win, place }
 let panelClosed = { kind: null, at: 0 };
+let privSes = null; // session de la navigation privée (créée au premier Ctrl+Maj+N)
+let privApi = null; // ses API d'extensions
+let privateMode = null; // en navigation privée : { tabs, panes, activePane } normaux, mis de côté
+
+const PRIVATE_ACCENT = '#E5484D';
+const accentColor = () => (privateMode ? PRIVATE_ACCENT : THEMES[settings.data.theme] || THEMES.ambre);
+const sesOf = (tab) => (tab && tab.private ? privSes : ses);
+const apiOf = (tab) => (tab && tab.private ? privApi : chromeApi);
 
 // ---------------------------------------------------------------- onglets
 
@@ -138,7 +148,7 @@ function paneOf(tab) {
 }
 
 function createTab({ url, background = false, pane = activePane } = {}) {
-  const tab = { id: nextTabId++, view: null, dev: null, screen: null, numbered: [], title: '', url: '', loading: false };
+  const tab = { id: nextTabId++, view: null, dev: null, screen: null, numbered: [], title: '', url: '', loading: false, private: !!privateMode };
   tabs.push(tab);
   if (url) navigate(tab, url);
   else showHome(tab);
@@ -149,25 +159,25 @@ function createTab({ url, background = false, pane = activePane } = {}) {
 
 function ensureView(tab) {
   if (tab.view) return tab.view;
-  const view = new WebContentsView({ webPreferences: { session: ses, sandbox: true, contextIsolation: true } });
+  const view = new WebContentsView({ webPreferences: { session: sesOf(tab), sandbox: true, contextIsolation: true } });
   view.setBackgroundColor('#ffffff');
   view.setVisible(false);
   win.contentView.addChildView(view);
   tab.view = view;
   wireWebContents(tab, view.webContents);
-  chromeApi.addTab(view.webContents, win);
+  apiOf(tab).addTab(view.webContents, win);
   // L'onglet peut déjà être affiché (page d'accueil qui charge un site) : les extensions doivent le savoir actif.
-  if (panes[activePane] && panes[activePane].tabId === tab.id) chromeApi.selectTab(view.webContents);
+  if (panes[activePane] && panes[activePane].tabId === tab.id) apiOf(tab).selectTab(view.webContents);
   return view;
 }
 
 const tabOfContents = (wc) => tabs.find((t) => t.view && t.view.webContents === wc);
 
 // chrome.tabs / chrome.windows des extensions, branchés sur les onglets de dev-brows.
-function setupChromeApi() {
-  chromeApi = new ElectronChromeExtensions({
+function setupChromeApi(s) {
+  return new ElectronChromeExtensions({
     license: 'GPL-3.0',
-    session: ses,
+    session: s,
     createTab(details) {
       const tab = createTab({ url: details.url || undefined, background: details.active === false });
       return [ensureView(tab).webContents, win];
@@ -187,7 +197,7 @@ function setupChromeApi() {
         height: details.height || 640,
         parent: details.type === 'popup' ? win : undefined,
         title: 'dev-brows',
-        webPreferences: { session: ses, sandbox: true, contextIsolation: true },
+        webPreferences: { session: s, sandbox: true, contextIsolation: true },
       });
       popup.setMenuBarVisibility(false);
       const url = [].concat(details.url || [])[0];
@@ -282,7 +292,7 @@ function wireWebContents(tab, wc) {
     const p = paneOf(tab);
     if (p >= 0 && p !== activePane) {
       activePane = p;
-      chromeApi.selectTab(wc);
+      apiOf(tab).selectTab(wc);
       sendState();
     }
   });
@@ -331,7 +341,7 @@ function showInPane(tab, idx) {
   if (other >= 0) panes[other].tabId = panes[idx].tabId; // échange si l'onglet est déjà dans l'autre écran
   panes[idx].tabId = tab.id;
   activePane = idx;
-  if (tab.view?.webContents) chromeApi.selectTab(tab.view.webContents);
+  if (tab.view?.webContents) apiOf(tab).selectTab(tab.view.webContents);
   layout();
   sendState();
 }
@@ -421,8 +431,9 @@ function sendState() {
   win.webContents.send('state', {
     user: os.userInfo().username,
     lang: getLang(),
-    accent: THEMES[settings.data.theme] || THEMES.ambre,
+    accent: accentColor(),
     light: isLight(),
+    private: !!privateMode,
     platform: process.platform,
     engine: settings.data.engine,
     tabs: tabs.map((t, i) => ({ id: t.id, n: i + 1, title: tabTitle(t), loading: t.loading, pane: paneOf(t), audible: !!t.audible, muted: isMuted(t) })),
@@ -541,6 +552,7 @@ function showDl(tab) {
 }
 
 function addHistory(entry) {
+  if (privateMode) return; // rien n'est retenu en navigation privée
   const entries = history.data.entries;
   const last = entries[entries.length - 1];
   if (last && last.url === entry.url && !entry.query) return;
@@ -739,7 +751,7 @@ async function showTty(tab, ready) {
 
 async function numberLinks(tab) {
   if (!tab.view || tab.screen) throw new Error(t('aucune page ouverte'));
-  const accent = THEMES[settings.data.theme] || THEMES.ambre;
+  const accent = accentColor();
   const links = await tab.view.webContents.executeJavaScript(LINKS_SCRIPT.replace('__ACCENT__', accent));
   tab.numbered = links.map((l, i) => ({ kind: 'link', i, href: l.href }));
   tab.numberedKind = 'links';
@@ -989,6 +1001,60 @@ function setMuted(tab, muted) {
   audioChanged();
 }
 
+// ---------------------------------------------------------------- navigation privée
+
+// Session à part (cookies, cache, stockage des sites), effacée en entrant et en sortant.
+// Les extensions y sont chargées aussi ; leurs propres données sont gardées d'une fois sur l'autre.
+async function setupPrivateSession() {
+  privSes = session.fromPartition('persist:prive');
+  privApi = setupChromeApi(privSes);
+  watchWorkerLogs(privSes);
+  privSes.registerPreloadScript({ id: 'dev-brows-browser-alias', type: 'frame', filePath: path.join(__dirname, 'ext-preload.js') });
+  setupDownloads(privSes);
+  setupPermissions(privSes);
+  setupWebAuthn(privSes);
+  await exts.attach(privSes);
+}
+
+function wipePrivate() {
+  const keep = exts.list.filter((e) => e.id).map((e) => `chrome-extension://${e.id}`);
+  return Promise.all([privSes.clearData({ excludeOrigins: keep }), privSes.clearCache(), privSes.clearAuthCache()]).catch(() => {});
+}
+
+// Les onglets normaux sont mis de côté (cachés) le temps de la navigation privée, puis rendus.
+async function setPrivate(on) {
+  if (!!privateMode === on) return;
+  if (panel && !panel.win.isDestroyed()) panel.win.close();
+  if (popupWin && !popupWin.isDestroyed()) popupWin.close();
+  if (on) {
+    if (!privSes) {
+      print([{ t: t('  ouverture de la navigation privée (chargement des extensions)…'), c: 'dim' }]);
+      await setupPrivateSession();
+    }
+    await wipePrivate();
+    privateMode = { tabs: tabs.splice(0), panes: panes.splice(0), activePane };
+    for (const tb of privateMode.tabs) {
+      if (tb.view) tb.view.setVisible(false);
+      if (tb.dev && !tb.devWin) tb.dev.setVisible(false);
+    }
+    panes.push({ tabId: null });
+    activePane = 0;
+    createTab();
+  } else {
+    const saved = privateMode;
+    privateMode = null;
+    for (const tb of tabs.splice(0)) destroyTab(tb);
+    tabs.push(...saved.tabs);
+    panes.splice(0, panes.length, ...saved.panes);
+    activePane = saved.activePane;
+    wipePrivate();
+  }
+  if (process.platform !== 'darwin' && win) win.setTitleBarOverlay({ color: privateMode ? '#1B0F26' : '#000000' });
+  layout();
+  sendState();
+  focusTerminal();
+}
+
 // Mode nuit (par défaut) ou jour : l'interface, et les sites qui suivent prefers-color-scheme.
 const isLight = () => settings.data.mode === 'jour';
 
@@ -1170,7 +1236,7 @@ function togglePanel(kind, x) {
     webPreferences: { preload: path.join(__dirname, 'panel-preload.js'), sandbox: true, contextIsolation: true },
   });
   panel = { kind, win: pw, place };
-  pw.loadFile(path.join(__dirname, '../renderer', file), { query: { accent: THEMES[settings.data.theme] || THEMES.ambre, mode: isLight() ? 'jour' : 'nuit' } });
+  pw.loadFile(path.join(__dirname, '../renderer', file), { query: { accent: accentColor(), mode: isLight() ? 'jour' : 'nuit', private: privateMode ? '1' : '' } });
   pw.webContents.once('did-finish-load', () => sendPanel(kind));
   pw.once('ready-to-show', () => pw.show());
   pw.on('blur', () => !pw.isDestroyed() && pw.close());
@@ -1246,13 +1312,17 @@ function logExt(id, where, text) {
 // level : nombre de Chromium (2 avertissement, 3 erreur) ou nom (Electron récent).
 const isProblem = (level) => level === 2 || level === 3 || level === 'warning' || level === 'error';
 
-function watchExtensionLogs() {
-  ses.serviceWorkers.on('console-message', (e, d) => {
+function watchWorkerLogs(s) {
+  s.serviceWorkers.on('console-message', (e, d) => {
     if (!d || !isProblem(d.level)) return;
-    const worker = ses.serviceWorkers.getAllRunning()[d.versionId];
+    const worker = s.serviceWorkers.getAllRunning()[d.versionId];
     const m = EXT_URL.exec((worker && worker.scope) || d.sourceUrl || '');
     if (m) logExt(m[1], t('fond'), d.lineNumber ? `${d.message} (${t('ligne')} ${d.lineNumber})` : d.message);
   });
+}
+
+function watchExtensionLogs() {
+  watchWorkerLogs(ses);
   app.on('web-contents-created', (e, wc) => {
     wc.on('console-message', (event, ...old) => {
       const level = event.level !== undefined ? event.level : old[0];
@@ -1289,9 +1359,10 @@ function openExtPopup(n, x) {
   const ext = exts.get(n);
   if (ext.enabled && !ext.popup && ext.id) {
     const wc = activeTab()?.view?.webContents;
-    const details = wc && chromeApi.ctx.store.tabDetailsCache.get(wc.id);
+    const api = privateMode ? privApi : chromeApi;
+    const details = wc && api.ctx.store.tabDetailsCache.get(wc.id);
     // L'accueil n'est pas un onglet connu des extensions : l'événement part alors sans onglet.
-    chromeApi.ctx.router.sendEvent(ext.id, 'browserAction.onClicked', details || undefined);
+    api.ctx.router.sendEvent(ext.id, 'browserAction.onClicked', details || undefined);
     return;
   }
   const url = exts.popupUrl(n);
@@ -1315,7 +1386,7 @@ function openExtPopup(n, x) {
     resizable: false,
     show: false,
     skipTaskbar: true,
-    webPreferences: { session: ses, enablePreferredSizeMode: true },
+    webPreferences: { session: privateMode ? privSes : ses, enablePreferredSizeMode: true },
   });
   const pw = popupWin;
   pw.extN = n;
@@ -1640,6 +1711,14 @@ async function exec(raw, depth = 0) {
           sendState();
         }
         break;
+      case 'private':
+      case 'prive':
+      case 'privé': {
+        const arg = (args[0] || '').toLowerCase();
+        await setPrivate(arg ? arg === 'on' : !privateMode);
+        say(privateMode ? t('  navigation privée : rien n\'est retenu, tout est effacé en sortant (Ctrl+Maj+N)') : t('  ✓ fin de la navigation privée, ses données sont effacées'), privateMode ? 'acc' : 'ok');
+        break;
+      }
       case 'mode': {
         const modes = { nuit: false, night: false, jour: true, day: true };
         if (!args.length) say(t('  mode : {mode} (nuit | jour)', { mode: isLight() ? t('jour') : t('nuit') }));
@@ -2375,8 +2454,8 @@ function startupUpdateNotes() {
 
 // Une clé (YubiKey…) qui garde plusieurs comptes pour un site : on demande lequel dans le
 // terminal. Sans ce choix, Electron annule la connexion.
-function setupWebAuthn() {
-  ses.on('select-webauthn-account', (e, details, callback) => {
+function setupWebAuthn(s = ses) {
+  s.on('select-webauthn-account', (e, details, callback) => {
     const accounts = details.accounts || [];
     if (accounts.length <= 1) return callback(accounts[0] && accounts[0].credentialId);
     const label = (a) => [a.displayName, a.name].filter(Boolean).join(' · ') || a.credentialId.slice(0, 12);
@@ -2430,10 +2509,10 @@ function permissionKeys(permission, details) {
   return types.map((t) => (t === 'video' ? 'camera' : 'microphone'));
 }
 
-function setupPermissions() {
+function setupPermissions(s = ses) {
   if (!settings.data.permissions) settings.data.permissions = {};
   const saved = settings.data.permissions;
-  ses.setPermissionRequestHandler((wc, permission, callback, details) => {
+  s.setPermissionRequestHandler((wc, permission, callback, details) => {
     if (SAFE_PERMISSIONS.has(permission)) return callback(true);
     if (win && wc === win.webContents) return callback(false); // l'interface n'a besoin de rien
     const origin = originOf(details.requestingUrl || (wc && wc.getURL()));
@@ -2459,7 +2538,7 @@ function setupPermissions() {
     }
     return undefined;
   });
-  ses.setPermissionCheckHandler((wc, permission, requestingOrigin, details) => {
+  s.setPermissionCheckHandler((wc, permission, requestingOrigin, details) => {
     if (SAFE_PERMISSIONS.has(permission)) return true;
     if (wc && win && wc === win.webContents) return false;
     const origin = originOf(requestingOrigin);
@@ -2589,6 +2668,7 @@ function buildMenu() {
         { label: t('Téléchargements'), accelerator: 'CmdOrCtrl+Shift+J', click: () => win.webContents.send('ui:panel', 'dl') },
         { label: t('Favoris'), accelerator: 'CmdOrCtrl+Shift+B', click: () => win.webContents.send('ui:panel', 'fav') },
         { label: 'Extensions', accelerator: 'CmdOrCtrl+Shift+E', click: () => win.webContents.send('ui:panel', 'ext') },
+        { label: t('Navigation privée'), accelerator: 'CmdOrCtrl+Shift+N', click: () => setPrivate(!privateMode).catch((err) => print([{ t: `  ${err.message}`, c: 'err' }])) },
         ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({
           label: `Extension ${n}`, accelerator: `Alt+${n}`, visible: false, click: act(() => openExtPopup(n)),
         })),
@@ -2608,8 +2688,8 @@ function buildMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
-function setupDownloads() {
-  ses.on('will-download', (e, item) => {
+function setupDownloads(s = ses) {
+  s.on('will-download', (e, item) => {
     // Enregistrement direct dans Téléchargements, sans boîte de dialogue.
     const dir = app.getPath('downloads');
     const parsed = path.parse(item.getFilename());
@@ -2660,8 +2740,10 @@ function setupIpc() {
     dragging = !!on;
     layout();
   });
-  ipcMain.handle('ui:exec', (e, line) => {
+  ipcMain.handle('ui:exec', (e, line, opts) => {
     lastCommandAt = Date.now();
+    // Ctrl+Entrée : un nouvel onglet d'abord, la commande s'y exécute (pas pour répondre à une question).
+    if (opts && opts.newTab && String(line).trim() && !prompts.length) createTab();
     return exec(String(line));
   });
   ipcMain.on('ui:zoom-reset', () => zoom(0));
@@ -2775,7 +2857,7 @@ app.whenReady().then(async () => {
   ai.migrate(settings);
   nativeTheme.themeSource = isLight() ? 'light' : 'dark';
   setLang(initialLang());
-  setupChromeApi(); // avant le chargement des extensions, pour lire leurs manifestes
+  chromeApi = setupChromeApi(ses); // avant le chargement des extensions, pour lire leurs manifestes
   watchExtensionLogs();
   ses.registerPreloadScript({ id: 'dev-brows-browser-alias', type: 'frame', filePath: path.join(__dirname, 'ext-preload.js') });
   exts = new Extensions(ses, settings, path.join(dir, 'extensions'));

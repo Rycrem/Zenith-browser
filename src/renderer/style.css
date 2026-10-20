@@ -71,6 +71,21 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
 
 /* ------------------------------------------------ onglets */
 
+/* Navigation privée (Ctrl+Maj+N) : fond violet sombre, accent rouge (envoyé par le processus principal). */
+:root[data-private] {
+  --bg: #1A1024;
+  --bg-deep: #120A1A;
+  --bg-raised: #231531;
+  --chip: #2C1B3D;
+  --line: #36234B;
+  --text: #E2D9EC;
+  --dim: #A08DB5;
+  --green: #7FD18B;
+  --cyan: #6CC5D9;
+  --red: #F07B7B;
+  --yellow: #E8B44C;
+}
+
 #tabbar {
   /* Toujours sombre, même en mode jour */
   --bg-raised: #151A22;
@@ -97,6 +112,7 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
 
 :root[data-platform="darwin"] #tabbar { padding-left: 84px; }
 #tabbar button, #tabbar .tab, #tabbar .url { -webkit-app-region: no-drag; }
+:root[data-private] #tabbar { background: #1B0F26; border-bottom-color: #1B0F26; --bg-raised: #231531; --chip: #2C1B3D; --line: #36234B; }
 
 #tabs { display: flex; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 
@@ -123,7 +139,16 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
 #new-tab { width: 26px; height: 26px; border-radius: 4px; color: var(--dim); font-size: 16px; }
 #new-tab:hover { background: var(--bg-raised); color: var(--text); }
 
-.url { margin-left: auto; cursor: copy; color: var(--green); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 45%; }
+.url { margin-left: auto; display: flex; align-items: center; gap: 4px; position: relative; width: 45%; min-width: 160px; }
+#url { flex: 1; min-width: 0; height: 26px; padding: 0 8px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--green); font: inherit; text-overflow: ellipsis; outline: none; }
+#url:hover { border-color: var(--line); }
+#url:focus { border-color: var(--accent); background: var(--bg-raised); color: var(--text); }
+#url::placeholder { color: var(--dim); }
+#url-copy { flex: none; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 4px; color: var(--dim); }
+#url-copy:hover { background: var(--bg-raised); color: var(--text); }
+/* La bulle reste dans la barre : la page (vue native) recouvrirait tout ce qui dépasse dessous. */
+#copied { position: absolute; right: 32px; top: 50%; transform: translateY(-50%); padding: 1px 8px; border-radius: 3px; background: var(--accent); color: var(--on-accent); font-size: 12px; font-weight: 600; pointer-events: none; }
+#copied[hidden] { display: none; }
 
 /* ------------------------------------------------ écrans */
 

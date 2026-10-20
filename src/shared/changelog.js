@@ -4,6 +4,21 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.19',
+    notes: [
+      'L\'adresse en haut se modifie à la main : Entrée pour y aller, Échap pour annuler.',
+      'Un bouton copier à droite de l\'adresse la copie et affiche « copié ».',
+      'Navigation privée avec Ctrl+Maj+N (ou « private ») : fond violet sombre, accent rouge, onglets à part, rien dans l\'historique, tout est effacé en sortant. Les extensions y fonctionnent.',
+      'Ctrl+Entrée lance l\'adresse ou la recherche dans un nouvel onglet, depuis le terminal comme depuis la barre d\'adresse.',
+    ],
+    en: [
+      'The address at the top can be edited by hand: Enter to go, Esc to cancel.',
+      'A copy button right of the address copies it and shows “copied”.',
+      'Private browsing with Ctrl+Shift+N (or “private”): dark purple background, red accent, separate tabs, nothing in history, everything wiped on exit. Extensions work there.',
+      'Ctrl+Enter opens the address or search in a new tab, from the terminal and from the address bar.',
+    ],
+  },
+  {
     version: '0.1.18',
     notes: [
       'Un onglet qui joue du son affiche un haut-parleur : un clic coupe ou remet son son.',

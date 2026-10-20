@@ -91,6 +91,23 @@ function downloadIcon() {
   return svg;
 }
 
+function copyIcon() {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 16 16');
+  svg.setAttribute('class', 'mode-icon');
+  for (const d of ['M5.5 5.5h7v8h-7z', 'M3.5 10.5v-8h7']) {
+    const p = document.createElementNS(NS, 'path');
+    p.setAttribute('d', d);
+    p.setAttribute('fill', 'none');
+    p.setAttribute('stroke', 'currentColor');
+    p.setAttribute('stroke-width', '1.5');
+    p.setAttribute('stroke-linejoin', 'round');
+    svg.append(p);
+  }
+  return svg;
+}
+
 function puzzleIcon() {
   const NS = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(NS, 'svg');
@@ -182,12 +199,12 @@ function print(lines, el = term()) {
 const SECRET = /^(\s*(?:ia|ai)\s+(?:key|connect\s+\S+)\s+)\S+/i;
 const masked = (line) => line.replace(SECRET, '$1••••••••');
 
-async function run(line, { echo = true } = {}) {
+async function run(line, { echo = true, newTab = false } = {}) {
   const el = term();
   if (echo) print([{ t: `❯ ${masked(line)}`, c: 'cmd' }], el);
   awaiting = false;
   renderPs1();
-  const res = await api.exec(line);
+  const res = await api.exec(line, { newTab });
   if (res.clear) el.replaceChildren();
   print(res.lines, el.isConnected ? el : term());
   if (res.hideTerminal) setTerminalHidden(true);
@@ -212,16 +229,51 @@ function renderPs1() {
 
 $('#new-tab').addEventListener('click', () => api.newTab());
 
-// Un clic sur l'adresse la copie.
-$('#url').addEventListener('click', () => {
-  const url = $('#url').textContent;
+// L'adresse en haut se modifie à la main (Entrée : y aller, Échap : annuler) ; le bouton à droite la copie.
+const urlInput = $('#url');
+$('#url-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const url = urlInput.value.trim();
+  urlInput.blur();
+  if (!url || url === state.status.url) return;
+  await run(`go ${url}`);
+  api.focusPage();
+});
+urlInput.addEventListener('focus', () => urlInput.select());
+urlInput.addEventListener('keydown', async (e) => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    const url = urlInput.value.trim();
+    urlInput.blur();
+    if (url) await run(`tab new ${url}`);
+    return;
+  }
+  if (e.key !== 'Escape') return;
+  e.preventDefault();
+  urlInput.value = state.status.url;
+  urlInput.blur();
+});
+urlInput.addEventListener('blur', () => {
+  urlInput.value = state.status.url;
+});
+let copiedTimer = null;
+$('#url-copy').append(copyIcon());
+$('#url-copy').addEventListener('click', () => {
+  const url = state.status.url;
   if (!url) return;
   api.writeClipboard(url);
-  print([{ t: t('  ✓ adresse copiée : {url}', { url }), c: 'ok' }]);
+  const tip = $('#copied');
+  tip.hidden = false;
+  clearTimeout(copiedTimer);
+  copiedTimer = setTimeout(() => { tip.hidden = true; }, 1200);
 });
 
+// Ctrl+Entrée : la commande (adresse, recherche…) s'ouvre dans un nouvel onglet.
+let newTabNext = false;
 $('#prompt').addEventListener('submit', (e) => {
   e.preventDefault();
+  const newTab = newTabNext && !awaiting;
+  newTabNext = false;
   const line = input.value;
   input.value = '';
   if (line.trim() && !awaiting && !SECRET.test(line) && cmdHistory[cmdHistory.length - 1] !== line) {
@@ -230,11 +282,15 @@ $('#prompt').addEventListener('submit', (e) => {
     persist('cmdHistory', cmdHistory);
   }
   histIndex = cmdHistory.length;
-  run(line);
+  run(line, { newTab });
 });
 
 input.addEventListener('keydown', async (e) => {
-  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    newTabNext = true;
+    $('#prompt').requestSubmit();
+  } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
     e.preventDefault();
     histIndex = Math.max(0, Math.min(cmdHistory.length, histIndex + (e.key === 'ArrowUp' ? -1 : 1)));
     input.value = cmdHistory[histIndex] || '';
@@ -252,7 +308,7 @@ input.addEventListener('keydown', async (e) => {
 
 // Taper n'importe où dans l'interface renvoie au terminal.
 document.addEventListener('keydown', (e) => {
-  if (e.target === input || e.ctrlKey || e.altKey || e.metaKey || e.key.length !== 1) return;
+  if (e.target === input || e.target === urlInput || e.ctrlKey || e.altKey || e.metaKey || e.key.length !== 1) return;
   if (app.classList.contains('term-hidden')) setTerminalHidden(false);
   input.focus();
 });
@@ -360,6 +416,9 @@ api.on('state', (s) => {
   document.documentElement.style.setProperty('--accent', s.accent);
   document.documentElement.dataset.mode = s.light ? 'jour' : 'nuit';
   document.documentElement.dataset.platform = s.platform;
+  if (s.private) document.documentElement.dataset.private = '1';
+  else delete document.documentElement.dataset.private;
+  $('.logo').textContent = s.private ? t('dev-brows · privé') : 'dev-brows';
   showTerm(s.panes[s.activePane].tabId, new Set(s.tabs.map((t) => t.id)));
   renderTabs();
   renderPanes();
@@ -401,7 +460,8 @@ function renderTabs() {
     }, speaker(tb.muted)) : null,
     h('button', { type: 'button', class: 'close', 'aria-label': t('Fermer l\'onglet {n}', { n: tb.n }), onclick: () => api.closeTab(tb.id) }, '×'),
   )));
-  $('#url').textContent = state.status.url;
+  // Pas pendant qu'on la modifie.
+  if (document.activeElement !== urlInput) urlInput.value = state.status.url;
 }
 
 function renderPanes() {
@@ -813,7 +873,11 @@ function applyStaticLabels() {
   $('#tabs').setAttribute('aria-label', t('Onglets'));
   $('#new-tab').setAttribute('aria-label', t('Nouvel onglet'));
   $('#new-tab').title = t('Nouvel onglet (Ctrl+T)');
-  $('#url').title = t('Cliquer pour copier l\'adresse');
+  $('#url').title = t('Modifier l\'adresse (Entrée pour y aller)');
+  $('#url').placeholder = t('adresse ou recherche');
+  $('#url-copy').title = t('Copier l\'adresse');
+  $('#url-copy').setAttribute('aria-label', t('Copier l\'adresse'));
+  $('#copied').textContent = t('copié');
   $('.pane-resizer').title = t('Glisser pour redimensionner');
   $('#resizer').title = t('Glisser pour redimensionner le terminal (double-clic : taille par défaut)');
   for (const b of document.querySelectorAll('.devbar .detach')) b.title = t('Détacher dans une fenêtre (devtools detach)');
