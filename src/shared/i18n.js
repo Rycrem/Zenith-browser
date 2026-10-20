@@ -70,7 +70,7 @@
     "Aucun favori : « add nom » ajoute la page, « fav import » ceux d'un autre navigateur.": "No bookmarks: “add name” adds the page, “fav import” brings them from another browser.",
     "Aucun favori ne correspond.": "No matching bookmark.",
     "filtrer…": "filter…",
-    "Ctrl+Maj+B · Ctrl+clic : nouvel onglet": "Ctrl+Shift+B · Ctrl+click: new tab",
+    "Ctrl+Maj+B · Ctrl+clic : nouvel onglet · glisser pour ranger": "Ctrl+Shift+B · Ctrl+click: new tab · drag to reorder",
     "Ctrl+Maj+B": "Ctrl+Shift+B",
     "favoris (ou le bouton ★ en bas à gauche)": "bookmarks (or the ★ button at the bottom left)",
     "Favoris": "Bookmarks",

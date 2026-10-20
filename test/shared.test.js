@@ -59,6 +59,23 @@ test('rename et flatten trié dossiers d\'abord', () => {
   assert.strictEqual(fav.findByUrl(t, 'https://m/').path, 'dev/docs');
 });
 
+test('glisser-déposer : ordre manuel, dans un dossier, pas dans lui-même', () => {
+  const t = fav.emptyTree();
+  fav.addFavorite(t, 'a', 'https://a');
+  fav.addFavorite(t, 'b', 'https://b');
+  fav.addFavorite(t, 'dev/c', 'https://c');
+  fav.reorderFavorite(t, 'b', 'dev', 'before');
+  assert.deepStrictEqual(fav.flatten(t).map((n) => n.path), ['b', 'dev', 'dev/c', 'a']);
+  assert.strictEqual(fav.reorderFavorite(t, 'a', 'dev', 'into'), 'dev/a');
+  assert.deepStrictEqual(fav.flatten(t).map((n) => n.path), ['b', 'dev', 'dev/a', 'dev/c']);
+  fav.reorderFavorite(t, 'dev/c', 'dev/a', 'before');
+  assert.deepStrictEqual(fav.flatten(t).map((n) => n.path), ['b', 'dev', 'dev/c', 'dev/a']);
+  assert.throws(() => fav.reorderFavorite(t, 'dev', 'dev/a', 'after'));
+  fav.addFavorite(t, 'c', 'https://c2');
+  assert.throws(() => fav.reorderFavorite(t, 'c', 'dev', 'into'));
+  assert.ok(fav.getNode(t, 'c')); // remis en place après l'échec
+});
+
 test('alias et découpage des commandes', () => {
   assert.deepStrictEqual(cmd.tokenize('fav mv "mes trucs/a" b'), ['fav', 'mv', 'mes trucs/a', 'b']);
   assert.strictEqual(cmd.expandAlias('yt chats', { yt: 'brows youtube' }), 'brows youtube chats');

@@ -246,6 +246,9 @@ function wireWebContents(tab, wc) {
     tab.pausedAt = Date.now();
     audioChanged();
   });
+  // Vidéo en plein écran : la page couvre toute la fenêtre, onglets et barre d'état cachés.
+  wc.on('enter-html-full-screen', () => setHtmlFullscreen(tab, true));
+  wc.on('leave-html-full-screen', () => setHtmlFullscreen(tab, false));
   wc.on('did-navigate', () => {
     tab.media = null;
     audioChanged();
@@ -404,8 +407,33 @@ function tabTitle(tab) {
 
 // ---------------------------------------------------------------- disposition
 
+let fullTab = null; // onglet dont une vidéo est en plein écran
+let fullSetWin = false; // la fenêtre est passée en plein écran pour la vidéo
+
+function setHtmlFullscreen(tab, on) {
+  if (!win || win.isDestroyed()) return;
+  if (on) {
+    fullTab = tab;
+    if (!win.isFullScreen()) { fullSetWin = true; win.setFullScreen(true); }
+  } else if (fullTab === tab) {
+    fullTab = null;
+    if (fullSetWin) { fullSetWin = false; win.setFullScreen(false); }
+  }
+  layout();
+}
+
 function layout() {
   if (!win) return;
+  if (fullTab && (!tabs.includes(fullTab) || !fullTab.view || paneOf(fullTab) < 0)) setHtmlFullscreen(fullTab, false);
+  if (fullTab) {
+    const [width, height] = win.getContentSize();
+    tabs.forEach((tab) => {
+      if (tab.view) tab.view.setVisible(tab === fullTab);
+      if (tab.dev && !tab.devWin) tab.dev.setVisible(false);
+    });
+    fullTab.view.setBounds({ x: 0, y: 0, width, height });
+    return;
+  }
   tabs.forEach((tab) => {
     const p = paneOf(tab);
     const r = rects[p];
@@ -1201,7 +1229,7 @@ function favData() {
     empty: t('Aucun favori : « add nom » ajoute la page, « fav import » ceux d\'un autre navigateur.'),
     none: t('Aucun favori ne correspond.'),
     filter: t('filtrer…'),
-    hint: t('Ctrl+Maj+B · Ctrl+clic : nouvel onglet'),
+    hint: t('Ctrl+Maj+B · Ctrl+clic : nouvel onglet · glisser pour ranger'),
     openTitle: t('ouvrir (Ctrl+clic : nouvel onglet)'),
   };
 }
@@ -1306,6 +1334,14 @@ async function panelAction(kind, action, arg) {
     if (panel && panel.kind === 'fav' && !panel.win.isDestroyed()) panel.win.close();
     if (arg.newTab) createTab({ url: arg.url, background: true });
     else navigate(activeTab(), arg.url);
+  } else if (kind === 'fav' && action === 'move' && arg && typeof arg.src === 'string' && typeof arg.target === 'string' && ['before', 'after', 'into'].includes(arg.where)) {
+    try {
+      fav.reorderFavorite(favorites.data.tree, arg.src, arg.target, arg.where);
+    } catch (err) {
+      sendPanel('fav'); // remet l'arbre tel qu'il était
+      return;
+    }
+    saveFavorites();
   }
 }
 
@@ -2858,6 +2894,15 @@ function createWindow() {
   });
   win.setMenuBarVisibility(false);
   win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
+  win.on('resize', () => { if (fullTab) layout(); });
+  // F11 ou la fenêtre qui sort du plein écran : la vidéo en sort aussi.
+  win.on('leave-full-screen', () => {
+    if (!fullTab) return;
+    fullSetWin = false;
+    const wc = fullTab.view.webContents;
+    setHtmlFullscreen(fullTab, false);
+    wc.executeJavaScript('document.fullscreenElement && document.exitFullscreen()', true).catch(() => {});
+  });
   win.on('closed', () => {
     win = null;
   });

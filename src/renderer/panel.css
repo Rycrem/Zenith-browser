@@ -147,6 +147,12 @@ button.link { border: none; padding: 0; color: var(--accent); text-decoration: u
 }
 
 .fav:hover, .fav.active { background: var(--bg-raised); }
+/* Glisser-déposer : trait avant/après, cadre pour « dans le dossier ». */
+.fav[draggable="true"] { position: relative; }
+.fav.dragging { opacity: .4; }
+.fav.drop-before { box-shadow: inset 0 2px 0 var(--accent); }
+.fav.drop-after { box-shadow: inset 0 -2px 0 var(--accent); }
+.fav.drop-into { background: var(--bg-raised); outline: 1px solid var(--accent); outline-offset: -1px; }
 .fav .icon { color: var(--dim); flex: none; width: 1ch; }
 .fav.folder .icon { color: var(--accent); }
 .fav.folder .label { color: var(--accent); }

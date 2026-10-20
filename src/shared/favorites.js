@@ -135,13 +135,49 @@ function renameFavorite(tree, path, newName) {
   return node;
 }
 
-// Liste à plat pour l'affichage en arbre : chaque ligne a sa profondeur,
-// les liens reçoivent un numéro.
-function flatten(folder, prefix = '', depth = 0, out = []) {
-  const sorted = [...folder.children].sort((a, b) => {
+// Ordre d'affichage : dossiers d'abord puis alphabétique, sauf si le dossier
+// a été réordonné à la main (glisser-déposer dans la popup).
+function ordered(folder) {
+  if (folder.manual) return folder.children;
+  return [...folder.children].sort((a, b) => {
     if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
     return a.name.localeCompare(b.name, 'fr');
   });
+}
+
+// Glisser-déposer : place src avant ou après target, ou dans le dossier target (where = 'into').
+// Le dossier d'arrivée garde ensuite son ordre manuel. Renvoie le nouveau chemin.
+function reorderFavorite(tree, src, target, where) {
+  const srcKey = splitPath(src).join('/').toLowerCase();
+  const targetKey = splitPath(target).join('/').toLowerCase();
+  if (!srcKey || srcKey === targetKey) return splitPath(src).join('/');
+  if (targetKey.startsWith(`${srcKey}/`)) throw new Error(t('impossible de déplacer un dossier dans lui-même'));
+  const targetNode = targetKey ? getNode(tree, target) : tree;
+  if (!targetNode) throw new Error(t('favori introuvable : {path}', { path: target }));
+  if (where === 'into' && targetNode.type !== 'folder') throw new Error(t('« {name} » est un favori, pas un dossier', { name: targetNode.name }));
+  const destParts = where === 'into' ? splitPath(target) : splitPath(target).slice(0, -1);
+  const dest = getFolder(tree, destParts, false);
+  const removed = removeFavorite(tree, src);
+  const node = removed.node;
+  const clash = findChild(dest, node.name);
+  if (clash) {
+    restoreFavorite(tree, removed);
+    throw new Error(t('« {name} » existe déjà à cet endroit', { name: node.name }));
+  }
+  if (where === 'into') dest.children.push(node);
+  else {
+    dest.children = [...ordered(dest)];
+    dest.manual = true;
+    const i = dest.children.indexOf(targetNode);
+    dest.children.splice(where === 'after' ? i + 1 : i, 0, node);
+  }
+  return [...destParts, node.name].join('/');
+}
+
+// Liste à plat pour l'affichage en arbre : chaque ligne a sa profondeur,
+// les liens reçoivent un numéro.
+function flatten(folder, prefix = '', depth = 0, out = []) {
+  const sorted = ordered(folder);
   sorted.forEach((child, i) => {
     const path = prefix ? `${prefix}/${child.name}` : child.name;
     const last = i === sorted.length - 1;
@@ -196,6 +232,8 @@ module.exports = {
   restoreFavorite,
   moveFavorite,
   renameFavorite,
+  reorderFavorite,
+  ordered,
   flatten,
   allLinks,
   findByUrl,

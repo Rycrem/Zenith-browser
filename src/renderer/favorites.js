@@ -30,7 +30,8 @@ function h(tag, attrs, ...children) {
   return el;
 }
 
-const sorted = (children) => [...children].sort((a, b) => (a.type !== b.type ? (a.type === 'folder' ? -1 : 1) : a.name.localeCompare(b.name)));
+// Même ordre que src/shared/favorites.js : celui choisi à la main, sinon dossiers d'abord puis alphabétique.
+const sorted = (folder) => (folder.manual ? folder.children : [...folder.children].sort((a, b) => (a.type !== b.type ? (a.type === 'folder' ? -1 : 1) : a.name.localeCompare(b.name, 'fr'))));
 const host = (url) => {
   try {
     return new URL(url).hostname.replace(/^www\./, '');
@@ -44,15 +45,65 @@ function open(url, newTab) {
   window.panel.act('open', { url, newTab });
 }
 
-function linkRow(l, sub, depth) {
+function linkRow(l, sub, depth, path) {
   const newTab = (e) => e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1;
-  return h('div', {
+  return draggable(path, false, h('div', {
     class: `fav link${clean(l.url) === clean(data.current) ? ' here' : ''}`,
     title: `${l.url}\n${data.openTitle}`,
     'data-url': l.url,
     onclick: (e) => open(l.url, newTab(e)),
     onauxclick: (e) => e.button === 1 && open(l.url, true),
-  }, indent(depth), h('span', { class: 'icon' }, '·'), h('span', { class: 'label' }, l.name), h('span', { class: 'sub' }, sub));
+  }, indent(depth), h('span', { class: 'icon' }, '·'), h('span', { class: 'label' }, l.name), h('span', { class: 'sub' }, sub)));
+}
+
+// ------------------------------------------------ glisser-déposer (arbre seulement, pas en filtrant)
+
+let dragPath = null;
+
+function dropWhere(e, row, isFolder) {
+  const r = row.getBoundingClientRect();
+  const y = (e.clientY - r.top) / r.height;
+  if (isFolder) return y < 0.25 ? 'before' : y > 0.75 ? 'after' : 'into';
+  return y < 0.5 ? 'before' : 'after';
+}
+
+function clearDrop() {
+  document.querySelectorAll('.drop-before, .drop-after, .drop-into').forEach((el) => el.classList.remove('drop-before', 'drop-after', 'drop-into'));
+}
+
+function draggable(path, isFolder, row) {
+  if (!path) return row;
+  row.draggable = true;
+  row.dataset.path = path;
+  row.addEventListener('dragstart', (e) => {
+    dragPath = path;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', path);
+    row.classList.add('dragging');
+  });
+  row.addEventListener('dragend', () => {
+    dragPath = null;
+    row.classList.remove('dragging');
+    clearDrop();
+  });
+  row.addEventListener('dragover', (e) => {
+    if (!dragPath || dragPath === path || path.toLowerCase().startsWith(`${dragPath.toLowerCase()}/`)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    clearDrop();
+    row.classList.add(`drop-${dropWhere(e, row, isFolder)}`);
+  });
+  row.addEventListener('dragleave', () => row.classList.remove('drop-before', 'drop-after', 'drop-into'));
+  row.addEventListener('drop', (e) => {
+    if (!dragPath) return;
+    e.preventDefault();
+    const where = dropWhere(e, row, isFolder);
+    const src = dragPath;
+    clearDrop();
+    if (where === 'into') opened.add(path);
+    window.panel.act('move', { src, target: path, where });
+  });
+  return row;
 }
 
 function indent(depth) {
@@ -60,11 +111,11 @@ function indent(depth) {
 }
 
 function treeRows(folder, prefix, depth, out) {
-  for (const c of sorted(folder.children)) {
+  for (const c of sorted(folder)) {
     const path = prefix ? `${prefix}/${c.name}` : c.name;
     if (c.type === 'folder') {
       const isOpen = opened.has(path);
-      out.push(h('div', {
+      out.push(draggable(path, true, h('div', {
         class: 'fav folder',
         onclick: () => {
           if (isOpen) opened.delete(path);
@@ -74,9 +125,9 @@ function treeRows(folder, prefix, depth, out) {
           } catch {}
           render();
         },
-      }, indent(depth), h('span', { class: 'icon' }, isOpen ? '▾' : '▸'), h('span', { class: 'label' }, `${c.name}/`), h('span', { class: 'sub' }, String(count(c)))));
+      }, indent(depth), h('span', { class: 'icon' }, isOpen ? '▾' : '▸'), h('span', { class: 'label' }, `${c.name}/`), h('span', { class: 'sub' }, String(count(c))))));
       if (isOpen) treeRows(c, path, depth + 1, out);
-    } else out.push(linkRow(c, host(c.url), depth));
+    } else out.push(linkRow(c, host(c.url), depth, path));
   }
   return out;
 }
