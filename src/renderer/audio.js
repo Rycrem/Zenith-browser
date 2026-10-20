@@ -4,6 +4,7 @@
 const accent = new URLSearchParams(location.search).get('accent');
 if (accent && /^#[0-9a-f]{6}$/i.test(accent)) document.documentElement.style.setProperty('--accent', accent);
 if (new URLSearchParams(location.search).get('mode') === 'jour') document.documentElement.dataset.mode = 'jour';
+if (new URLSearchParams(location.search).get('private')) document.documentElement.dataset.private = '1';
 
 const $ = (sel) => document.querySelector(sel);
 let dragging = false;

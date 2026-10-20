@@ -199,12 +199,12 @@ function print(lines, el = term()) {
 const SECRET = /^(\s*(?:ia|ai)\s+(?:key|connect\s+\S+)\s+)\S+/i;
 const masked = (line) => line.replace(SECRET, '$1••••••••');
 
-async function run(line, { echo = true } = {}) {
+async function run(line, { echo = true, newTab = false } = {}) {
   const el = term();
   if (echo) print([{ t: `❯ ${masked(line)}`, c: 'cmd' }], el);
   awaiting = false;
   renderPs1();
-  const res = await api.exec(line);
+  const res = await api.exec(line, { newTab });
   if (res.clear) el.replaceChildren();
   print(res.lines, el.isConnected ? el : term());
   if (res.hideTerminal) setTerminalHidden(true);
@@ -240,7 +240,14 @@ $('#url-form').addEventListener('submit', async (e) => {
   api.focusPage();
 });
 urlInput.addEventListener('focus', () => urlInput.select());
-urlInput.addEventListener('keydown', (e) => {
+urlInput.addEventListener('keydown', async (e) => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    const url = urlInput.value.trim();
+    urlInput.blur();
+    if (url) await run(`tab new ${url}`);
+    return;
+  }
   if (e.key !== 'Escape') return;
   e.preventDefault();
   urlInput.value = state.status.url;
@@ -261,8 +268,12 @@ $('#url-copy').addEventListener('click', () => {
   copiedTimer = setTimeout(() => { tip.hidden = true; }, 1200);
 });
 
+// Ctrl+Entrée : la commande (adresse, recherche…) s'ouvre dans un nouvel onglet.
+let newTabNext = false;
 $('#prompt').addEventListener('submit', (e) => {
   e.preventDefault();
+  const newTab = newTabNext && !awaiting;
+  newTabNext = false;
   const line = input.value;
   input.value = '';
   if (line.trim() && !awaiting && !SECRET.test(line) && cmdHistory[cmdHistory.length - 1] !== line) {
@@ -271,11 +282,15 @@ $('#prompt').addEventListener('submit', (e) => {
     persist('cmdHistory', cmdHistory);
   }
   histIndex = cmdHistory.length;
-  run(line);
+  run(line, { newTab });
 });
 
 input.addEventListener('keydown', async (e) => {
-  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    newTabNext = true;
+    $('#prompt').requestSubmit();
+  } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
     e.preventDefault();
     histIndex = Math.max(0, Math.min(cmdHistory.length, histIndex + (e.key === 'ArrowUp' ? -1 : 1)));
     input.value = cmdHistory[histIndex] || '';
@@ -401,6 +416,9 @@ api.on('state', (s) => {
   document.documentElement.style.setProperty('--accent', s.accent);
   document.documentElement.dataset.mode = s.light ? 'jour' : 'nuit';
   document.documentElement.dataset.platform = s.platform;
+  if (s.private) document.documentElement.dataset.private = '1';
+  else delete document.documentElement.dataset.private;
+  $('.logo').textContent = s.private ? t('dev-brows · privé') : 'dev-brows';
   showTerm(s.panes[s.activePane].tabId, new Set(s.tabs.map((t) => t.id)));
   renderTabs();
   renderPanes();

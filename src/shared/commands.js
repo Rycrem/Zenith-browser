@@ -73,6 +73,7 @@ const COMMANDS = [
   ['adblock', '[on | off]', 'bloqueur de pub de secours, éteint par défaut (uBlock Origin est préinstallé)'],
   ['engine', '[ddg | google | bing | qwant]', 'moteur de recherche'],
   ['theme', '[ambre | vert | cyan | rose | violet]', 'couleur d\'accent'],
+  ['private', '[on | off]', 'navigation privée (Ctrl+Maj+N) : onglets à part, rien n\'est retenu'],
   ['mode', '[nuit | jour]', 'mode nuit (par défaut) ou jour ; aussi le bouton lune/soleil en bas'],
   ['lang', '[fr | en]', 'langue de l\'interface (français ou anglais)'],
   ['perm', '[reset [site]]', 'autorisations accordées aux sites (caméra, micro, position…)'],
@@ -89,7 +90,7 @@ const COMMANDS = [
 const COMMAND_NAMES = [
   'brows', 'ia', 'go', 'links', 'back', 'fwd', 'reload', 'home', 'tab', 'close', 'split', 'focus',
   'fav', 'add', 'undo', 'hist', 'clean', 'find', 'ext', 'dl', 'alias', 'unalias', 'engine',
-  'theme', 'mode', 'lang', 'tty', 'adblock', 'perm', 'update', 'devtools', 'term', 'fullscreen', 'quit', 'exit', 'help', 'clear',
+  'theme', 'mode', 'private', 'prive', 'lang', 'tty', 'adblock', 'perm', 'update', 'devtools', 'term', 'fullscreen', 'quit', 'exit', 'help', 'clear',
 ];
 
 const SUBCOMMANDS = {
@@ -105,6 +106,7 @@ const SUBCOMMANDS = {
   engine: Object.keys(ENGINES),
   theme: ['ambre', 'vert', 'cyan', 'rose', 'violet'],
   mode: ['nuit', 'jour'],
+  private: ['on', 'off'],
   lang: ['fr', 'en'],
   devtools: ['detach', 'close'],
   tty: ['on', 'off'],

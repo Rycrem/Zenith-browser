@@ -26,6 +26,7 @@ class Extensions {
   constructor(ses, settings, dir) {
     this.ses = ses;
     this.api = ses.extensions || ses; // ses.extensions depuis Electron 35
+    this.others = []; // autres sessions (navigation privée) qui chargent les mêmes extensions
     this.settings = settings;
     this.dir = dir;
     if (!Array.isArray(settings.data.extensions)) settings.data.extensions = [];
@@ -63,6 +64,25 @@ class Extensions {
     return version;
   }
 
+  // Charge aussi les extensions dans une autre session (navigation privée).
+  async attach(session) {
+    const api = session.extensions || session;
+    this.others.push(api);
+    for (const ext of this.list) {
+      if (!ext.enabled) continue;
+      try {
+        await api.loadExtension(ext.path, { allowFileAccess: false });
+      } catch {
+        // déjà signalée au chargement principal
+      }
+    }
+  }
+
+  unloadEverywhere(id) {
+    this.api.removeExtension(id);
+    for (const api of this.others) if (api.getExtension(id)) api.removeExtension(id);
+  }
+
   async loadAll() {
     for (const ext of this.list) {
       if (!ext.enabled) continue;
@@ -77,6 +97,7 @@ class Extensions {
   async load(ext) {
     // Pas d'accès aux pages file:// : l'interface de dev-brows en est une, les extensions n'ont pas à s'y injecter.
     const loaded = await this.api.loadExtension(ext.path, { allowFileAccess: false });
+    for (const api of this.others) if (!api.getExtension(loaded.id)) await api.loadExtension(ext.path, { allowFileAccess: false }).catch(() => {});
     ext.id = loaded.id;
     ext.name = this.readName(ext.path, loaded.name);
     ext.popup = this.readPopup(ext.path);
@@ -181,7 +202,7 @@ class Extensions {
         const from = this.readManifest(ext.path).version;
         const to = source === 'ublock' ? (await this.ublockRelease()).version : await this.storeVersion(source, from);
         if (!to || !newer(to, from)) continue;
-        if (ext.id && ext.enabled) this.api.removeExtension(ext.id);
+        if (ext.id && ext.enabled) this.unloadEverywhere(ext.id);
         if (source === 'ublock') await this.downloadUblock();
         else await this.download(source);
         if (ext.enabled) await this.load(ext);
@@ -262,7 +283,7 @@ class Extensions {
     const ext = this.get(n);
     if (ext.enabled === enabled) return ext;
     if (enabled) await this.load(ext);
-    else if (ext.id) this.api.removeExtension(ext.id);
+    else if (ext.id) this.unloadEverywhere(ext.id);
     ext.enabled = enabled;
     this.settings.save();
     return ext;
@@ -270,7 +291,7 @@ class Extensions {
 
   remove(n) {
     const ext = this.get(n);
-    if (ext.id && ext.enabled) this.api.removeExtension(ext.id);
+    if (ext.id && ext.enabled) this.unloadEverywhere(ext.id);
     this.list.splice(n - 1, 1);
     if (ext.path.startsWith(this.dir + path.sep)) fs.rmSync(ext.path, { recursive: true, force: true });
     this.settings.save();

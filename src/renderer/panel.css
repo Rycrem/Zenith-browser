@@ -10,6 +10,15 @@
   --mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'DejaVu Sans Mono', Consolas, monospace;
 }
 
+:root[data-private], :root[data-private][data-mode="jour"] {
+  --bg: #1A1024;
+  --bg-raised: #231531;
+  --line: #36234B;
+  --text: #E2D9EC;
+  --dim: #A08DB5;
+  --green: #7FD18B;
+  --red: #F07B7B;
+}
 :root[data-mode="jour"] {
   --bg: #F6F7F9;
   --bg-raised: #FFFFFF;
