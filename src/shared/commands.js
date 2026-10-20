@@ -67,7 +67,7 @@ const COMMANDS = [
   ['hist', '[texte]', 'historique, filtré si besoin'],
   ['clean', '[all]', 'vider l\'historique ; « all » vide aussi les cookies et le cache'],
   ['find', '[texte]', 'chercher dans la page (« find » seul efface)'],
-  ['ext', '[add | on | off | rm | alias | n]', 'gérer les extensions'],
+  ['ext', '[add | on | off | rm | alias | log | n]', 'gérer les extensions ; « ext log n » montre leurs erreurs'],
   ['dl', '[n]', 'téléchargements ; n ouvre le fichier'],
   ['alias', '[nom = commande]', 'créer un raccourci ; « unalias nom » le supprime'],
   ['adblock', '[on | off]', 'bloqueur de pub de secours, éteint par défaut (uBlock Origin est préinstallé)'],
@@ -93,7 +93,7 @@ const COMMAND_NAMES = [
 
 const SUBCOMMANDS = {
   fav: ['rm', 'mv', 'rename', 'import'],
-  ext: ['add', 'on', 'off', 'rm', 'alias'],
+  ext: ['add', 'on', 'off', 'rm', 'alias', 'log'],
   tab: ['new', 'save'],
   split: ['off'],
   clean: ['all'],

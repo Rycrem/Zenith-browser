@@ -10,12 +10,14 @@ const CHANGELOG = [
       'Bouton ★ favoris en bas à gauche (ou Ctrl+Maj+B) : tes favoris en popup, avec un filtre.',
       '« fav import » importe les favoris de Chrome, Edge, Brave, Vivaldi, Opera, Firefox ou d\'un export HTML.',
       'L\'accueil se met à jour tout de suite quand un favori est ajouté, déplacé ou supprimé.',
+      '« ext log n » montre les erreurs d\'une extension (fond, popup, scripts dans les pages), pour comprendre pourquoi elle ne marche pas.',
     ],
     en: [
       '↓ button right of the extensions (or Ctrl+Shift+J): downloads in a popup, with a progress ring, size, speed and time left.',
       '★ bookmarks button at the bottom left (or Ctrl+Shift+B): your bookmarks in a popup, with a filter.',
       '“fav import” imports bookmarks from Chrome, Edge, Brave, Vivaldi, Opera, Firefox or an HTML export.',
       'The home screen updates right away when a bookmark is added, moved or removed.',
+      '“ext log n” shows an extension\'s errors (background, popup, scripts in pages), to understand why it does not work.',
     ],
   },
   {

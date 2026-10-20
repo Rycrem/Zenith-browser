@@ -10,6 +10,14 @@
   'use strict';
 
   const EN = {
+    "fond": "background",
+    "ligne": "line",
+    "page": "page",
+    "ext log <n | alias>": "ext log <n | alias>",
+    "  aucune erreur de {name} depuis le lancement": "  no errors from {name} since launch",
+    "  erreurs et avertissements de {name} depuis le lancement :": "  errors and warnings from {name} since launch:",
+    "[add | on | off | rm | alias | log | n]": "[add | on | off | rm | alias | log | n]",
+    "gérer les extensions ; « ext log n » montre leurs erreurs": "manage extensions; “ext log n” shows their errors",
     '  ✓ 1 favori importé de {name} dans {folder}/': '  ✓ 1 bookmark imported from {name} into {folder}/',
     "impossible de lire les favoris de {name} : {error}": "can't read the bookmarks of {name}: {error}",
     "  rien de nouveau dans {name} ({skipped} déjà dans tes favoris)": "  nothing new in {name} ({skipped} already in your bookmarks)",

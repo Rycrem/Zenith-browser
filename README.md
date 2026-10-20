@@ -57,7 +57,7 @@ Logic tests (bookmarks, aliases, result parsing, extensions, translations): `npm
 | `hist [text]` | history, filterable |
 | `clean`, `clean all` | clears history; `all` also clears cookies and cache (asks first) |
 | `find [text]` | find in page |
-| `ext`, `ext add <store link \| id \| folder>`, `ext on/off/rm <n>`, `ext alias <n> <name>`, `ext <n>` | extensions |
+| `ext`, `ext add <store link \| id \| folder>`, `ext on/off/rm <n>`, `ext alias <n> <name>`, `ext <n>`, `ext log <n>` | extensions (`ext log` shows an extension's errors and warnings since launch, to find out why it does not work) |
 | `dl [n]` | downloads (saved straight to Downloads) |
 | `alias name = command [; command…]`, `unalias name` | your own shortcuts, which can chain commands |
 | `adblock [on\|off]` | fallback ad blocker, off by default (uBlock Origin is preinstalled) |

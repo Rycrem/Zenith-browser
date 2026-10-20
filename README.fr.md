@@ -50,7 +50,7 @@ Tests de la logique (favoris, alias, lecture des résultats, extensions) : `npm 
 | `hist [texte]` | historique, filtrable |
 | `clean`, `clean all` | vide l'historique ; `all` vide aussi cookies et cache (avec confirmation) |
 | `find [texte]` | chercher dans la page |
-| `ext`, `ext add <lien store \| id \| dossier>`, `ext on/off/rm <n>`, `ext alias <n> <nom>`, `ext <n>` | extensions |
+| `ext`, `ext add <lien store \| id \| dossier>`, `ext on/off/rm <n>`, `ext alias <n> <nom>`, `ext <n>`, `ext log <n>` | extensions (`ext log` montre les erreurs et avertissements d'une extension depuis le lancement, pour savoir pourquoi elle ne marche pas) |
 | `dl [n]` | téléchargements (enregistrés directement dans Téléchargements) |
 | `alias nom = commande [; commande…]`, `unalias nom` | raccourcis perso, qui peuvent enchaîner des commandes |
 | `adblock [on\|off]` | bloqueur de pub de secours, éteint par défaut (uBlock Origin est préinstallé) |
