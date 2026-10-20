@@ -236,6 +236,8 @@ th { color: var(--dim); }
 .chip.off { color: var(--dim); }
 #dl-chip, #fav-chip { color: var(--text); }
 #dl-chip.busy { color: var(--accent); }
+#dl-chip { display: flex; align-items: center; gap: 4px; }
+.dl-icon { width: 14px; height: 14px; display: block; }
 
 /* Son : haut-parleur dans l'onglet, player dans la barre d'état */
 .speaker-icon { width: 14px; height: 14px; display: block; }

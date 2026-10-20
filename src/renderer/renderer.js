@@ -72,6 +72,25 @@ function speaker(muted) {
   return svg;
 }
 
+// Icône de téléchargement : flèche vers le bas au-dessus d'une barre arrondie.
+function downloadIcon() {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 16 16');
+  svg.setAttribute('class', 'dl-icon');
+  for (const d of ['M8 1.8v8.4', 'M4.4 6.8L8 10.4l3.6-3.6', 'M3.6 13.4h8.8']) {
+    const p = document.createElementNS(NS, 'path');
+    p.setAttribute('d', d);
+    p.setAttribute('fill', 'none');
+    p.setAttribute('stroke', 'currentColor');
+    p.setAttribute('stroke-width', '1.8');
+    p.setAttribute('stroke-linecap', 'round');
+    p.setAttribute('stroke-linejoin', 'round');
+    svg.append(p);
+  }
+  return svg;
+}
+
 function fill(el, children) {
   el.replaceChildren(...children.flat(Infinity).filter((c) => c !== null && c !== undefined && c !== false));
 }
@@ -444,7 +463,7 @@ function renderStatus() {
       class: `chip${state.downloads ? ' busy' : ''}`,
       title: t('Téléchargements (Ctrl+Maj+J)'),
       onclick: () => openPanel('dl'),
-    }, state.downloads ? `↓ ${state.downloads}` : '↓'),
+    }, downloadIcon(), state.downloads ? ` ${state.downloads}` : null),
     // Le player prend la place de l'heure.
     state.audio.show ? null : h('span', { id: 'clock' }, clock()),
   ]);

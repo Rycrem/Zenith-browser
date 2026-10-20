@@ -11,6 +11,7 @@ const CHANGELOG = [
       '« update » affiche un récapitulatif de ce qu\'apporte la mise à jour proposée.',
       'Un second clic sur la pastille d\'une extension ferme sa popup au lieu de la rouvrir.',
       'Les extensions ne s\'injectent plus dans l\'interface de dev-brows.',
+      'Nouvelle icône pour le bouton des téléchargements.',
     ],
     en: [
       'A tab playing sound shows a speaker: click it to mute or unmute the tab.',
@@ -18,6 +19,7 @@ const CHANGELOG = [
       '“update” shows a recap of what the proposed update brings.',
       'A second click on an extension badge closes its popup instead of reopening it.',
       'Extensions no longer inject into dev-brows\'s own interface.',
+      'New icon for the downloads button.',
     ],
   },
   {
