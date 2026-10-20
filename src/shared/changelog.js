@@ -7,14 +7,14 @@ const CHANGELOG = [
     version: '0.1.22',
     notes: [
       'Nouveau logo pour le bouton qui copie l\'adresse : deux feuilles, celle de devant avec un coin plié.',
-      'Sur une page du Chrome Web Store, un bouton « Ajouter à dev-brows » en bas à droite installe l\'extension.',
+      'Le bouton « Ajouter à Chrome » du Chrome Web Store marche, comme dans Brave : dev-brows demande confirmation puis installe l\'extension (« Supprimer de Chrome » la désinstalle). Si le store change et que ce bouton ne répond plus, un bouton « Ajouter à dev-brows » apparaît en bas à droite.',
       'Les extensions qui rangent leurs réglages dans chrome.storage.sync (SponsorBlock…) fonctionnent : ils sont gardés sur l\'ordinateur.',
       'Nouvelles API pour les extensions : capture de l\'onglet, historique, favoris, liste des extensions, recherche, connexion OAuth (identity), panneau latéral, téléchargements ; les autres (groupes d\'onglets, sessions…) répondent vide au lieu de planter.',
       'En glissant un onglet, le bord droit de l\'onglet de gauche et le bord gauche de celui de droite s\'allument : on voit exactement où il sera posé.',
     ],
     en: [
       'New icon for the copy-address button: two sheets, the front one with a folded corner.',
-      'On a Chrome Web Store page, an “Add to dev-brows” button at the bottom right installs the extension.',
+      'The Chrome Web Store “Add to Chrome” button works, as in Brave: dev-brows asks for confirmation, then installs the extension (“Remove from Chrome” uninstalls it). If the store changes and that button stops responding, an “Add to dev-brows” button appears at the bottom right.',
       'Extensions that keep their settings in chrome.storage.sync (SponsorBlock…) now work: the settings are kept on the computer.',
       'New extension APIs: tab capture, history, bookmarks, extension list, search, OAuth sign-in (identity), side panel, downloads; the others (tab groups, sessions…) answer empty instead of crashing.',
       'While dragging a tab, the right edge of the tab on the left and the left edge of the tab on the right light up, showing exactly where it will land.',
