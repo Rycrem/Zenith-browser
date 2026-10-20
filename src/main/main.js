@@ -5,6 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { JsonStore } = require('./store');
+const journal = require('./log');
 const { Extensions, newer } = require('./extensions');
 const bookmarks = require('../shared/bookmarks-import');
 const { AdBlock } = require('./adblock');
@@ -3253,6 +3254,15 @@ function createWindow() {
   });
 }
 
+// Journal (dev-brows.log dans le dossier de données) : lancement, extensions, plantages.
+journal.open(app.getPath('userData'));
+journal.log(`lancement de dev-brows ${app.getVersion()} (Electron ${process.versions.electron}, ${process.platform} ${os.release()})`);
+process.on('uncaughtException', (err) => journal.log('erreur non rattrapée :', err));
+process.on('unhandledRejection', (err) => journal.log('promesse rejetée non rattrapée :', err instanceof Error ? err : String(err)));
+app.on('render-process-gone', (e, wc, d) => journal.log(`page arrêtée (${d.reason}, code ${d.exitCode}) : ${wc && !wc.isDestroyed() ? wc.getURL() : '?'}`));
+app.on('child-process-gone', (e, d) => journal.log(`processus ${d.type}${d.name ? ` (${d.name})` : ''} arrêté : ${d.reason}, code ${d.exitCode}`));
+const guard = journal.startupGuard(app.getPath('userData'));
+
 app.whenReady().then(async () => {
   ses = session.defaultSession;
   const dir = app.getPath('userData');
@@ -3269,7 +3279,31 @@ app.whenReady().then(async () => {
   for (const type of ['frame', 'service-worker']) ses.registerPreloadScript({ id: `dev-brows-storage-sync-${type}`, type, filePath: path.join(__dirname, 'ext-sync-preload.js') });
   exts = new Extensions(ses, settings, path.join(dir, 'extensions'));
   exts.installBundledUblock(app.isPackaged ? path.join(process.resourcesPath, 'ublock-origin') : path.join(__dirname, '..', '..', 'vendor', 'ublock-origin'));
-  await exts.loadAll();
+  // Le lancement précédent a planté avant d'être stable : on désactive l'extension qui se
+  // chargeait à ce moment-là, ou, si on ne sait pas, toutes les extensions pour ce lancement.
+  let safeNote = null;
+  if (guard.previous) {
+    journal.log(`le lancement précédent s'est arrêté pendant : ${guard.previous}`);
+    const culprit = guard.previous.startsWith('extension ') && exts.list.find((e) => e.path === guard.previous.slice(10));
+    if (culprit) {
+      culprit.enabled = false;
+      settings.save();
+      safeNote = t('  ⚠ dev-brows a planté au dernier lancement en chargeant l\'extension {name} : elle est désactivée (« ext on » pour la réactiver). Détails : {file}', { name: culprit.name || culprit.alias, file: path.join(dir, 'dev-brows.log') });
+    } else if (exts.list.some((e) => e.enabled)) {
+      // Cause inconnue : on coupe les extensions (« ext on n » une par une retrouve la fautive).
+      for (const e of exts.list) e.enabled = false;
+      settings.save();
+      safeNote = t('  ⚠ dev-brows a planté au dernier lancement : les extensions sont désactivées, « ext on <n> » les réactive une par une. Détails : {file}', { file: path.join(dir, 'dev-brows.log') });
+    }
+  }
+  await exts.loadAll({
+    before: (ext) => {
+      guard.step(`extension ${ext.path}`);
+      journal.log(`chargement de l'extension ${ext.name || ext.alias || ext.path}`);
+    },
+    after: (ext) => journal.log(ext.error ? `  échec : ${ext.error}` : `  chargée (${ext.id})`),
+  });
+  guard.step('ouverture de la fenêtre');
   setupIpc();
   setupDownloads();
   setupPermissions();
@@ -3280,9 +3314,17 @@ app.whenReady().then(async () => {
   buildMenu();
   createWindow();
   createTab();
+  guard.step('en marche');
+  if (safeNote) win.webContents.once('did-finish-load', () => setTimeout(() => print([{ t: safeNote, c: 'warn' }]), 500));
+  // Stable après 20 s : un plantage plus tard ne viendra pas du démarrage.
+  setTimeout(() => {
+    guard.done();
+    journal.log('démarrage terminé');
+  }, 20000);
 });
 
 app.on('before-quit', () => {
+  guard.done(); // fermeture normale, même avant la fin du démarrage
   for (const s of [favorites, history, settings]) if (s) s.flush();
 });
 

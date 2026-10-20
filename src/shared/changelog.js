@@ -4,6 +4,17 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.23',
+    notes: [
+      'Un journal, dev-brows.log dans le dossier de données, note chaque lancement, le chargement de chaque extension et les plantages.',
+      'Si dev-brows plante pendant son démarrage, le lancement suivant désactive l\'extension en cause (ou toutes, si on ne sait pas laquelle) et le dit dans le terminal.',
+    ],
+    en: [
+      'A log, dev-brows.log in the data folder, records each launch, the loading of each extension and any crash.',
+      'If dev-brows crashes while starting, the next launch disables the extension at fault (or all of them when it cannot tell which) and says so in the terminal.',
+    ],
+  },
+  {
     version: '0.1.22',
     notes: [
       'Nouveau logo pour le bouton qui copie l\'adresse : deux feuilles, celle de devant avec un coin plié.',

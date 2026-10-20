@@ -142,6 +142,8 @@ The app closes, the update runs with the system's `node` (on Windows, Electron c
 
 Bookmarks, history and settings are JSON files in Electron's data folder (`~/.config/dev-brows` on Linux, `%APPDATA%\dev-brows` on Windows, `~/Library/Application Support/dev-brows` on macOS).
 
+The same folder holds `dev-brows.log`, the log: each launch, the loading of each extension and any crash. If dev-brows crashes while starting, the next launch disables the extension at fault (or all of them when it cannot tell which) and says so in the terminal; `ext on <n>` turns them back on.
+
 Run from source, the app uses a separate folder, `dev-brows-dev` (copied from `dev-brows` the first time): the installed app encrypts its cookies with a key the development version cannot read.
 
 ## Privacy

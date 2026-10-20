@@ -84,14 +84,17 @@ class Extensions {
     for (const api of this.others) if (api.getExtension(id)) api.removeExtension(id);
   }
 
-  async loadAll() {
+  // hooks.before/after : journal du chargement de chaque extension.
+  async loadAll(hooks = {}) {
     for (const ext of this.list) {
       if (!ext.enabled) continue;
+      if (hooks.before) hooks.before(ext);
       try {
         await this.load(ext);
       } catch (err) {
         ext.error = err.message;
       }
+      if (hooks.after) hooks.after(ext);
     }
   }
 

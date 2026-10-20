@@ -152,6 +152,8 @@
     '{alias} est désactivée (ext on {n})': '{alias} is disabled (ext on {n})',
     "{alias} n'a pas de popup": '{alias} has no popup',
     '  extension déjà installée (« ext » pour la gérer)': '  extension already installed (“ext” to manage it)',
+    '  ⚠ dev-brows a planté au dernier lancement en chargeant l\'extension {name} : elle est désactivée (« ext on » pour la réactiver). Détails : {file}': '  ⚠ dev-brows crashed at the last launch while loading the {name} extension: it is disabled (“ext on” turns it back on). Details: {file}',
+    '  ⚠ dev-brows a planté au dernier lancement : les extensions sont désactivées, « ext on <n> » les réactive une par une. Détails : {file}': '  ⚠ dev-brows crashed at the last launch: extensions are disabled, “ext on <n>” turns them back on one by one. Details: {file}',
     'Ajouter l\'extension': 'Add extension',
     'Annuler': 'Cancel',
     'Ajouter « {name} » à dev-brows ?': 'Add “{name}” to dev-brows?',
