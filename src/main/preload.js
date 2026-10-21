@@ -30,7 +30,7 @@ contextBridge.exposeInMainWorld('brows', {
   writeClipboard: (text) => ipcRenderer.send('ui:clipboard-write', text),
   resetZoom: () => ipcRenderer.send('ui:zoom-reset'),
   on: (channel, fn) => {
-    if (!['state', 'term:print', 'term:focus', 'term:toggle', 'ui:panel', 'suggest:done'].includes(channel)) return;
+    if (!['state', 'term:print', 'term:focus', 'term:toggle', 'term:clear', 'ui:panel', 'suggest:done'].includes(channel)) return;
     ipcRenderer.on(channel, (e, ...args) => fn(...args));
   },
 });

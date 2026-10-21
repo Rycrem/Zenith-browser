@@ -371,6 +371,7 @@ function openPanel(kind) {
 }
 // Ctrl+Maj+J, Ctrl+Maj+B et Ctrl+Maj+E.
 api.on('ui:panel', openPanel);
+api.on('term:clear', () => term().replaceChildren());
 api.on('term:toggle', () => setTerminalHidden(!app.classList.contains('term-hidden')));
 api.on('term:focus', (prefill) => {
   if (app.classList.contains('term-hidden')) setTerminalHidden(false);
@@ -987,7 +988,7 @@ function applyStaticLabels() {
 
 applyStaticLabels();
 renderPs1();
-print([{ t: t('dev-brows prêt. Ctrl+L revient ici, Ctrl+J cache le terminal, Échap rend la main à la page.'), c: 'dim' }]);
+print([{ t: t('Zenith prêt. Ctrl+H revient ici, Ctrl+L vide le terminal, Ctrl+J le cache, Échap rend la main à la page.'), c: 'dim' }]);
 api.ready();
 input.focus();
 

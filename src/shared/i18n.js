@@ -480,7 +480,6 @@
     'copié': 'copied',
     'Glisser pour redimensionner': 'Drag to resize',
     'Glisser pour redimensionner le terminal (double-clic : taille par défaut)': 'Drag to resize the terminal (double-click: default size)',
-    'dev-brows prêt. Ctrl+L revient ici, Ctrl+J cache le terminal, Échap rend la main à la page.': 'dev-brows ready. Ctrl+L comes back here, Ctrl+J hides the terminal, Esc gives control back to the page.',
 
     // favoris et fichiers
     "ce fichier n'est pas une extension Chrome (.crx)": 'this file is not a Chrome extension (.crx)',
@@ -566,6 +565,13 @@
     'vérification automatique au lancement (dev-brows et extensions)': 'automatic check at launch (dev-brows and extensions)',
     'vérification automatique au lancement : activée (dev-brows et extensions)': 'automatic check at launch: on (dev-brows and extensions)',
     'vérification automatique au lancement : désactivée (« update » et « ext » restent possibles à la main)': 'automatic check at launch: off (“update” and “ext” still work by hand)',
+    "vider le terminal": "clear the terminal",
+    "Ctrl+Maj+R": "Ctrl+Shift+R",
+    "recharger sans le cache": "reload without the cache",
+    "Vider le terminal": "Clear the terminal",
+    "Recharger sans le cache": "Reload without the cache",
+    "recharger sans le cache (Ctrl+Maj+R)": "reload without the cache (Ctrl+Shift+R)",
+    "Zenith prêt. Ctrl+H revient ici, Ctrl+L vide le terminal, Ctrl+J le cache, Échap rend la main à la page.": "Zenith ready. Ctrl+H comes back here, Ctrl+L clears the terminal, Ctrl+J hides it, Esc gives control back to the page.",
   };
 
   let lang = 'fr';

@@ -240,7 +240,7 @@ function setupChromeApi(s) {
     favorites: () => favorites.data.tree,
     downloads: () => downloads,
     download: (url) => s.downloadURL(url),
-    showItem: (p) => shell.showItemInFolder(p),
+    showItem: (p) => showInFolder(p),
     openItem: (p) => shell.openPath(p),
     showDownloadsFolder: () => shell.openPath(app.getPath('downloads')),
     openSidePanel(url, title) {
@@ -1571,6 +1571,13 @@ function sendPanel(kind) {
 
 const sendDl = () => sendPanel('dl');
 
+// Pendant le téléchargement, le fichier n'existe pas encore sous son nom (Chromium écrit un
+// .crdownload) : showItemInFolder ne ferait rien, on ouvre alors le dossier.
+function showInFolder(file) {
+  if (fs.existsSync(file)) shell.showItemInFolder(file);
+  else shell.openPath(path.dirname(file));
+}
+
 // Ouvre la popup au-dessus de son bouton de la barre du bas, ou la ferme.
 // x : bord droit du bouton (téléchargements, à droite) ou bord gauche (favoris, à gauche).
 function togglePanel(kind, x) {
@@ -1619,7 +1626,10 @@ async function panelAction(kind, action, arg) {
     if (action === 'dir') return void shell.openPath(app.getPath('downloads'));
     const d = Number.isInteger(arg) ? downloads[arg] : null;
     if (!d) return;
-    if (action === 'folder') shell.showItemInFolder(d.path);
+    if (action === 'folder') {
+      if (panel && !panel.win.isDestroyed()) panel.win.close();
+      showInFolder(d.path);
+    }
     else if (action === 'open' && d.state === 'completed') {
       const err = await shell.openPath(d.path);
       if (err) print([{ t: `  ${err}`, c: 'err' }]);
@@ -1941,7 +1951,7 @@ async function exec(raw, depth = 0) {
         break;
       case 'reload':
       case 'r':
-        reloadTab(tab);
+        reloadTab(tab, args[0] === 'hard');
         break;
       case 'tab':
       case 'tabs':
@@ -2180,7 +2190,7 @@ async function select(tab, n, newTab, say, onlyKind) {
       break;
     case 'dl':
       if (!item.path) throw new Error(t('fichier pas encore enregistré'));
-      if (newTab) shell.showItemInFolder(item.path);
+      if (newTab) showInFolder(item.path);
       else {
         const err = await shell.openPath(item.path);
         if (err) throw new Error(err);
@@ -2966,7 +2976,8 @@ function complete(line) {
 // ---------------------------------------------------------------- fenêtre et raccourcis
 
 const SHORTCUTS = [
-  ['Ctrl+L', mark('aller au terminal')],
+  ['Ctrl+H', mark('aller au terminal')],
+  ['Ctrl+L', mark('vider le terminal')],
   ['Ctrl+J', mark('cacher / montrer le terminal')],
   ['F11', mark('plein écran')],
   [mark('Échap'), mark('rendre la main à la page')],
@@ -2974,6 +2985,7 @@ const SHORTCUTS = [
   ['Ctrl+Tab', mark('onglet suivant (Ctrl+1…9 : onglet n)')],
   ['Alt+← / Alt+→', mark('précédent / suivant')],
   ['F5', mark('recharger')],
+  [mark('Ctrl+Maj+R'), mark('recharger sans le cache')],
   ['Ctrl+F / Ctrl+D', mark('chercher dans la page / ajouter aux favoris')],
   [mark('Ctrl+Maj+S / F6'), mark('split / changer d\'écran')],
   [mark('F12, clic droit › Inspecter'), mark('outils de développement')],
@@ -2985,10 +2997,12 @@ const SHORTCUTS = [
 ];
 
 // Recharge la page et retire l'écran du terminal (résultats, aide…) qui pouvait la cacher.
-function reloadTab(tab) {
+// hard : sans le cache (Ctrl+Maj+R).
+function reloadTab(tab, hard = false) {
   if (!tab.view) throw new Error(t('aucune page ouverte'));
   tab.screen = null;
-  tab.view.webContents.reload();
+  if (hard) tab.view.webContents.reloadIgnoringCache();
+  else tab.view.webContents.reload();
   layout();
   sendState();
 }
@@ -3017,7 +3031,8 @@ function buildMenu() {
     {
       label: 'dev-brows',
       submenu: [
-        { label: 'Terminal', accelerator: 'CmdOrCtrl+L', click: () => focusTerminal() },
+        { label: 'Terminal', accelerator: 'CmdOrCtrl+H', click: () => focusTerminal() },
+        { label: t('Vider le terminal'), accelerator: 'CmdOrCtrl+L', click: () => win.webContents.send('term:clear') },
         { label: t('Cacher le terminal'), accelerator: 'CmdOrCtrl+J', click: () => win.webContents.send('term:toggle') },
         { label: t('Plein écran'), accelerator: 'F11', click: () => win.setFullScreen(!win.isFullScreen()) },
         { label: t('Nouvel onglet'), accelerator: 'CmdOrCtrl+T', click: act(() => { createTab(); focusTerminal(); }) },
@@ -3031,6 +3046,7 @@ function buildMenu() {
         { label: t('Suivant'), accelerator: 'Alt+Right', click: nav((wc) => wc.navigationHistory.canGoForward() && wc.navigationHistory.goForward()) },
         { label: t('Recharger'), accelerator: 'F5', click: act(() => reloadTab(activeTab())) },
         { label: t('Recharger'), accelerator: 'CmdOrCtrl+R', visible: false, click: act(() => reloadTab(activeTab())) },
+        { label: t('Recharger sans le cache'), accelerator: 'CmdOrCtrl+Shift+R', click: act(() => reloadTab(activeTab(), true)) },
         { label: t('Chercher'), accelerator: 'CmdOrCtrl+F', click: () => focusTerminal('find ') },
         { label: t('Ajouter aux favoris'), accelerator: 'CmdOrCtrl+D', click: () => focusTerminal('add ') },
         { label: 'Split', accelerator: 'CmdOrCtrl+Shift+S', click: () => runCommand(panes.length > 1 ? 'split off' : 'split') },
