@@ -167,12 +167,20 @@ function ensureView(tab) {
   win.contentView.addChildView(view);
   tab.view = view;
   wireWebContents(tab, view.webContents);
-  apiOf(tab).addTab(view.webContents, win);
-  // L'onglet peut déjà être affiché (page d'accueil qui charge un site) : les extensions doivent le savoir actif.
-  if (panes[activePane] && panes[activePane].tabId === tab.id) apiOf(tab).selectTab(view.webContents);
+  // La bibliothèque des extensions croit chaque nouvel onglet actif et demande à l'afficher :
+  // un onglet ouvert en arrière-plan (Ctrl+clic) ne doit pas passer devant.
+  addingTab = true;
+  try {
+    apiOf(tab).addTab(view.webContents, win);
+  } finally {
+    addingTab = false;
+  }
+  const shown = activeTab();
+  if (shown && shown.view && shown.private === tab.private) apiOf(tab).selectTab(shown.view.webContents);
   return view;
 }
 
+let addingTab = false;
 const tabOfContents = (wc) => tabs.find((t) => t.view && t.view.webContents === wc);
 
 // electron-chrome-extensions n'envoie jamais tabs.onHighlighted, et le sender des messages n'a
@@ -203,6 +211,7 @@ function setupChromeApi(s) {
       return [ensureView(tab).webContents, win];
     },
     selectTab(wc) {
+      if (addingTab) return;
       const tab = tabOfContents(wc);
       if (tab) showInPane(tab, activePane);
     },
