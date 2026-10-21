@@ -9,7 +9,6 @@ const journal = require('./log');
 const { Extensions, newer } = require('./extensions');
 const bookmarks = require('../shared/bookmarks-import');
 const config = require('../shared/config');
-const { AdBlock } = require('./adblock');
 const { ElectronChromeExtensions } = require('electron-chrome-extensions');
 const { registerExtraApis } = require('./ext-api');
 const ai = require('./ai');
@@ -25,6 +24,8 @@ const { parseDuckDuckGoHtml, parseNextPage, shortUrl } = require('../shared/sear
 
 // Lancée depuis le code, l'appli garde ses données à part : la version installée chiffre
 // ses cookies (fuse Electron), et un Electron sans ce réglage ne saurait plus les lire.
+// L'appli s'appelle Zenith, mais ses données restent dans le dossier de dev-brows (son ancien nom).
+app.setPath('userData', path.join(app.getPath('appData'), 'dev-brows'));
 if (!app.isPackaged) {
   const shared = app.getPath('userData');
   const dev = `${shared}-dev`;
@@ -33,10 +34,10 @@ if (!app.isPackaged) {
   app.setPath('userData', dev);
 }
 
-// Sans les mentions Electron et dev-brows, les sites voient un Chrome ordinaire.
+// Sans les mentions Electron et du nom de l'appli, les sites voient un Chrome ordinaire.
 app.userAgentFallback = app.userAgentFallback
   .replace(/ Electron\/\S+/, '')
-  .replace(/ dev-brows\/\S+/, '');
+  .replace(/ (dev-brows|Zenith)\/\S+/, '');
 
 // La connexion Google refuse les navigateurs basés sur Electron (« Ce navigateur ou cette application
 // ne sont peut-être pas sécurisés »). Sur accounts.google.com seulement, on se présente comme Firefox :
@@ -60,7 +61,7 @@ const isGoogleLogin = (url) => {
 };
 
 // Le filtre d'en-têtes n'est posé que pendant une connexion Google : tant qu'un filtre
-// session.webRequest existe (celui-ci ou le bloqueur intégré), Electron ignore le
+// session.webRequest existe, Electron ignore le
 // chrome.webRequest des extensions.
 const onGoogleLogin = new Set();
 
@@ -112,7 +113,6 @@ let history = null; // JsonStore { entries }
 let sessionStore = null; // JsonStore { tabs } : adresses des onglets ouverts, pour « popback »
 let previousSession = []; // celles de la dernière fois, lues au lancement
 const closedTabs = []; // onglets fermés, le plus récent d'abord : { url, title }
-let adblock = null;
 let lastCommandAt = 0; // heure de la dernière commande tapée, pour garder le focus dans le terminal
 let settings = null; // JsonStore { engine, theme, aliases, extensions }
 let exts = null;
@@ -271,7 +271,7 @@ function setupChromeApi(s) {
         width: details.width || 480,
         height: details.height || 640,
         parent: details.type === 'popup' ? win : undefined,
-        title: 'dev-brows',
+        title: 'Zenith',
         webPreferences: { session: s, sandbox: true, contextIsolation: true },
       });
       popup.setMenuBarVisibility(false);
@@ -342,7 +342,7 @@ function storeButton(tab, busy = false) {
   const installed = !!id && exts.list.some((e) => e.id === id);
   const opts = {
     show: !!id && !tab.storeApi,
-    label: busy ? t('installation…') : installed ? t('✓ installée dans dev-brows') : t('Ajouter à dev-brows'),
+    label: busy ? t('installation…') : installed ? t('✓ installée dans Zenith') : t('Ajouter à Zenith'),
     disabled: busy || installed,
     accent: accentColor(),
     secret: STORE_SECRET,
@@ -426,7 +426,7 @@ async function storeCall(tab, name, args) {
           buttons: [t('Ajouter l\'extension'), t('Annuler')],
           defaultId: 0,
           cancelId: 1,
-          message: t('Ajouter « {name} » à dev-brows ?', { name: label }),
+          message: t('Ajouter « {name} » à Zenith ?', { name: label }),
           detail: perms.length ? t('Elle pourra : {perms}', { perms: perms.join(', ') }) : '',
         });
         if (response !== 0) return { result: STORE.USER_CANCELLED, error: 'User cancelled install' };
@@ -848,7 +848,18 @@ function layout() {
   });
 }
 
+// Les événements des pages arrivent par rafales (chargement, titre, son…) : un seul envoi par tour.
+let stateQueued = false;
 function sendState() {
+  if (stateQueued) return;
+  stateQueued = true;
+  setImmediate(() => {
+    stateQueued = false;
+    sendStateNow();
+  });
+}
+
+function sendStateNow() {
   if (!win || win.isDestroyed()) return;
   const tab = activeTab();
   if (!tab || panes.some((p) => !getTab(p.tabId))) return; // pendant la création d'un écran
@@ -2360,10 +2371,6 @@ async function exec(raw, depth = 0) {
         settings.save();
         say(t('  ✓ alias {name} supprimé', { name: args[0] }), 'ok');
         break;
-      case 'adblock':
-      case 'pub':
-        await adblockCommand(args[0], say);
-        break;
       case 'engine':
         if (!args.length) say(t('  moteur : {engine} (ddg | google | bing | qwant)', { engine: C.ENGINES[settings.data.engine].label }));
         else {
@@ -2429,6 +2436,9 @@ async function exec(raw, depth = 0) {
       case 'fs':
         win.setFullScreen(args[0] === 'off' ? false : args[0] === 'on' ? true : !win.isFullScreen());
         say(win.isFullScreen() ? t('  plein écran (F11 ou « fullscreen » pour en sortir)') : t('  plein écran quitté'), 'dim');
+        break;
+      case 'default':
+        await defaultCommand(say);
         break;
       case 'config':
         await configCommand(args[0], args.slice(1).join(' '), say);
@@ -2690,10 +2700,6 @@ async function extCommand(tab, args, say) {
       const ext = await exts.add(source);
       say(t('  ✓ {name} installée, alias « {alias} »', { name: ext.name, alias: ext.alias }) + (ext.popup ? '' : t(' (pas de popup)')), 'ok');
       if (ext.dnrOnly) say(t('  ⚠ cette extension bloque avec declarativeNetRequest, qu\'Electron ne gère pas : elle ne bloquera rien. Pour bloquer les pubs : uBlock Origin (« ext add ublock »).'), 'warn');
-      if (/ublock origin/i.test(ext.name || '') && adblock.on) {
-        // Electron n'accepte qu'un filtre de requêtes : le bloqueur intégré empêcherait uBlock de filtrer.
-        await adblockCommand('off', say);
-      }
       break;
     }
     case 'on':
@@ -2732,27 +2738,6 @@ async function extCommand(tab, args, say) {
   sendState();
 }
 
-async function adblockCommand(arg, say) {
-  if (arg === 'on') {
-    settings.data.builtinAdblock = true;
-    settings.save();
-    say(t('  chargement des listes de blocage…'), 'dim');
-    try {
-      await adblock.enable();
-    } catch (err) {
-      throw new Error(t('listes non téléchargées : {error}', { error: err.message }));
-    }
-  } else if (arg === 'off') {
-    settings.data.builtinAdblock = false;
-    settings.save();
-    adblock.disable();
-  } else if (arg) throw new Error('adblock [on | off]');
-  if (adblock.on) say(adblock.blocked > 1 ? t('  ✓ bloqueur de pub intégré actif : {count} requêtes bloquées depuis le démarrage', { count: adblock.blocked }) : t('  ✓ bloqueur de pub intégré actif : {count} requête bloquée depuis le démarrage', { count: adblock.blocked }), 'ok');
-  if (adblock.on) say(t('  ⚠ tant qu\'il est actif, uBlock Origin et les autres extensions de blocage ne filtrent plus les requêtes'), 'warn');
-  else say(t('  bloqueur de pub intégré éteint : uBlock Origin s\'occupe des pubs (« adblock on » pour le bloqueur de secours)'), 'dim');
-  sendState();
-}
-
 function aliasCommand(tab, text, say) {
   const aliases = settings.data.aliases;
   if (!text) {
@@ -2771,6 +2756,58 @@ function aliasCommand(tab, text, say) {
   aliases[key] = value;
   settings.save();
   say(`  ✓ alias ${key} = ${value}`, 'ok');
+}
+
+// ---------------------------------------------------------------- navigateur par défaut
+
+// Adresses passées par le système (Zenith navigateur par défaut, lien ouvert depuis une autre appli).
+const urlsIn = (argv) => argv.filter((a) => /^https?:\/\//i.test(a));
+
+function openExternalUrls(argv) {
+  const urls = urlsIn(argv);
+  if (!urls.length || !win) return;
+  for (const url of urls) createTab({ url });
+  if (win.isMinimized()) win.restore();
+  win.focus();
+}
+
+// Windows ne laisse pas une appli se déclarer navigateur par défaut : on l'inscrit comme navigateur
+// (clés du registre de l'utilisateur), puis on ouvre la page des applis par défaut où la choisir.
+async function registerWindowsBrowser() {
+  const { execFile } = require('child_process');
+  const exe = process.execPath;
+  const reg = (key, name, value) => new Promise((resolve, reject) => {
+    const args = ['add', `HKCU\\Software\\${key}`, ...(name ? ['/v', name] : ['/ve']), '/d', value, '/f'];
+    execFile('reg', args, { windowsHide: true }, (err) => (err ? reject(err) : resolve()));
+  });
+  const base = 'Clients\\StartMenuInternet\\Zenith';
+  await reg(base, null, 'Zenith');
+  await reg(`${base}\\DefaultIcon`, null, `"${exe}",0`);
+  await reg(`${base}\\shell\\open\\command`, null, `"${exe}"`);
+  await reg(`${base}\\Capabilities`, 'ApplicationName', 'Zenith');
+  await reg(`${base}\\Capabilities`, 'ApplicationDescription', t('Navigateur qui se pilote comme un terminal'));
+  await reg(`${base}\\Capabilities`, 'ApplicationIcon', `"${exe}",0`);
+  for (const p of ['http', 'https']) await reg(`${base}\\Capabilities\\URLAssociations`, p, 'ZenithURL');
+  for (const ext of ['.htm', '.html']) await reg(`${base}\\Capabilities\\FileAssociations`, ext, 'ZenithHTML');
+  await reg('RegisteredApplications', 'Zenith', `Software\\${base}\\Capabilities`);
+  for (const cls of ['ZenithURL', 'ZenithHTML']) {
+    await reg(`Classes\\${cls}`, null, cls === 'ZenithURL' ? 'Zenith URL' : 'Zenith HTML');
+    if (cls === 'ZenithURL') await reg(`Classes\\${cls}`, 'URL Protocol', '');
+    await reg(`Classes\\${cls}\\DefaultIcon`, null, `"${exe}",0`);
+    await reg(`Classes\\${cls}\\shell\\open\\command`, null, `"${exe}" "%1"`);
+  }
+}
+
+async function defaultCommand(say) {
+  if (!app.isPackaged) throw new Error(t('seulement pour Zenith installé, pas lancé depuis le code'));
+  if (process.platform === 'win32') {
+    await registerWindowsBrowser();
+    await shell.openExternal('ms-settings:defaultapps?registeredAppUser=Zenith');
+    say(t('  ✓ Zenith est inscrit comme navigateur : choisis-le dans la page des applications par défaut qui vient de s\'ouvrir'), 'ok');
+    return;
+  }
+  const ok = app.setAsDefaultProtocolClient('http') && app.setAsDefaultProtocolClient('https');
+  say(ok ? t('  ✓ Zenith est maintenant le navigateur par défaut') : t('  le système a refusé : choisis Zenith dans ses réglages des applications par défaut'), ok ? 'ok' : 'warn');
 }
 
 // ---------------------------------------------------------------- fichier de configuration
@@ -3006,7 +3043,7 @@ async function updateCommand(args, say) {
       settings.save();
     }
     const state = autoUpdateOn()
-      ? t('vérification automatique au lancement : activée (dev-brows et extensions)')
+      ? t('vérification automatique au lancement : activée (Zenith et extensions)')
       : t('vérification automatique au lancement : désactivée (« update » et « ext » restent possibles à la main)');
     say(`  ${arg ? '✓ ' : ''}${state}`, arg ? 'ok' : '');
     return;
@@ -3059,8 +3096,6 @@ async function updateCommand(args, say) {
   }
   say(t('  vérification…'), 'dim');
   const r = await updater.check();
-  settings.data.lastUpdateCheck = Date.now();
-  settings.save();
   for (const l of updateLines(r)) say(l.t, l.c);
   await updateRecap(r, say);
 }
@@ -3087,7 +3122,7 @@ async function updateRecap(r, say) {
   if (!wanted.length) return;
   say(t('  au programme :'), 'dim');
   for (const x of wanted) {
-    say(`  dev-brows ${x.version}`, 'ok');
+    say(`  Zenith ${x.version}`, 'ok');
     const notes = exactNotes(x.version, lang) || releaseNotes(x.body, lang);
     if (notes.length) for (const n of notes) say(`  · ${n}`);
     else say(t('  pas de notes pour cette version'), 'dim');
@@ -3122,7 +3157,7 @@ async function versionsCommand(wanted, say) {
 async function showVersion(r, say) {
   const lang = getLang();
   const notes = exactNotes(r.version, lang) || releaseNotes(r.body, lang);
-  say(`  dev-brows ${r.version}`, 'ok');
+  say(`  Zenith ${r.version}`, 'ok');
   if (notes.length) for (const n of notes) say(`  · ${n}`);
   else say(t('  pas de notes pour cette version'), 'dim');
   const current = app.getVersion();
@@ -3157,7 +3192,7 @@ async function showVersion(r, say) {
 
 function updateLines(r) {
   if (r.installed) {
-    const lines = [{ t: `  dev-brows ${r.current} (Electron ${process.versions.electron}, Chromium ${process.versions.chrome})` }];
+    const lines = [{ t: `  Zenith ${r.current} (Electron ${process.versions.electron}, Chromium ${process.versions.chrome})` }];
     if (r.available) lines.push({ t: t('  ↑ nouvelle version publiée sur GitHub : {version} → « update install »', { version: r.latest }), c: 'warn' });
     else lines.push({ t: t('  ✓ à jour'), c: 'ok' });
     return lines;
@@ -3184,7 +3219,7 @@ function startupUpdateNotes() {
   }
   if (previousSession.length) print([{ t: previousSession.length > 1 ? t('  « popback » rouvre les {count} onglets de la dernière fois', { count: previousSession.length }) : t('  « popback » rouvre l\'onglet de la dernière fois'), c: 'dim' }]);
   if (updater.installed() && settings.data.lastVersion && settings.data.lastVersion !== app.getVersion()) {
-    print([{ t: t('  ✓ dev-brows mis à jour en {version}', { version: app.getVersion() }), c: 'ok' }]);
+    print([{ t: t('  ✓ Zenith mis à jour en {version}', { version: app.getVersion() }), c: 'ok' }]);
   }
   settings.data.lastVersion = app.getVersion();
   settings.save();
@@ -3193,8 +3228,6 @@ function startupUpdateNotes() {
   setTimeout(async () => {
     try {
       const r = await updater.check();
-      settings.data.lastUpdateCheck = Date.now();
-      settings.save();
       print(updateLines(r).filter((l) => l.c === 'warn'));
     } catch {
       // hors ligne : on réessaiera au prochain démarrage
@@ -3493,15 +3526,25 @@ function setupDownloads(s = ses) {
 }
 
 function setupIpc() {
-  ipcMain.on('ui:layout', (e, r) => {
+  // Les canaux ui:* ne répondent qu'à l'interface de la fenêtre, jamais à une page ou une extension.
+  const fromUi = (e) => !!win && !win.isDestroyed() && e.sender === win.webContents;
+  const onUi = (channel, fn) => ipcMain.on(channel, (e, ...args) => {
+    if (fromUi(e)) fn(e, ...args);
+    else e.returnValue = null;
+  });
+  const handleUi = (channel, fn) => ipcMain.handle(channel, (e, ...args) => {
+    if (!fromUi(e)) throw new Error('refused');
+    return fn(e, ...args);
+  });
+  onUi('ui:layout', (e, r) => {
     rects = r.map((x) => x && { x: Math.round(x.x), y: Math.round(x.y), width: Math.round(x.width), height: Math.round(x.height) });
     layout();
   });
-  ipcMain.on('ui:drag', (e, on) => {
+  onUi('ui:drag', (e, on) => {
     dragging = !!on;
     layout();
   });
-  ipcMain.handle('ui:exec', (e, line, opts) => {
+  handleUi('ui:exec', (e, line, opts) => {
     lastCommandAt = Date.now();
     // La commande tapée sous un écran s'applique à cet écran.
     if (opts && Number.isInteger(opts.pane) && panes[opts.pane] && opts.pane !== activePane) {
@@ -3512,31 +3555,31 @@ function setupIpc() {
     if (opts && opts.newTab && String(line).trim() && !prompts.length) createTab();
     return exec(String(line));
   });
-  ipcMain.on('ui:zoom-reset', () => zoom(0));
+  onUi('ui:zoom-reset', () => zoom(0));
   // La ligne « > » sous une réponse de l'IA continue la discussion.
-  ipcMain.on('ui:ai-reply', (e, text) => {
+  onUi('ui:ai-reply', (e, text) => {
     const tab = activeTab();
     const q = String(text || '').trim();
     if (!q || !tab.screen || tab.screen.kind !== 'ai' || !tab.screen.done) return;
     lastCommandAt = Date.now();
     aiAsk(tab, q, tab.screen, (l, c) => print([{ t: l, c }]));
   });
-  ipcMain.on('ui:recent-menu', () => recentMenu());
-  ipcMain.on('ui:lang', (e) => {
+  onUi('ui:recent-menu', () => recentMenu());
+  onUi('ui:lang', (e) => {
     e.returnValue = getLang();
   });
-  ipcMain.handle('ui:complete', (e, line) => complete(String(line)));
-  ipcMain.handle('ui:clipboard-read', () => clipboard.readText());
-  ipcMain.on('ui:clipboard-write', (e, text) => clipboard.writeText(String(text)));
+  handleUi('ui:complete', (e, line) => complete(String(line)));
+  handleUi('ui:clipboard-read', () => clipboard.readText());
+  onUi('ui:clipboard-write', (e, text) => clipboard.writeText(String(text)));
   let started = false;
-  ipcMain.on('ui:ready', () => {
+  onUi('ui:ready', () => {
     sendState();
     if (!started) {
       started = true;
       startupUpdateNotes();
     }
   });
-  ipcMain.on('ui:focus-page', () => {
+  onUi('ui:focus-page', () => {
     lastCommandAt = 0;
     const tab = activeTab();
     if (tab.screen && tab.view) {
@@ -3546,12 +3589,12 @@ function setupIpc() {
     }
     if (tab.view && !tab.screen) tab.view.webContents.focus();
   });
-  ipcMain.on('ui:tab', (e, id) => {
+  onUi('ui:tab', (e, id) => {
     const t = getTab(id);
     if (t) showInPane(t, activePane);
   });
   // gap : indice de l'onglet devant lequel poser celui qu'on déplace (tabs.length : à la fin).
-  ipcMain.on('ui:tab-move', (e, id, gap) => {
+  onUi('ui:tab-move', (e, id, gap) => {
     const from = tabs.findIndex((t) => t.id === id);
     if (from < 0 || !Number.isInteger(gap) || gap < 0 || gap > tabs.length) return;
     const to = gap > from ? gap - 1 : gap;
@@ -3559,37 +3602,37 @@ function setupIpc() {
     tabs.splice(to, 0, tabs.splice(from, 1)[0]);
     sendState();
   });
-  ipcMain.on('ui:devtools', (e, action) => {
+  onUi('ui:devtools', (e, action) => {
     const tab = activeTab();
     if (action === 'detach') detachDevtools(tab);
     else if (action === 'attach') attachDevtools(tab);
     else closeDevtools(tab);
   });
-  ipcMain.on('ui:tab-close', (e, id) => {
+  onUi('ui:tab-close', (e, id) => {
     const t = getTab(id);
     if (t) closeTab(t);
   });
-  ipcMain.on('ui:tab-new', () => {
+  onUi('ui:tab-new', () => {
     createTab();
     focusTerminal();
   });
-  ipcMain.on('ui:pane', (e, idx) => {
+  onUi('ui:pane', (e, idx) => {
     if (panes[idx] && idx !== activePane) {
       activePane = idx;
       sendState();
     }
   });
-  ipcMain.on('ui:tab-mute', (e, id) => {
+  onUi('ui:tab-mute', (e, id) => {
     const tab = getTab(id);
     if (tab) setMuted(tab, !isMuted(tab));
   });
-  ipcMain.on('ui:volume', (e, v) => Number.isFinite(v) && setGlobalVolume(v));
-  ipcMain.on('ui:mode', () => setMode(!isLight()));
-  ipcMain.on('ui:media-toggle', () => togglePlayAll().catch(() => {}));
-  ipcMain.on('ui:mute-all', () => setMuteAll(!settings.data.muteAll));
-  ipcMain.on('ui:panel', (e, kind, x) => PANELS[kind] && togglePanel(kind, Number.isFinite(x) ? x : undefined));
+  onUi('ui:volume', (e, v) => Number.isFinite(v) && setGlobalVolume(v));
+  onUi('ui:mode', () => setMode(!isLight()));
+  onUi('ui:media-toggle', () => togglePlayAll().catch(() => {}));
+  onUi('ui:mute-all', () => setMuteAll(!settings.data.muteAll));
+  onUi('ui:panel', (e, kind, x) => PANELS[kind] && togglePanel(kind, Number.isFinite(x) ? x : undefined));
   const fromPanel = (e) => (panel && !panel.win.isDestroyed() && e.sender === panel.win.webContents ? panel : null);
-  ipcMain.handle('ui:suggest', (e, text, rect) => {
+  handleUi('ui:suggest', (e, text, rect) => {
     suggestList = historySuggestions(text);
     showSuggest(rect, -1);
     return suggestList;
@@ -3603,8 +3646,8 @@ function setupIpc() {
     if (!tab || e.senderFrame !== e.sender.mainFrame || origin !== STORE_ORIGIN) throw new Error('refused');
     return storeCall(tab, String(name), args);
   });
-  ipcMain.on('ui:suggest-select', (e, i, rect) => showSuggest(rect, i));
-  ipcMain.on('ui:suggest-hide', () => hideSuggest());
+  onUi('ui:suggest-select', (e, i, rect) => showSuggest(rect, i));
+  onUi('ui:suggest-hide', () => hideSuggest());
   ipcMain.on('panel:act', (e, action, arg) => {
     if (findWin && !findWin.win.isDestroyed() && e.sender === findWin.win.webContents) return findAction(action, arg);
     if (suggest && !suggest.win.isDestroyed() && e.sender === suggest.win.webContents) return suggestAction(action, arg);
@@ -3615,7 +3658,7 @@ function setupIpc() {
     const p = fromPanel(e);
     if (p && Number.isFinite(height)) p.win.setBounds(p.place(Math.min(Math.max(Math.ceil(height), 60), 520)));
   });
-  ipcMain.on('ui:ext-popup', (e, n, x) => {
+  onUi('ui:ext-popup', (e, n, x) => {
     try {
       openExtPopup(n, x);
     } catch (err) {
@@ -3642,7 +3685,7 @@ function createWindow() {
     minWidth: 640,
     minHeight: 420,
     backgroundColor: isLight() ? '#F6F7F9' : '#0E1116',
-    title: 'dev-brows',
+    title: 'Zenith',
     titleBarStyle: 'hidden',
     ...(mac ? { trafficLightPosition: { x: 12, y: 13 } } : { titleBarOverlay: { color: '#000000', symbolColor: '#D6DEE8', height: 40 } }),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), sandbox: true, contextIsolation: true },
@@ -3697,13 +3740,18 @@ function createWindow() {
   });
 }
 
-// Journal (dev-brows.log dans le dossier de données) : lancement, extensions, plantages.
+// Journal (zenith.log dans le dossier de données) : lancement, extensions, plantages.
 journal.open(app.getPath('userData'));
-journal.log(`lancement de dev-brows ${app.getVersion()} (Electron ${process.versions.electron}, ${process.platform} ${os.release()})`);
+journal.log(`lancement de Zenith ${app.getVersion()} (Electron ${process.versions.electron}, ${process.platform} ${os.release()})`);
 process.on('uncaughtException', (err) => journal.log('erreur non rattrapée :', err));
 process.on('unhandledRejection', (err) => journal.log('promesse rejetée non rattrapée :', err instanceof Error ? err : String(err)));
 app.on('render-process-gone', (e, wc, d) => journal.log(`page arrêtée (${d.reason}, code ${d.exitCode}) : ${wc && !wc.isDestroyed() ? wc.getURL() : '?'}`));
 app.on('child-process-gone', (e, d) => journal.log(`processus ${d.type}${d.name ? ` (${d.name})` : ''} arrêté : ${d.reason}, code ${d.exitCode}`));
+// Une seule fenêtre Zenith : un second lancement (lien ouvert depuis une autre appli) passe ses adresses à la première.
+if (!app.requestSingleInstanceLock()) {
+  app.exit(0);
+}
+app.on('second-instance', (e, argv) => openExternalUrls(argv));
 const guard = journal.startupGuard(app.getPath('userData'));
 
 app.whenReady().then(async () => {
@@ -3713,7 +3761,10 @@ app.whenReady().then(async () => {
   history = new JsonStore(path.join(dir, 'historique.json'), { entries: [] });
   sessionStore = new JsonStore(path.join(dir, 'session.json'), { tabs: [] });
   previousSession = sessionStore.data.tabs.slice();
-  settings = new JsonStore(path.join(dir, 'reglages.json'), { engine: 'ddg', theme: 'ambre', aliases: {}, extensions: [], builtinAdblock: false });
+  settings = new JsonStore(path.join(dir, 'reglages.json'), { engine: 'ddg', theme: 'ambre', aliases: {}, extensions: [] });
+  // Plus rien d'enregistré pour ce qui a disparu : le bloqueur de secours, la date de la dernière vérification.
+  for (const k of ['builtinAdblock', 'lastUpdateCheck']) delete settings.data[k];
+  fs.rmSync(path.join(dir, 'adblock.bin'), { force: true });
   ai.migrate(settings);
   nativeTheme.themeSource = isLight() ? 'light' : 'dark';
   setLang(initialLang());
@@ -3733,12 +3784,12 @@ app.whenReady().then(async () => {
     if (culprit) {
       culprit.enabled = false;
       settings.save();
-      safeNote = t('  ⚠ dev-brows a planté au dernier lancement en chargeant l\'extension {name} : elle est désactivée (« ext on » pour la réactiver). Détails : {file}', { name: culprit.name || culprit.alias, file: path.join(dir, 'dev-brows.log') });
+      safeNote = t('  ⚠ Zenith a planté au dernier lancement en chargeant l\'extension {name} : elle est désactivée (« ext on » pour la réactiver). Détails : {file}', { name: culprit.name || culprit.alias, file: path.join(dir, 'zenith.log') });
     } else if (exts.list.some((e) => e.enabled)) {
       // Cause inconnue : on coupe les extensions (« ext on n » une par une retrouve la fautive).
       for (const e of exts.list) e.enabled = false;
       settings.save();
-      safeNote = t('  ⚠ dev-brows a planté au dernier lancement : les extensions sont désactivées, « ext on <n> » les réactive une par une. Détails : {file}', { file: path.join(dir, 'dev-brows.log') });
+      safeNote = t('  ⚠ Zenith a planté au dernier lancement : les extensions sont désactivées, « ext on <n> » les réactive une par une. Détails : {file}', { file: path.join(dir, 'zenith.log') });
     }
   }
   await exts.loadAll({
@@ -3754,11 +3805,11 @@ app.whenReady().then(async () => {
   setupPermissions();
   setupWebAuthn();
   setupGoogleLogin();
-  adblock = new AdBlock(ses, path.join(dir, 'adblock.bin'));
-  if (settings.data.builtinAdblock) adblock.enable().catch((err) => print([{ t: t('  bloqueur de pub : listes non téléchargées ({error}), « adblock on » pour réessayer', { error: err.message }), c: 'err' }]));
   buildMenu();
   createWindow();
-  createTab();
+  const startUrls = urlsIn(process.argv.slice(1));
+  if (startUrls.length) for (const url of startUrls) createTab({ url });
+  else createTab();
   guard.step('en marche');
   if (safeNote) win.webContents.once('did-finish-load', () => setTimeout(() => print([{ t: safeNote, c: 'warn' }]), 500));
   // Stable après 20 s : un plantage plus tard ne viendra pas du démarrage.

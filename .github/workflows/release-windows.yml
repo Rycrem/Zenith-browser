@@ -33,7 +33,7 @@ jobs:
             exit 1
           fi
           node scripts/release-notes.js > release-notes.md
-          gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "dev-brows $TAG" --notes-file release-notes.md --generate-notes
+          gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "Zenith $TAG" --notes-file release-notes.md --generate-notes
       - run: npm ci
       - run: npm test
       - name: Télécharger uBlock Origin (livré préinstallé)

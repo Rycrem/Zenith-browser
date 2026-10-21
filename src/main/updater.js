@@ -11,7 +11,7 @@ const path = require('path');
 //   installée avec la dernière Release, télécharge le nouvel installateur et l'applique ;
 // - appli lancée depuis le code (npm start) : git pull + npm, via scripts/update.js.
 
-const RELEASES_URL = 'https://github.com/Rycrem/dev-brows/releases/latest';
+const RELEASES_URL = 'https://github.com/Rycrem/Zenith-browser/releases/latest';
 const win = process.platform === 'win32';
 const appDir = app.getAppPath();
 const reportFile = () => path.join(app.getPath('userData'), 'mise-a-jour.json');
@@ -94,7 +94,7 @@ async function installRelease(onProgress) {
 
 // Versions publiées sur GitHub, de la plus récente à la plus ancienne (sans les brouillons).
 async function listReleases() {
-  const res = await net.fetch('https://api.github.com/repos/Rycrem/dev-brows/releases?per_page=30', { headers: { accept: 'application/vnd.github+json' } });
+  const res = await net.fetch('https://api.github.com/repos/Rycrem/Zenith-browser/releases?per_page=30', { headers: { accept: 'application/vnd.github+json' } });
   if (!res.ok) throw new Error(t('GitHub ne répond pas ({status})', { status: res.status }));
   const list = await res.json();
   return list
@@ -106,7 +106,7 @@ async function listReleases() {
 // le latest.yml de cette Release, pour ne pas changer celui qui suit la dernière version.
 async function installVersion(version, onProgress) {
   const eu = require('electron-updater');
-  const options = { provider: 'generic', url: `https://github.com/Rycrem/dev-brows/releases/download/v${version}` };
+  const options = { provider: 'generic', url: `https://github.com/Rycrem/Zenith-browser/releases/download/v${version}` };
   const Updater = win ? eu.NsisUpdater : process.env.APPIMAGE ? eu.AppImageUpdater : eu.DebUpdater;
   const updater = new Updater(options);
   updater.autoDownload = false;

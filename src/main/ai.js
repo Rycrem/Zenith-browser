@@ -54,7 +54,7 @@ const PROVIDERS = {
     env: 'OPENROUTER_API_KEY',
     keyUrl: 'https://openrouter.ai/keys',
     free: true,
-    headers: { 'HTTP-Referer': 'https://github.com/Rycrem/dev-brows', 'X-Title': 'dev-brows' },
+    headers: { 'HTTP-Referer': 'https://github.com/Rycrem/Zenith-browser', 'X-Title': 'Zenith' },
   },
   ollama: {
     name: 'Ollama (sur ton ordinateur)',

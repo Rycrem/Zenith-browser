@@ -514,13 +514,19 @@ dragger($('.pane-resizer'), (e) => {
   document.documentElement.style.setProperty('--ratio', ratio);
 }, () => persist('paneRatio', ratio));
 
+// Envoyé seulement quand la place des écrans change : chaque envoi replace toutes les pages.
+let sentRects = '';
 function sendRects() {
   const split = state && state.panes.length > 1;
-  api.layout(panesEl.map((p, i) => {
+  const rects = panesEl.map((p, i) => {
     if (i > 0 && !split) return null;
     const r = $('.viewport', p).getBoundingClientRect();
     return { x: r.x, y: r.y, width: r.width, height: r.height };
-  }));
+  });
+  const key = JSON.stringify(rects);
+  if (key === sentRects) return;
+  sentRects = key;
+  api.layout(rects);
 }
 
 new ResizeObserver(sendRects).observe(content);
