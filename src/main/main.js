@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, WebContentsView, Menu, ipcMain, session, shell, clipboard, net, dialog, nativeTheme } = require('electron');
+const { app, BrowserWindow, WebContentsView, Menu, ipcMain, session, shell, clipboard, net, dialog, nativeTheme, screen } = require('electron');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -509,6 +509,7 @@ function wireWebContents(tab, wc) {
   });
   wc.on('media-started-playing', () => {
     tab.media = 'playing';
+    tab.pausedByPlayer = false;
     audioChanged();
   });
   wc.on('media-paused', () => {
@@ -521,6 +522,7 @@ function wireWebContents(tab, wc) {
   wc.on('leave-html-full-screen', () => setHtmlFullscreen(tab, false));
   wc.on('did-navigate', () => {
     tab.media = null;
+    tab.pausedByPlayer = false;
     audioChanged();
   });
   wc.on('did-frame-finish-load', () => applyVolume(tab));
@@ -1592,10 +1594,12 @@ function audioTabs() {
   return tabs.filter((t) => t.view && (t.audible || t.media));
 }
 
+// Le player disparaît quand plus aucun onglet ne joue de son ; il reste pour un média mis en pause
+// avec son bouton, qu'on puisse le reprendre.
 function audioState() {
   const list = audioTabs();
   return {
-    show: list.length > 0,
+    show: list.some((t) => t.media === 'playing' || t.audible || t.pausedByPlayer),
     playing: list.some((t) => t.media === 'playing' || t.audible),
     volume: globalVolume(),
     muted: !!settings.data.muteAll,
@@ -1754,6 +1758,7 @@ async function togglePlayAll() {
 async function togglePlay(tab) {
   const r = await mediaCall(tab, 'toggle');
   if (r) tab.media = r;
+  tab.pausedByPlayer = r === 'paused';
   audioChanged();
 }
 
@@ -3547,12 +3552,21 @@ function setupIpc() {
   });
 }
 
+// Position de la fenêtre gardée d'un lancement à l'autre, si elle tombe encore sur un écran branché.
+function savedBounds() {
+  const w = settings.data.window;
+  if (!w || !Number.isFinite(w.x) || !Number.isFinite(w.y) || !(w.width > 0) || !(w.height > 0)) return {};
+  const onScreen = screen.getAllDisplays().some(({ workArea: a }) => w.x < a.x + a.width - 80 && w.x + w.width > a.x + 80 && w.y >= a.y - 20 && w.y < a.y + a.height - 80);
+  return onScreen ? { x: w.x, y: w.y, width: w.width, height: w.height } : {};
+}
+
 function createWindow() {
   // Les onglets montent dans la barre de titre, noire, à côté des boutons de la fenêtre.
   const mac = process.platform === 'darwin';
   win = new BrowserWindow({
     width: 1280,
     height: 820,
+    ...savedBounds(),
     minWidth: 640,
     minHeight: 420,
     backgroundColor: isLight() ? '#F6F7F9' : '#0E1116',
@@ -3562,7 +3576,27 @@ function createWindow() {
     webPreferences: { preload: path.join(__dirname, 'preload.js'), sandbox: true, contextIsolation: true },
   });
   win.setMenuBarVisibility(false);
+  if (settings.data.window && settings.data.window.maximized) win.maximize();
   win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
+  // Réduite puis rouverte, la fenêtre revient sur l'écran où elle était, pas sur l'écran principal.
+  let beforeMinimize = null;
+  win.on('minimize', () => {
+    beforeMinimize = { normal: win.getNormalBounds(), display: screen.getDisplayMatching(win.getBounds()).id };
+  });
+  win.on('restore', () => {
+    const m = beforeMinimize;
+    beforeMinimize = null;
+    if (!m || win.isFullScreen() || screen.getDisplayMatching(win.getBounds()).id === m.display) return;
+    const maximized = win.isMaximized();
+    if (maximized) win.unmaximize();
+    win.setBounds(m.normal);
+    if (maximized) win.maximize();
+  });
+  win.on('close', () => {
+    const b = win.getNormalBounds();
+    settings.data.window = { x: b.x, y: b.y, width: b.width, height: b.height, maximized: win.isMaximized() };
+    settings.save();
+  });
   win.on('resize', () => {
     hideSuggest();
     if (fullTab) layout();
