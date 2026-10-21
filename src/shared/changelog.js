@@ -8,10 +8,12 @@ const CHANGELOG = [
     notes: [
       'Un journal, dev-brows.log dans le dossier de données, note chaque lancement, le chargement de chaque extension et les plantages.',
       'Si dev-brows plante pendant son démarrage, le lancement suivant désactive l\'extension en cause (ou toutes, si on ne sait pas laquelle) et le dit dans le terminal.',
+      'Electron passe en 44.9.3 : les certificats intermédiaires eMudhra compromis ne sont plus acceptés.',
     ],
     en: [
       'A log, dev-brows.log in the data folder, records each launch, the loading of each extension and any crash.',
       'If dev-brows crashes while starting, the next launch disables the extension at fault (or all of them when it cannot tell which) and says so in the terminal.',
+      'Electron is updated to 44.9.3: the compromised eMudhra intermediate certificates are no longer trusted.',
     ],
   },
   {
