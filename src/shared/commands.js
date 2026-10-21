@@ -86,7 +86,7 @@ const COMMANDS = [
   ['quit / exit', '', 'quitter le navigateur'],
   ['update', '[install | electron]', 'vérifier ou installer les mises à jour (appli et Electron)'],
   ['update -v', '[version]', 'versions publiées : choisir une version, lire ses notes et l\'installer'],
-  ['update auto', '[on | off]', 'vérification automatique au lancement (dev-brows et extensions)'],
+  ['update auto', '[on | off]', 'vérification automatique au lancement (Zenith et extensions)'],
   ['help', '', 'cette aide'],
 ];
 
