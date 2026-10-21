@@ -239,3 +239,31 @@ test('import des favoris : Chromium, Firefox (.jsonlz4), export HTML, fusion san
   assert.deepStrictEqual(b.mergeInto(tree, 'Firefox', [b.fromChromium(chrome)[0]]), { added: 0, skipped: 1 });
   assert.ok(!tree.children.some((n) => n.name === 'Firefox'));
 });
+
+test('config : export sans les clés, import validé', () => {
+  const config = require('../src/shared/config');
+  const tree = fav.emptyTree();
+  fav.addFavorite(tree, 'dev/github', 'https://github.com', 'GitHub');
+  const data = config.exportConfig({
+    settings: { engine: 'google', aliases: { yt: 'brows youtube' }, aiKeys: { claude: 'secret' }, window: { x: 0 } },
+    favorites: tree,
+    extensions: [{ source: 'ublock', alias: 'ublock', enabled: true, pinned: false }],
+    version: '0.1.24',
+  });
+  assert.ok(!('aiKeys' in data.settings) && !('window' in data.settings));
+  const back = config.parseConfig(JSON.stringify(data));
+  assert.deepStrictEqual(back.settings, { engine: 'google', aliases: { yt: 'brows youtube' } });
+  assert.strictEqual(back.favorites.children[0].name, 'dev');
+  assert.deepStrictEqual(back.extensions, [{ source: 'ublock', alias: 'ublock', enabled: true, pinned: false }]);
+  assert.throws(() => config.parseConfig('{"a":1}'));
+  assert.throws(() => config.parseConfig('pas du json'));
+  assert.deepStrictEqual(config.parseConfig(JSON.stringify({ ...data, extensions: [{ source: '../evil' }] })).extensions, []);
+});
+
+test('reload hard et popback ne sont pas des recherches', () => {
+  assert.ok(cmd.acceptsArgs('reload', ['hard']));
+  assert.ok(!cmd.acceptsArgs('reload', ['depot']));
+  assert.ok(!cmd.acceptsArgs('popback', ['x']));
+  assert.ok(cmd.acceptsArgs('config', ['export']));
+  assert.ok(!cmd.acceptsArgs('config', ['du', 'pc']));
+});

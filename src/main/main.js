@@ -8,6 +8,7 @@ const { JsonStore } = require('./store');
 const journal = require('./log');
 const { Extensions, newer } = require('./extensions');
 const bookmarks = require('../shared/bookmarks-import');
+const config = require('../shared/config');
 const { AdBlock } = require('./adblock');
 const { ElectronChromeExtensions } = require('electron-chrome-extensions');
 const { registerExtraApis } = require('./ext-api');
@@ -2429,6 +2430,9 @@ async function exec(raw, depth = 0) {
         win.setFullScreen(args[0] === 'off' ? false : args[0] === 'on' ? true : !win.isFullScreen());
         say(win.isFullScreen() ? t('  plein écran (F11 ou « fullscreen » pour en sortir)') : t('  plein écran quitté'), 'dim');
         break;
+      case 'config':
+        await configCommand(args[0], args.slice(1).join(' '), say);
+        break;
       case 'popback': {
         const n = popback(tab);
         say(n > 1 ? t('  ✓ {count} onglets rouverts', { count: n }) : t('  ✓ 1 onglet rouvert'), 'ok');
@@ -2767,6 +2771,74 @@ function aliasCommand(tab, text, say) {
   aliases[key] = value;
   settings.save();
   say(`  ✓ alias ${key} = ${value}`, 'ok');
+}
+
+// ---------------------------------------------------------------- fichier de configuration
+
+const CONFIG_FILTERS = () => [{ name: t('Configuration Zenith'), extensions: ['json'] }];
+
+async function configCommand(sub, file, say) {
+  if (sub !== 'export' && sub !== 'import') throw new Error('config export | import [fichier]');
+  const target = file ? file.replace(/^~(?=$|[\\/])/, os.homedir()).replace(/^"(.*)"$/, '$1') : null;
+  if (sub === 'export') {
+    let out = target;
+    if (!out) {
+      const r = await dialog.showSaveDialog(win, { title: t('Exporter la configuration'), defaultPath: path.join(app.getPath('documents'), 'zenith-config.json'), filters: CONFIG_FILTERS() });
+      if (r.canceled || !r.filePath) return say(t('  annulé'), 'dim');
+      out = r.filePath;
+    }
+    const data = config.exportConfig({
+      settings: settings.data,
+      favorites: favorites.data.tree,
+      extensions: exts.list.map((e) => ({ source: exts.updateSource(e), alias: e.alias, enabled: !!e.enabled, pinned: e.pinned !== false })).filter((e) => e.source),
+      version: app.getVersion(),
+    });
+    fs.writeFileSync(out, JSON.stringify(data, null, 2));
+    return say(t('  ✓ configuration exportée : {file} (sans les clés des IA)', { file: out }), 'ok');
+  }
+  let src = target;
+  if (!src) {
+    const r = await dialog.showOpenDialog(win, { title: t('Importer une configuration'), properties: ['openFile'], filters: CONFIG_FILTERS() });
+    if (r.canceled || !r.filePaths.length) return say(t('  annulé'), 'dim');
+    src = r.filePaths[0];
+  }
+  let data;
+  try {
+    data = config.parseConfig(fs.readFileSync(src, 'utf8'));
+  } catch {
+    throw new Error(t('{file} n\'est pas un fichier de configuration Zenith', { file: src }));
+  }
+  const missing = data.extensions.filter((e) => !exts.list.some((x) => exts.updateSource(x) === e.source));
+  ask(say, t('remplacer tes réglages{favs} par ceux de {file}{exts} ?', {
+    file: path.basename(src),
+    favs: data.favorites ? t(' et tes favoris') : '',
+    exts: missing.length ? t(', et installer {count} extension(s)', { count: missing.length }) : '',
+  }), async (s) => {
+    Object.assign(settings.data, data.settings);
+    settings.save();
+    if (data.favorites) {
+      favorites.data.tree = data.favorites;
+      saveFavorites();
+    }
+    setLang(initialLang());
+    buildMenu();
+    setMode(isLight());
+    for (const e of missing) {
+      try {
+        const ext = await exts.add(e.source);
+        if (e.alias) ext.alias = e.alias;
+        if (e.pinned === false) ext.pinned = false;
+        if (!e.enabled) await exts.setEnabled(exts.list.indexOf(ext) + 1, false);
+        settings.save();
+        s(t('  ✓ {name} installée', { name: ext.name }), 'ok');
+      } catch (err) {
+        s(t('  extension {id} : {error}', { id: e.source, error: err.message }), 'err');
+      }
+    }
+    for (const tab of tabs) if (tab.screen && tab.screen.kind === 'home') showHome(tab);
+    sendState();
+    s(t('  ✓ configuration importée'), 'ok');
+  }, false);
 }
 
 // ---------------------------------------------------------------- langue

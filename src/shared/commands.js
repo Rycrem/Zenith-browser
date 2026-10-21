@@ -78,6 +78,7 @@ const COMMANDS = [
   ['private', '[on | off]', 'navigation privée (Ctrl+Maj+N) : onglets à part, rien n\'est retenu'],
   ['mode', '[nuit | jour]', 'mode nuit (par défaut) ou jour ; aussi le bouton lune/soleil en bas'],
   ['lang', '[fr | en]', 'langue de l\'interface (français ou anglais)'],
+  ['config', '<export | import> [fichier]', 'enregistrer ou charger tes réglages, favoris et extensions (pour un autre ordinateur)'],
   ['perm', '[reset [site]]', 'autorisations accordées aux sites (caméra, micro, position…)'],
   ['devtools', '[detach | close]', 'outils de développement : ouvrir, détacher dans une fenêtre, fermer'],
   ['term', '', 'cacher le terminal (Ctrl+J pour le rappeler)'],
@@ -92,7 +93,7 @@ const COMMANDS = [
 const COMMAND_NAMES = [
   'brows', 'ia', 'go', 'clicks', 'back', 'fwd', 'reload', 'home', 'tab', 'close', 'split', 'focus',
   'fav', 'add', 'undo', 'hist', 'clean', 'find', 'ext', 'dl', 'alias', 'unalias', 'engine',
-  'theme', 'mode', 'private', 'prive', 'lang', 'tty', 'adblock', 'perm', 'update', 'devtools', 'term', 'fullscreen', 'quit', 'exit', 'help', 'clear', 'popback',
+  'theme', 'mode', 'private', 'prive', 'lang', 'tty', 'adblock', 'perm', 'update', 'devtools', 'term', 'fullscreen', 'quit', 'exit', 'help', 'clear', 'popback', 'config',
 ];
 
 const SUBCOMMANDS = {
@@ -113,13 +114,14 @@ const SUBCOMMANDS = {
   devtools: ['detach', 'close'],
   tty: ['on', 'off'],
   reload: ['hard'],
+  config: ['export', 'import'],
 };
 
 // Commandes qui n'acceptent pas de texte libre : ce qu'elles acceptent après leur nom.
 const ARG_SHAPES = {
   help: null, '?': null, clear: null, home: null, accueil: null, back: null, b: null, fwd: null, f: null,
   reload: /^hard$/i, r: /^hard$/i, n: null, next: null, p: null, prev: null, clicks: null, links: null, l: null, term: null, quit: null, exit: null, q: null, fullscreen: /^(on|off)$/i, fs: /^(on|off)$/i, tty: /^(on|off)$/i,
-  undo: null, focus: null, popback: null, lang: /^(fr|en)$/i, langue: /^(fr|en)$/i, update: /^(install|electron|auto|-v|versions)$/i,
+  undo: null, focus: null, popback: null, config: /^(export|import)$/i, lang: /^(fr|en)$/i, langue: /^(fr|en)$/i, update: /^(install|electron|auto|-v|versions)$/i,
   tab: /^(\d+|new|save)$/i, tabs: /^(\d+|new|save)$/i, close: /^\d+$/, dl: /^\d+$/, split: /^(off|close)$/i, adblock: /^(on|off)$/i, pub: /^(on|off)$/i,
   devtools: /^(detach|detacher|attach|rattacher|close|off)$/i, dev: /^(detach|detacher|attach|rattacher|close|off)$/i,
 };
