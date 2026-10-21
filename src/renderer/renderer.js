@@ -7,11 +7,13 @@ const locale = () => (getLang() === 'en' ? 'en-US' : 'fr-FR');
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
 const content = $('#content');
-const input = $('#input');
-const scrollback = $('#scrollback');
 const panesEl = [...document.querySelectorAll('.pane')];
+// Un terminal sous chaque écran : en split, chacun a sa ligne de commande.
+const cols = [...document.querySelectorAll('.term-col')].map((el) => ({ el, scrollback: $('.scrollback', el), form: $('.prompt', el), input: $('.input', el), ps1: $('.ps1', el) }));
 
 let state = null;
+const activeCol = () => cols[state && cols[state.activePane] ? state.activePane : 0];
+const isField = (el) => !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
 let awaiting = false; // « (O/n) » ou « (o/N) » (« (Y/n) » en anglais) quand une question attend une réponse
 const cmdHistory = load('cmdHistory', []);
 let histIndex = cmdHistory.length;
@@ -96,15 +98,33 @@ function copyIcon() {
   const svg = document.createElementNS(NS, 'svg');
   svg.setAttribute('viewBox', '0 0 16 16');
   svg.setAttribute('class', 'copy-icon');
-  // Deux feuilles : celle de derrière dépasse, celle de devant a un coin plié et des lignes de texte.
-  for (const d of ['M4.5 4H3v10.5h7.5V13', 'M5 1.5h5.25L13 4.25V13H5z', 'M10.25 1.5v2.75H13', 'M7 6.5h4M7 8.5h4M7 10.5h4']) {
+  // Deux cartes arrondies décalées : celle de devant pleine de la couleur du fond.
+  for (const d of ['M5.5 5.5h7a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 4 13V7a1.5 1.5 0 0 1 1.5-1.5z', 'M2 10V3.5A1.5 1.5 0 0 1 3.5 2H10']) {
     const p = document.createElementNS(NS, 'path');
     p.setAttribute('d', d);
     p.setAttribute('fill', 'none');
     p.setAttribute('stroke', 'currentColor');
-    p.setAttribute('stroke-width', '1.2');
+    p.setAttribute('stroke-width', '1.4');
     p.setAttribute('stroke-linejoin', 'round');
     p.setAttribute('stroke-linecap', 'round');
+    svg.append(p);
+  }
+  return svg;
+}
+
+function reloadIcon() {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 16 16');
+  svg.setAttribute('class', 'copy-icon');
+  for (const d of ['M13 8a5 5 0 1 1-1.46-3.54', 'M13 2.5v3h-3']) {
+    const p = document.createElementNS(NS, 'path');
+    p.setAttribute('d', d);
+    p.setAttribute('fill', 'none');
+    p.setAttribute('stroke', 'currentColor');
+    p.setAttribute('stroke-width', '1.5');
+    p.setAttribute('stroke-linecap', 'round');
+    p.setAttribute('stroke-linejoin', 'round');
     svg.append(p);
   }
   return svg;
@@ -153,7 +173,7 @@ function fill(el, children) {
 
 // ------------------------------------------------ terminal
 
-// Un terminal par onglet ; l'historique des commandes (↑ ↓) reste commun.
+// Un terminal par onglet, affiché sous l'écran qui montre cet onglet ; l'historique des commandes (↑ ↓) reste commun.
 const terms = new Map(); // id d'onglet → div du terminal
 let termId = null;
 
@@ -163,28 +183,45 @@ function term(id = termId) {
     el = h('div', { class: 'term' });
     el.hidden = id !== termId;
     terms.set(id, el);
-    scrollback.append(el);
+    cols[0].scrollback.append(el);
   }
   return el;
 }
 
-function showTerm(id, alive) {
+const toBottom = (el) => {
+  if (el.parentNode) el.parentNode.scrollTop = el.parentNode.scrollHeight;
+};
+
+// Range les terminaux sous leur écran ; ceux des onglets fermés disparaissent.
+function placeTerms() {
+  const alive = new Set(state.tabs.map((tb) => tb.id));
   for (const [k, el] of terms) {
     if (k !== null && !alive.has(k)) {
       el.remove();
       terms.delete(k);
     }
   }
-  if (id === termId) return;
+  const id = state.panes[state.activePane].tabId;
   // Les messages d'avant le premier état vont au premier onglet.
   if (termId === null && terms.has(null) && !terms.has(id)) {
     terms.set(id, terms.get(null));
     terms.delete(null);
   }
   termId = id;
-  for (const [k, el] of terms) el.hidden = k !== id;
-  term(id);
-  scrollback.scrollTop = scrollback.scrollHeight;
+  const shown = new Map(state.panes.map((p, i) => [p.tabId, i]));
+  state.panes.forEach((p, i) => {
+    const el = term(p.tabId);
+    if (el.parentNode !== cols[i].scrollback) {
+      cols[i].scrollback.append(el);
+      el.hidden = false;
+      toBottom(el);
+    }
+  });
+  for (const [k, el] of terms) {
+    const was = el.hidden;
+    el.hidden = !shown.has(k);
+    if (was && !el.hidden) toBottom(el);
+  }
 }
 
 function print(lines, el = term()) {
@@ -193,7 +230,7 @@ function print(lines, el = term()) {
     if (l.c === 'warn' && l.t.trim().startsWith('?')) awaiting = (l.t.match(/\([^()]*\)$/) || [t('(O/n)')])[0];
   }
   while (el.childElementCount > 600) el.firstElementChild.remove();
-  scrollback.scrollTop = scrollback.scrollHeight;
+  toBottom(el);
   renderPs1();
 }
 
@@ -201,35 +238,57 @@ function print(lines, el = term()) {
 const SECRET = /^(\s*(?:ia|ai)\s+(?:key|connect\s+\S+)\s+)\S+/i;
 const masked = (line) => line.replace(SECRET, '$1••••••••');
 
+// La ligne de commande s'agrandit quand le texte passe à la ligne.
+function grow(ta) {
+  ta.style.height = 'auto';
+  ta.style.height = `${ta.scrollHeight}px`;
+}
+
+function setInput(ta, value) {
+  ta.value = value;
+  grow(ta);
+}
+
 async function run(line, { echo = true, newTab = false } = {}) {
+  const pane = state ? state.activePane : 0;
   const el = term();
   if (echo) print([{ t: `❯ ${masked(line)}`, c: 'cmd' }], el);
   awaiting = false;
   renderPs1();
-  const res = await api.exec(line, { newTab });
+  const res = await api.exec(line, { newTab, pane });
   if (res.clear) el.replaceChildren();
   print(res.lines, el.isConnected ? el : term());
   if (res.hideTerminal) setTerminalHidden(true);
-  else input.focus();
+  // Sauf si la commande a donné le clavier à la page (« clicks » sur un champ) ou à la réponse de l'IA.
+  else if (document.hasFocus() && (!isField(document.activeElement) || document.activeElement.classList.contains('input'))) activeCol().input.focus();
 }
 
 function renderPs1() {
-  const ps1 = $('#ps1');
-  if (awaiting) {
-    ps1.replaceChildren(h('span', { class: 'warn' }, awaiting), ' ', h('span', { class: 'acc' }, '❯'));
-    return;
-  }
-  const host = state ? state.status.host || t('accueil') : '…';
-  ps1.replaceChildren(
-    h('span', { class: 'user' }, state ? state.user : ''),
-    h('span', { class: 'dim' }, '@'),
-    h('span', { class: 'host' }, host),
-    ' ',
-    h('span', { class: 'acc' }, '❯'),
-  );
+  cols.forEach((c, i) => {
+    const p = state && state.panes[i];
+    if (awaiting && (!state || i === state.activePane)) {
+      c.ps1.replaceChildren(h('span', { class: 'warn' }, awaiting), ' ', h('span', { class: 'acc' }, '❯'));
+      return;
+    }
+    const host = p ? p.host || t('accueil') : '…';
+    c.ps1.replaceChildren(
+      h('span', { class: 'user' }, state ? state.user : ''),
+      h('span', { class: 'dim' }, '@'),
+      h('span', { class: 'host' }, host),
+      ' ',
+      h('span', { class: 'acc' }, '❯'),
+    );
+  });
 }
 
 $('#new-tab').addEventListener('click', () => api.newTab());
+// Clic droit sur + : les onglets fermés récemment.
+$('#new-tab').addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  api.recentMenu();
+});
+$('#url-reload').append(reloadIcon());
+$('#url-reload').addEventListener('click', () => run('reload', { echo: false }));
 
 // L'adresse en haut se modifie à la main (Entrée : y aller, Échap : annuler) ; le bouton à droite la copie.
 // En tapant, l'historique propose des pages (↑/↓ pour choisir, clic pour y aller).
@@ -311,54 +370,73 @@ $('#url-copy').addEventListener('click', () => {
 
 // Ctrl+Entrée : la commande (adresse, recherche…) s'ouvre dans un nouvel onglet.
 let newTabNext = false;
-$('#prompt').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const newTab = newTabNext && !awaiting;
-  newTabNext = false;
-  const line = input.value;
-  input.value = '';
-  if (line.trim() && !awaiting && !SECRET.test(line) && cmdHistory[cmdHistory.length - 1] !== line) {
-    cmdHistory.push(line);
-    if (cmdHistory.length > 300) cmdHistory.shift();
-    persist('cmdHistory', cmdHistory);
-  }
-  histIndex = cmdHistory.length;
-  run(line, { newTab });
-});
-
-input.addEventListener('keydown', async (e) => {
-  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+cols.forEach((c, i) => {
+  c.form.addEventListener('submit', (e) => {
     e.preventDefault();
-    newTabNext = true;
-    $('#prompt').requestSubmit();
-  } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-    e.preventDefault();
-    histIndex = Math.max(0, Math.min(cmdHistory.length, histIndex + (e.key === 'ArrowUp' ? -1 : 1)));
-    input.value = cmdHistory[histIndex] || '';
-  } else if (e.key === 'Tab') {
-    e.preventDefault();
-    const res = await api.complete(input.value);
-    input.value = res.line;
-    if (res.options.length) print([{ t: `  ${res.options.join('   ')}`, c: 'dim' }]);
-  } else if (e.key === 'Escape') {
-    e.preventDefault();
-    input.value = '';
-    api.focusPage();
-  }
+    const newTab = newTabNext && !awaiting;
+    newTabNext = false;
+    const line = c.input.value;
+    setInput(c.input, '');
+    if (line.trim() && !awaiting && !SECRET.test(line) && cmdHistory[cmdHistory.length - 1] !== line) {
+      cmdHistory.push(line);
+      if (cmdHistory.length > 300) cmdHistory.shift();
+      persist('cmdHistory', cmdHistory);
+    }
+    histIndex = cmdHistory.length;
+    run(line, { newTab });
+  });
+  // Écrire sous un écran le rend actif.
+  c.input.addEventListener('focus', () => state && state.activePane !== i && state.panes[i] && api.pane(i));
+  // Un collage sur plusieurs lignes reste une seule commande.
+  c.input.addEventListener('input', () => {
+    if (/[\r\n]/.test(c.input.value)) {
+      const pos = c.input.selectionStart;
+      c.input.value = c.input.value.replace(/\r?\n/g, ' ');
+      c.input.setSelectionRange(pos, pos);
+    }
+    grow(c.input);
+  });
+  c.input.addEventListener('keydown', async (e) => {
+    const ta = c.input;
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (e.ctrlKey || e.metaKey) newTabNext = true;
+      c.form.requestSubmit();
+    } else if ((e.key === 'c' || e.key === 'C') && e.ctrlKey && !e.shiftKey && ta.selectionStart === ta.selectionEnd) {
+      // Ctrl+C sans sélection annule la saisie, comme dans un terminal.
+      e.preventDefault();
+      if (ta.value) print([{ t: `❯ ${masked(ta.value)}^C`, c: 'cmd' }]);
+      setInput(ta, '');
+      histIndex = cmdHistory.length;
+    } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      histIndex = Math.max(0, Math.min(cmdHistory.length, histIndex + (e.key === 'ArrowUp' ? -1 : 1)));
+      setInput(ta, cmdHistory[histIndex] || '');
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      const res = await api.complete(ta.value);
+      setInput(ta, res.line);
+      if (res.options.length) print([{ t: `  ${res.options.join('   ')}`, c: 'dim' }]);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setInput(ta, '');
+      api.focusPage();
+    }
+  });
 });
 
 // Taper n'importe où dans l'interface renvoie au terminal.
 document.addEventListener('keydown', (e) => {
-  if (e.target === input || e.target === urlInput || e.ctrlKey || e.altKey || e.metaKey || e.key.length !== 1) return;
+  if (isField(e.target) || e.ctrlKey || e.altKey || e.metaKey || e.key.length !== 1) return;
   if (app.classList.contains('term-hidden')) setTerminalHidden(false);
-  input.focus();
+  activeCol().input.focus();
 });
 
 function setTerminalHidden(hidden) {
   app.classList.toggle('term-hidden', hidden);
   persist('termHidden', hidden);
   if (hidden) api.focusPage();
-  else input.focus();
+  else activeCol().input.focus();
   requestAnimationFrame(sendRects);
 }
 
@@ -375,8 +453,9 @@ api.on('term:clear', () => term().replaceChildren());
 api.on('term:toggle', () => setTerminalHidden(!app.classList.contains('term-hidden')));
 api.on('term:focus', (prefill) => {
   if (app.classList.contains('term-hidden')) setTerminalHidden(false);
-  if (prefill) input.value = prefill;
-  input.focus();
+  const ta = activeCol().input;
+  if (prefill) setInput(ta, prefill);
+  ta.focus();
 });
 
 // ------------------------------------------------ redimensionnement à la souris
@@ -460,8 +539,9 @@ api.on('state', (s) => {
   document.documentElement.dataset.platform = s.platform;
   if (s.private) document.documentElement.dataset.private = '1';
   else delete document.documentElement.dataset.private;
-  $('.logo').textContent = s.private ? t('dev-brows · privé') : 'dev-brows';
-  showTerm(s.panes[s.activePane].tabId, new Set(s.tabs.map((t) => t.id)));
+  $('.logo').textContent = s.private ? t('Zenith · privé') : 'Zenith';
+  app.classList.toggle('split', s.panes.length > 1);
+  placeTerms();
   renderTabs();
   renderPanes();
   renderStatus();
@@ -469,60 +549,129 @@ api.on('state', (s) => {
   requestAnimationFrame(sendRects);
 });
 
-let dragTabId = null;
+// Glisser un onglet : il ne bouge que de gauche à droite. Quand un nouvel emplacement est visé,
+// les onglets qui l'entourent s'entourent d'un contour qui glisse vers lui puis reste sur leur bord,
+// et un curseur texte apparaît entre les deux.
+let tabDrag = null; // { id, el, startX, moved, gap }
 
-// Emplacement visé pendant le glissement d'un onglet : l'indice devant lequel il sera posé
-// (selon la moitié de l'onglet survolée), ou -1 s'il ne bougerait pas.
-function tabGapAt(e, overId) {
-  const i = state.tabs.findIndex((tb) => tb.id === overId);
-  const r = e.currentTarget.getBoundingClientRect();
-  const gap = e.clientX < r.left + r.width / 2 ? i : i + 1;
-  const from = state.tabs.findIndex((tb) => tb.id === dragTabId);
-  return from >= 0 && (gap === from || gap === from + 1) ? -1 : gap;
+function tabGapAt(x) {
+  const els = [...$('#tabs').querySelectorAll('.tab')];
+  let gap = els.length;
+  for (let i = 0; i < els.length; i++) {
+    if (els[i] === tabDrag.el) continue;
+    const r = els[i].getBoundingClientRect();
+    if (x < r.left + r.width / 2) {
+      gap = i;
+      break;
+    }
+  }
+  const from = state.tabs.findIndex((tb) => tb.id === tabDrag.id);
+  return gap === from || gap === from + 1 ? -1 : gap;
 }
 
 function markTabGap(gap) {
-  $('#tabs').querySelectorAll('.tab').forEach((el, i) => {
+  const nav = $('#tabs');
+  const els = [...nav.querySelectorAll('.tab')];
+  let caret = $('.tab-caret', nav);
+  els.forEach((el, i) => {
     el.classList.toggle('drop-r', gap >= 0 && i === gap - 1);
     el.classList.toggle('drop-l', gap >= 0 && i === gap);
   });
+  if (caret) caret.remove();
+  if (gap < 0) return;
+  caret = h('span', { class: 'tab-caret', 'aria-hidden': 'true' }, caretIcon());
+  const left = els[gap - 1];
+  const right = els[gap];
+  const x = left ? left.offsetLeft + left.offsetWidth + 2 : right.offsetLeft - 2;
+  caret.style.left = `${x - 7}px`;
+  nav.append(caret);
+  // Le curseur attend la fin de l'animation du contour.
+  setTimeout(() => caret.classList.add('on'), 260);
 }
 
+function caretIcon() {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 14 20');
+  const p = document.createElementNS(NS, 'path');
+  p.setAttribute('d', 'M3 2.5c2 0 4 .8 4 2.5v10c0 1.7-2 2.5-4 2.5M11 2.5c-2 0-4 .8-4 2.5v10c0 1.7 2 2.5 4 2.5M4.5 10h5');
+  p.setAttribute('fill', 'none');
+  p.setAttribute('stroke', 'currentColor');
+  p.setAttribute('stroke-width', '1.6');
+  p.setAttribute('stroke-linecap', 'round');
+  svg.append(p);
+  return svg;
+}
+
+function startTabDrag(e, tb) {
+  if (e.button !== 0 || e.target.closest('.close, .speaker')) return;
+  const el = e.currentTarget;
+  tabDrag = { id: tb.id, el, startX: e.clientX, moved: false, gap: -1 };
+  const move = (ev) => {
+    const dx = ev.clientX - tabDrag.startX;
+    if (!tabDrag.moved && Math.abs(dx) < 5) return;
+    if (!tabDrag.moved) {
+      tabDrag.moved = true;
+      el.classList.add('dragging');
+    }
+    // Toujours à la hauteur de départ : seul le déplacement horizontal compte.
+    el.style.transform = `translateX(${dx}px)`;
+    const gap = tabGapAt(ev.clientX);
+    if (gap !== tabDrag.gap) {
+      tabDrag.gap = gap;
+      markTabGap(gap);
+    }
+  };
+  const up = () => {
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', up);
+    window.removeEventListener('blur', up);
+    const d = tabDrag;
+    tabDrag = null;
+    if (!d.moved) return;
+    // Le clic qui suit le glissement ne doit pas changer d'onglet.
+    window.addEventListener('click', (ev) => ev.stopPropagation(), { capture: true, once: true });
+    setTimeout(() => renderTabs(), 0);
+    if (d.gap >= 0) api.moveTab(d.id, d.gap);
+  };
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up);
+  window.addEventListener('blur', up);
+}
+
+const tabsNav = $('#tabs');
+function updateTabArrows() {
+  const over = tabsNav.scrollWidth > tabsNav.clientWidth + 1;
+  $('#tabs-left').hidden = !over;
+  $('#tabs-right').hidden = !over;
+  $('#tabs-left').disabled = tabsNav.scrollLeft <= 0;
+  $('#tabs-right').disabled = tabsNav.scrollLeft + tabsNav.clientWidth >= tabsNav.scrollWidth - 1;
+}
+$('#tabs-left').addEventListener('click', () => tabsNav.scrollBy({ left: -240, behavior: 'smooth' }));
+$('#tabs-right').addEventListener('click', () => tabsNav.scrollBy({ left: 240, behavior: 'smooth' }));
+tabsNav.addEventListener('scroll', updateTabArrows);
+new ResizeObserver(updateTabArrows).observe(tabsNav);
+// La molette fait défiler les onglets de côté.
+tabsNav.addEventListener('wheel', (e) => {
+  if (!e.deltaY || e.deltaX) return;
+  e.preventDefault();
+  tabsNav.scrollBy({ left: e.deltaY });
+}, { passive: false });
+
+let shownActiveId = null;
 function renderTabs() {
+  if (tabDrag && tabDrag.moved) return; // rendu à la fin du glissement
   const activeId = state.panes[state.activePane].tabId;
-  fill($('#tabs'), state.tabs.map((tb) => h(
+  fill(tabsNav, state.tabs.map((tb) => h(
     'div',
     {
-      class: `tab${tb.id === activeId ? ' active' : ''}${tb.pane >= 0 && tb.id !== activeId ? ' other-pane' : ''}`,
-      draggable: 'true',
+      class: `tab${tb.id === activeId ? ' active' : ''}${tb.pane >= 0 && tb.id !== activeId ? ' other-pane' : ''}${tb.private ? ' private' : ''}`,
       // Clic molette : ferme l'onglet.
       onmousedown: (e) => { if (e.button === 1) e.preventDefault(); },
       onauxclick: (e) => { if (e.button === 1) api.closeTab(tb.id); },
-      // Glisser-déposer pour changer l'ordre des onglets : les deux bords qui entourent
-      // l'emplacement visé s'allument (droite de l'onglet de gauche, gauche de celui de droite).
-      ondragstart: (e) => {
-        dragTabId = tb.id;
-        e.dataTransfer.setData('text/x-tab', String(tb.id));
-        e.dataTransfer.effectAllowed = 'move';
-      },
-      ondragend: () => {
-        dragTabId = null;
-        markTabGap(-1);
-      },
-      ondragover: (e) => {
-        if (!e.dataTransfer.types.includes('text/x-tab')) return;
-        e.preventDefault();
-        markTabGap(tabGapAt(e, tb.id));
-      },
-      ondrop: (e) => {
-        e.preventDefault();
-        const gap = tabGapAt(e, tb.id);
-        markTabGap(-1);
-        const id = Number(e.dataTransfer.getData('text/x-tab'));
-        if (id && gap >= 0) api.moveTab(id, gap);
-      },
+      onpointerdown: (e) => startTabDrag(e, tb),
     },
-    h('button', { type: 'button', class: 'label', title: tb.title, onclick: () => api.tab(tb.id) }, `[${tb.n}] `, tb.loading ? h('span', { class: 'spin' }, '◌ ') : null, tb.title),
+    h('button', { type: 'button', class: 'label', title: tb.title, onclick: () => api.tab(tb.id) }, tb.loading ? h('span', { class: 'spin', 'aria-label': t('chargement…') }) : null, `[${tb.n}] `, tb.title),
     tb.audible || tb.muted ? h('button', {
       type: 'button',
       class: `speaker${tb.muted ? ' muted' : ''}`,
@@ -534,6 +683,13 @@ function renderTabs() {
     }, speaker(tb.muted)) : null,
     h('button', { type: 'button', class: 'close', 'aria-label': t('Fermer l\'onglet {n}', { n: tb.n }), onclick: () => api.closeTab(tb.id) }, '×'),
   )));
+  // L'onglet choisi reste visible dans la barre.
+  if (activeId !== shownActiveId) {
+    shownActiveId = activeId;
+    const el = $('.tab.active', tabsNav);
+    if (el) el.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+  }
+  updateTabArrows();
   // Pas pendant qu'on la modifie.
   if (document.activeElement !== urlInput) urlInput.value = state.status.url;
 }
@@ -544,6 +700,12 @@ function renderPanes() {
     const pane = panesEl[i];
     const viewport = $('.viewport', pane);
     pane.classList.toggle('active', i === state.activePane);
+    // Navigation privée d'un seul écran (split) : son écran et son terminal passent en violet.
+    for (const el of [pane, cols[i].el]) {
+      if (p.private && !state.private) el.dataset.private = '1';
+      else delete el.dataset.private;
+    }
+    cols[i].el.classList.toggle('active', i === state.activePane);
     viewport.classList.toggle('has-screen', !!p.screen);
     viewport.classList.toggle('page', !p.screen && p.page);
     // Barre au-dessus des DevTools collées à la page : on peut les détacher ou les fermer à la souris.
@@ -566,7 +728,10 @@ function renderPanes() {
     if (screen.dataset.key !== key) {
       screen.dataset.key = key;
       fill(screen, p.screen ? renderScreen(p.screen) : []);
-      screen.scrollTop = 0;
+      screen.scrollTop = p.screen && p.screen.kind === 'ai' ? screen.scrollHeight : 0;
+      // La réponse finie, le curseur attend la suite de la discussion.
+      const reply = $('.ai-reply textarea', screen);
+      if (reply && i === state.activePane && !app.classList.contains('term-hidden')) reply.focus();
     }
   });
 }
@@ -738,7 +903,7 @@ function cmdLine([name, args, desc]) {
 const screens = {
   home(s) {
     return [
-      h('pre', { class: 'logo-art', 'aria-label': 'dev-brows' }, LOGO),
+      h('pre', { class: 'logo-art', 'aria-label': 'Zenith' }, LOGO),
       h('div', { class: 'dim' }, t('Bonjour {user}. Tape ', { user: s.user }), h('span', { class: 'acc' }, 'help'), t(' pour la liste des commandes, ou directement une recherche ou une adresse.')),
       h(
         'div',
@@ -761,10 +926,32 @@ const screens = {
   },
 
   ai(s) {
+    // Une discussion : les échanges précédents, la réponse en cours, puis la ligne pour répondre.
+    const reply = h('textarea', {
+      rows: '1',
+      spellcheck: 'false',
+      'aria-label': t('Répondre à {name}', { name: s.provider }),
+      oninput: (e) => grow(e.target),
+      onkeydown: (e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          activeCol().input.focus();
+        } else if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          const text = e.target.value.trim();
+          if (text) api.aiReply(text);
+        }
+      },
+    });
     return [
-      head(`ia ${s.question}`, s.done ? s.provider : t('{name} réfléchit…', { name: s.provider })),
+      s.turns.map((x) => [
+        head(x.q),
+        h('div', { class: 'ai-text' }, x.a),
+      ]),
+      head(s.turns.length ? s.question : `ia ${s.question}`, s.done ? s.provider : t('{name} réfléchit…', { name: s.provider })),
       s.text ? h('div', { class: 'ai-text' }, s.text, s.done ? null : h('span', { class: 'acc' }, ' ▍')) : (s.done ? null : h('div', { class: 'dim' }, '…')),
       s.error ? h('div', { class: 'err' }, s.error) : null,
+      s.done && !s.error ? h('form', { class: 'ai-reply', onsubmit: (e) => e.preventDefault() }, h('span', { class: 'acc' }, '> '), reply) : null,
       s.sources.length ? [
         h('h3', { class: 'sources' }, 'Sources'),
         s.sources.map((r) => item('result', String(r.n), h('span', { class: 'badge' }, r.n), h('span', { class: 'body' }, h('span', { class: 'title' }, r.title), h('span', { class: 'link' }, r.short)))),
@@ -990,12 +1177,14 @@ applyStaticLabels();
 renderPs1();
 print([{ t: t('Zenith prêt. Ctrl+H revient ici, Ctrl+L vide le terminal, Ctrl+J le cache, Échap rend la main à la page.'), c: 'dim' }]);
 api.ready();
-input.focus();
+cols[0].input.focus();
 
 // Clic droit dans le terminal, comme dans le Terminal Windows : copie le texte sélectionné,
 // sinon colle le presse-papier dans la ligne de commande.
 $('#terminal').addEventListener('contextmenu', async (e) => {
   e.preventDefault();
+  const c = cols.find((x) => x.el.contains(e.target)) || activeCol();
+  const input = c.input;
   const inInput = document.activeElement === input && input.selectionStart !== input.selectionEnd;
   const selected = inInput ? input.value.slice(input.selectionStart, input.selectionEnd) : String(window.getSelection());
   if (selected) {
@@ -1007,4 +1196,5 @@ $('#terminal').addEventListener('contextmenu', async (e) => {
   const text = (await api.readClipboard()).replace(/\r?\n/g, ' ').trim();
   input.focus();
   if (text) input.setRangeText(text, input.selectionStart, input.selectionEnd, 'end');
+  grow(input);
 });

@@ -49,7 +49,7 @@ const COMMANDS = [
   ['ia', '[question | use | key | logout | model]', 'réponse courte d\'une IA (Claude, Gemini, ChatGPT, Mistral…) ; « ia » seul pour la choisir'],
   ['go', '<url>', 'ouvrir une adresse'],
   ['<n>', '', 'ouvrir l\'élément numéro n de la liste affichée ; « nt » dans un nouvel onglet'],
-  ['links', '', 'numéroter les liens de la page'],
+  ['clicks', '', 'numéroter les liens, boutons et champs de la page ; un numéro clique ou place le curseur'],
   ['tty', '[on | off]', 'la page en texte simple, liens numérotés en bleu (clic ou numéro)'],
   ['back / fwd / reload', '', 'précédent, suivant, recharger'],
   ['reload hard', '', 'recharger sans le cache (Ctrl+Maj+R)'],
@@ -57,6 +57,7 @@ const COMMANDS = [
   ['tab', '[n | new [url…]]', 'lister, changer ou ouvrir un ou plusieurs onglets'],
   ['tab save', '<nom>', 'créer l\'alias <nom> qui rouvre les onglets ouverts'],
   ['close', '[n]', 'fermer l\'onglet courant ou le numéro n'],
+  ['popback', '', 'rouvrir les onglets de la dernière fois'],
   ['split', '[off [1|2]]', 'deux écrans côte à côte ; « focus » change d\'écran, « split off » ferme l\'autre'],
   ['fav', '[dossier]', 'liste des favoris'],
   ['add', '[dossier/]nom', 'ajouter la page aux favoris (crée le dossier si besoin)'],
@@ -67,7 +68,7 @@ const COMMANDS = [
   ['undo', '', 'annuler la dernière suppression de favori'],
   ['hist', '[texte]', 'historique, filtré si besoin'],
   ['clean', '[all]', 'vider l\'historique ; « all » vide aussi les cookies et le cache'],
-  ['find', '[texte]', 'chercher dans la page (« find » seul efface)'],
+  ['find', '[texte]', 'chercher dans la page ; « find » seul ouvre la barre de recherche (Ctrl+F)'],
   ['ext', '[add | on | off | pin | rm | alias | log | n]', 'gérer les extensions ; « ext pin n » l\'épingle dans la barre du bas, « ext log n » montre ses erreurs'],
   ['dl', '[n]', 'téléchargements ; n ouvre le fichier'],
   ['alias', '[nom = commande]', 'créer un raccourci ; « unalias nom » le supprime'],
@@ -89,9 +90,9 @@ const COMMANDS = [
 ];
 
 const COMMAND_NAMES = [
-  'brows', 'ia', 'go', 'links', 'back', 'fwd', 'reload', 'home', 'tab', 'close', 'split', 'focus',
+  'brows', 'ia', 'go', 'clicks', 'back', 'fwd', 'reload', 'home', 'tab', 'close', 'split', 'focus',
   'fav', 'add', 'undo', 'hist', 'clean', 'find', 'ext', 'dl', 'alias', 'unalias', 'engine',
-  'theme', 'mode', 'private', 'prive', 'lang', 'tty', 'adblock', 'perm', 'update', 'devtools', 'term', 'fullscreen', 'quit', 'exit', 'help', 'clear',
+  'theme', 'mode', 'private', 'prive', 'lang', 'tty', 'adblock', 'perm', 'update', 'devtools', 'term', 'fullscreen', 'quit', 'exit', 'help', 'clear', 'popback',
 ];
 
 const SUBCOMMANDS = {
@@ -117,8 +118,8 @@ const SUBCOMMANDS = {
 // Commandes qui n'acceptent pas de texte libre : ce qu'elles acceptent après leur nom.
 const ARG_SHAPES = {
   help: null, '?': null, clear: null, home: null, accueil: null, back: null, b: null, fwd: null, f: null,
-  reload: /^hard$/i, r: /^hard$/i, n: null, next: null, p: null, prev: null, links: null, l: null, term: null, quit: null, exit: null, q: null, fullscreen: /^(on|off)$/i, fs: /^(on|off)$/i, tty: /^(on|off)$/i,
-  undo: null, focus: null, lang: /^(fr|en)$/i, langue: /^(fr|en)$/i, update: /^(install|electron|auto|-v|versions)$/i,
+  reload: /^hard$/i, r: /^hard$/i, n: null, next: null, p: null, prev: null, clicks: null, links: null, l: null, term: null, quit: null, exit: null, q: null, fullscreen: /^(on|off)$/i, fs: /^(on|off)$/i, tty: /^(on|off)$/i,
+  undo: null, focus: null, popback: null, lang: /^(fr|en)$/i, langue: /^(fr|en)$/i, update: /^(install|electron|auto|-v|versions)$/i,
   tab: /^(\d+|new|save)$/i, tabs: /^(\d+|new|save)$/i, close: /^\d+$/, dl: /^\d+$/, split: /^(off|close)$/i, adblock: /^(on|off)$/i, pub: /^(on|off)$/i,
   devtools: /^(detach|detacher|attach|rattacher|close|off)$/i, dev: /^(detach|detacher|attach|rattacher|close|off)$/i,
 };

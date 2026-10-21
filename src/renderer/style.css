@@ -71,8 +71,9 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
 
 /* ------------------------------------------------ onglets */
 
-/* Navigation privée (Ctrl+Maj+N) : fond violet sombre, accent rouge (envoyé par le processus principal). */
-:root[data-private] {
+/* Navigation privée (Ctrl+Maj+N) : fond violet sombre, accent rouge (envoyé par le processus principal).
+   En split, un seul écran peut être privé : son écran et son terminal prennent ces couleurs. */
+:root[data-private], .pane[data-private], .term-col[data-private] {
   --bg: #1A1024;
   --bg-deep: #120A1A;
   --bg-raised: #231531;
@@ -133,19 +134,39 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
 .tab .label { overflow: hidden; text-overflow: ellipsis; }
 .tab .close { width: 18px; height: 18px; border-radius: 3px; color: var(--dim); }
 .tab .close:hover { background: var(--line); color: var(--text); }
-.tab .spin { color: var(--accent); }
-.tab.drop-l { box-shadow: inset 2px 0 0 var(--accent); }
-.tab.drop-r { box-shadow: inset -2px 0 0 var(--accent); }
+.tab .label { display: flex; align-items: center; gap: 6px; }
+/* Chargement : un petit anneau qui tourne devant le titre. */
+.tab .spin { flex: none; width: 11px; height: 11px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: tab-spin .7s linear infinite; }
+@keyframes tab-spin { to { transform: rotate(360deg); } }
+.tab.private { box-shadow: inset 0 -2px 0 #B48CF2; }
+.pane[data-private], .term-col[data-private] { --accent: #E5484D; }
+#tabs { position: relative; }
+.tab.dragging { position: relative; z-index: 2; background: var(--chip); color: var(--text); opacity: .9; cursor: grabbing; }
+/* Emplacement visé : le contour glisse vers le bord qui touche l'emplacement, puis y reste. */
+.tab.drop-l { box-shadow: inset 2px 0 0 var(--accent); animation: drop-l .25s ease-out; }
+.tab.drop-r { box-shadow: inset -2px 0 0 var(--accent); animation: drop-r .25s ease-out; }
+@keyframes drop-l { from { box-shadow: inset 0 0 0 2px var(--accent); } to { box-shadow: inset 2px 0 0 0 var(--accent); } }
+@keyframes drop-r { from { box-shadow: inset 0 0 0 2px var(--accent); } to { box-shadow: inset -2px 0 0 0 var(--accent); } }
+.tab-caret { position: absolute; top: 50%; width: 14px; height: 20px; transform: translateY(-50%); color: var(--accent); opacity: 0; pointer-events: none; transition: opacity .12s; }
+.tab-caret.on { opacity: 1; }
+.tab-caret svg { width: 14px; height: 20px; display: block; }
+.tabs-arrow { flex: none; width: 20px; height: 26px; border-radius: 4px; color: var(--dim); font-size: 16px; }
+.tabs-arrow:hover:not(:disabled) { background: var(--bg-raised); color: var(--text); }
+.tabs-arrow:disabled { opacity: .35; cursor: default; }
+.tabs-arrow[hidden] { display: none; }
 
 #new-tab { width: 26px; height: 26px; border-radius: 4px; color: var(--dim); font-size: 16px; }
 #new-tab:hover { background: var(--bg-raised); color: var(--text); }
 
-.url { margin-left: auto; display: flex; align-items: center; gap: 4px; position: relative; width: 30%; min-width: 160px; max-width: 420px; }
-#url { flex: 1; min-width: 0; height: 26px; padding: 0 8px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--green); font: inherit; text-align: right; text-overflow: ellipsis; outline: none; }
-#url:hover { border-color: var(--line); }
-#url:focus { text-align: left; border-color: var(--accent); background: var(--bg-raised); color: var(--text); }
+/* Recharger | adresse | copier : une seule boîte, la taille de l'adresse, le bouton recharger séparé par un trait. */
+.url { margin-left: auto; flex: none; display: flex; align-items: center; position: relative; height: 28px; max-width: 50vw; border: 1px solid var(--line); border-radius: 4px; }
+.url:focus-within { border-color: var(--accent); background: var(--bg-raised); }
+#url-reload { flex: none; width: 28px; height: 26px; display: grid; place-items: center; color: var(--dim); border-right: 1px solid var(--line); border-radius: 3px 0 0 3px; }
+#url-reload:hover { background: var(--bg-raised); color: var(--text); }
+#url { field-sizing: content; min-width: 12ch; max-width: 100%; height: 26px; padding: 0 8px; border: 0; background: transparent; color: var(--green); font: inherit; text-overflow: ellipsis; outline: none; }
+#url:focus { color: var(--text); }
 #url::placeholder { color: var(--dim); }
-#url-copy { flex: none; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 4px; color: var(--dim); }
+#url-copy { flex: none; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 0 3px 3px 0; color: var(--dim); }
 .copy-icon { width: 16px; height: 16px; display: block; }
 #url-copy:hover { background: var(--bg-raised); color: var(--text); }
 /* La bulle reste dans la barre : la page (vue native) recouvrirait tout ce qui dépasse dessous. */
@@ -249,25 +270,43 @@ th { color: var(--dim); }
 #resizer { cursor: row-resize; background: var(--bg-deep); border-top: 1px solid var(--line); }
 #resizer:hover, #resizer.dragging { background: var(--accent); }
 
-#terminal { display: flex; flex-direction: column; min-height: 0; padding: 8px 24px 10px; border-top: 2px solid var(--accent); }
-#scrollback { flex: 1; overflow-y: auto; white-space: pre-wrap; word-break: break-word; font-size: 13px; }
-#scrollback .cmd { color: var(--dim); }
-#scrollback .cmd::first-letter { color: var(--accent); }
+#terminal { display: flex; min-height: 0; }
+.term-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; padding: 8px 24px 10px; border-top: 2px solid var(--accent); background: var(--bg); color: var(--text); }
+#app.split .term-col[data-pane="0"] { flex: var(--ratio) 1 0; }
+#app.split .term-col[data-pane="1"] { flex: calc(1 - var(--ratio)) 1 0; }
+#app.split .term-col:not(.active) { border-top-color: var(--line); }
+.term-col[data-pane="1"], .term-sep { display: none; }
+#app.split .term-col[data-pane="1"] { display: flex; }
+#app.split .term-sep { display: block; width: 6px; background: var(--bg-deep); border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+.scrollback { flex: 1; overflow-y: auto; white-space: pre-wrap; word-break: break-word; font-size: 13px; }
+.scrollback .cmd { color: var(--dim); }
+.scrollback .cmd::first-letter { color: var(--accent); }
 
-#prompt { display: flex; align-items: center; gap: 10px; font-size: 15px; padding-top: 6px; }
-#ps1 { white-space: nowrap; }
-#ps1 .user { color: var(--green); }
-#ps1 .host { color: var(--cyan); }
-#input {
+.prompt { display: flex; align-items: flex-start; gap: 10px; font-size: 15px; padding-top: 6px; }
+.ps1 { white-space: nowrap; }
+.ps1 .user { color: var(--green); }
+.ps1 .host { color: var(--cyan); }
+/* La commande passe à la ligne quand elle est trop longue. */
+.prompt .input, .ai-reply textarea {
   flex: 1;
   min-width: 0;
+  max-height: 40vh;
+  padding: 0;
+  resize: none;
+  overflow-y: auto;
   background: none;
   border: 0;
   outline: none;
   color: var(--text);
   font: inherit;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   caret-color: var(--accent);
 }
+
+.ai-reply { display: flex; align-items: flex-start; max-width: 860px; margin: -8px 0 24px; font-size: 15px; }
+.ai-reply .acc { white-space: pre; }
 
 /* ------------------------------------------------ barre d'état */
 

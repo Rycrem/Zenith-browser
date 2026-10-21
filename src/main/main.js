@@ -108,6 +108,9 @@ let ses = null;
 let chromeApi = null; // API d'extensions Chrome (onglets, fenêtres…) qu'Electron ne fournit pas
 let favorites = null; // JsonStore { tree }
 let history = null; // JsonStore { entries }
+let sessionStore = null; // JsonStore { tabs } : adresses des onglets ouverts, pour « popback »
+let previousSession = []; // celles de la dernière fois, lues au lancement
+const closedTabs = []; // onglets fermés, le plus récent d'abord : { url, title }
 let adblock = null;
 let lastCommandAt = 0; // heure de la dernière commande tapée, pour garder le focus dans le terminal
 let settings = null; // JsonStore { engine, theme, aliases, extensions }
@@ -149,14 +152,56 @@ function paneOf(tab) {
   return panes.findIndex((p) => p.tabId === tab.id);
 }
 
-function createTab({ url, background = false, pane = activePane } = {}) {
-  const tab = { id: nextTabId++, view: null, dev: null, screen: null, numbered: [], title: '', url: '', loading: false, private: !!privateMode };
+// priv : onglet privé ; par défaut, comme l'onglet affiché dans l'écran (split dont un écran est privé).
+function createTab({ url, background = false, pane = activePane, priv } = {}) {
+  const shown = panes[pane] && getTab(panes[pane].tabId);
+  const isPrivate = !!privateMode || (priv !== undefined ? !!priv : !!(shown && shown.private));
+  const tab = { id: nextTabId++, view: null, dev: null, screen: null, numbered: [], title: '', url: '', loading: false, private: isPrivate };
   tabs.push(tab);
   if (url) navigate(tab, url);
   else showHome(tab);
   if (!background) showInPane(tab, pane);
   else sendState();
+  saveSession();
   return tab;
+}
+
+// Les onglets ouverts (pages seulement, hors navigation privée) remplacent la sauvegarde précédente.
+function saveSession() {
+  if (!sessionStore) return;
+  const urls = tabs.filter((tb) => !tb.private && /^(https?|file):/.test(tb.url)).map((tb) => tb.url);
+  if (!urls.length || JSON.stringify(urls) === JSON.stringify(sessionStore.data.tabs)) return;
+  sessionStore.data.tabs = urls;
+  sessionStore.save();
+}
+
+// « popback » : rouvre les onglets de la dernière fois ; l'accueil vide sert au premier.
+function popback(tab) {
+  if (!previousSession.length) throw new Error(t('aucun onglet de la dernière fois à rouvrir'));
+  const urls = previousSession;
+  previousSession = [];
+  const reuse = !tab.view && tab.screen && tab.screen.kind === 'home';
+  urls.forEach((url, i) => {
+    if (i === 0 && reuse) navigate(tab, url);
+    else createTab({ url, background: i > 0 || reuse });
+  });
+  return urls.length;
+}
+
+function reopenClosed(i = 0) {
+  const c = closedTabs.splice(i, 1)[0];
+  if (!c) throw new Error(t('aucun onglet fermé à rouvrir'));
+  createTab({ url: c.url });
+}
+
+// Clic droit sur + : les onglets fermés, le plus récent en premier.
+function recentMenu() {
+  const recent = closedTabs.map((c, i) => ({ label: (c.title || shortUrl(c.url)).slice(0, 70), click: () => reopenClosed(i) }));
+  Menu.buildFromTemplate([
+    { label: t('Nouvel onglet'), accelerator: 'CmdOrCtrl+T', click: () => { createTab(); focusTerminal(); } },
+    { label: t('Rouvrir l\'onglet fermé'), accelerator: 'CmdOrCtrl+Shift+T', enabled: closedTabs.length > 0, click: () => reopenClosed(0) },
+    { label: t('Onglets récents'), submenu: recent.length ? recent : [{ label: t('Aucun onglet fermé'), enabled: false }] },
+  ]).popup({ window: win });
 }
 
 function ensureView(tab) {
@@ -481,6 +526,7 @@ function wireWebContents(tab, wc) {
   wc.on('did-frame-finish-load', () => applyVolume(tab));
   wc.on('did-stop-loading', () => {
     tab.loading = false;
+    tab.blank = false;
     // Notre bouton seulement si le store n'a pas appelé webstorePrivate entre-temps (le sien marche alors).
     setTimeout(() => storeButton(tab), 2000);
     // Une seconde plus tard aussi : l'extension a fini de traiter « page chargée » entre-temps.
@@ -491,6 +537,7 @@ function wireWebContents(tab, wc) {
   });
   // Le texte s'affiche dès que la page est lue, sans attendre les images ou ce qui traîne.
   wc.on('dom-ready', () => {
+    unblank(tab);
     if (tab.tty && (!tab.screen || tab.screen.kind === 'tty')) showTty(tab, true);
   });
   wc.on('page-title-updated', (e, title) => {
@@ -503,12 +550,14 @@ function wireWebContents(tab, wc) {
     sendState();
   });
   wc.on('did-navigate', (e, url) => {
+    recordNavigation(tab, wc);
     tab.url = url;
     if (tab.numberedKind === 'links') tab.numbered = [];
     // En mode tty, l'ancien texte laisse place à « chargement… » (aussi après back et fwd).
     if (tab.tty && tab.screen && tab.screen.kind === 'tty') setScreen(tab, ttyLoading(url), []);
-    addHistory({ url, title: wc.getTitle() });
+    addHistory({ url, title: wc.getTitle() }, tab);
     storeHint(tab, url);
+    saveSession();
     sendState();
   });
   wc.on('did-navigate-in-page', (e, url, isMainFrame) => {
@@ -525,6 +574,7 @@ function wireWebContents(tab, wc) {
     if (message === `${STORE_SECRET}:install`) installFromStore(tab).catch(() => {});
   });
   wc.on('did-fail-load', (e, code, desc, url, isMainFrame) => {
+    if (isMainFrame) unblank(tab);
     if (isMainFrame && code !== -3) print([{ t: t('impossible de charger {url} : {desc}', { url, desc }), c: 'err' }]);
   });
   wc.on('focus', () => {
@@ -555,28 +605,121 @@ function wireWebContents(tab, wc) {
     if (input.type === 'mouseDown') lastCommandAt = 0;
   });
   wc.on('found-in-page', (e, r) => {
-    if (r.finalUpdate) print([{ t: `  ${r.matches ? `${r.activeMatchOrdinal}/${r.matches}` : t('aucun résultat')}`, c: 'dim' }]);
+    if (!r.finalUpdate) return;
+    if (findWin && findWin.tabId === tab.id && !findWin.win.isDestroyed()) findWin.win.webContents.send('panel:data', { ordinal: r.activeMatchOrdinal, matches: r.matches });
+    else print([{ t: `  ${r.matches ? `${r.activeMatchOrdinal}/${r.matches}` : t('aucun résultat')}`, c: 'dim' }]);
   });
   wc.on('context-menu', (e, params) => showContextMenu(tab, params));
   wc.setWindowOpenHandler(({ url, disposition }) => {
     // Les vraies popups (connexion OAuth, etc.) restent des fenêtres ; le reste devient un onglet.
     if (disposition === 'new-window') return { action: 'allow' };
-    createTab({ url, background: disposition === 'background-tab' });
+    createTab({ url, background: disposition === 'background-tab', priv: tab.private });
     return { action: 'deny' };
   });
 }
 
+// Écrans qui comptent comme une page dans l'historique de l'onglet : ouvrir un de leurs
+// résultats puis revenir en arrière les réaffiche.
+const HISTORY_SCREENS = new Set(['results', 'ai', 'hist', 'fav']);
+
 function navigate(tab, url) {
   const view = ensureView(tab);
+  // La nouvelle page remplace l'ancienne : celle-ci n'est plus montrée pendant le chargement.
+  const s = tab.screen;
+  tab.pending = s && HISTORY_SCREENS.has(s.kind) ? { screen: { ...s, histAt: undefined }, numbered: tab.numbered, kind: tab.numberedKind } : null;
+  tab.blank = true;
   tab.screen = tab.tty ? ttyLoading(url) : null;
   tab.url = url;
   tab.title = shortUrl(url);
-  view.webContents.loadURL(url).catch(() => {});
+  view.webContents.loadURL(url).catch(() => unblank(tab));
   layout();
   sendState();
 }
 
+function unblank(tab) {
+  if (!tab.blank) return;
+  tab.blank = false;
+  layout();
+  sendState();
+}
+
+// Historique de l'onglet : l'écran (résultats, réponse de l'IA…) d'où l'on a ouvert l'entrée i
+// est gardé dans tab.screenAt[i] ; « back » depuis l'entrée i le réaffiche avant d'aller à i - 1.
+function recordNavigation(tab, wc) {
+  const nh = wc.navigationHistory;
+  const i = nh.getActiveIndex();
+  const at = tab.screenAt || (tab.screenAt = {});
+  for (const k of Object.keys(at)) if (Number(k) >= nh.length()) delete at[k];
+  if (tab.pending !== undefined) {
+    for (const k of Object.keys(at)) if (Number(k) > i) delete at[k];
+    if (tab.pending) at[i] = tab.pending;
+    else delete at[i];
+    tab.pending = undefined;
+  } else if (!tab.traversing && i === nh.length() - 1) delete at[i]; // lien suivi dans la page
+  tab.traversing = false;
+}
+
+function showHistoryScreen(tab, k) {
+  const e = tab.screenAt[k];
+  setScreen(tab, { ...e.screen, histAt: k }, e.numbered, e.kind);
+}
+
+function traverse(tab, dir) {
+  tab.traversing = true;
+  if (dir < 0) tab.view.webContents.navigationHistory.goBack();
+  else tab.view.webContents.navigationHistory.goForward();
+}
+
+function hideScreen(tab) {
+  tab.screen = null;
+  layout();
+  sendState();
+}
+
+function goBack(tab) {
+  const s = tab.screen;
+  const nh = tab.view && tab.view.webContents.navigationHistory;
+  if (s && s.histAt !== undefined) {
+    // Écran gardé entre les entrées k - 1 et k : on va à k - 1 (ou à l'accueil s'il n'y a rien avant).
+    const w = nh.getActiveIndex();
+    if (w === s.histAt - 1) return hideScreen(tab);
+    if (w === s.histAt && nh.canGoBack()) {
+      hideScreen(tab);
+      return traverse(tab, -1);
+    }
+    return showHome(tab);
+  }
+  if (s && tab.view && s.kind !== 'tty') {
+    if (tab.tty) return showTty(tab);
+    return hideScreen(tab);
+  }
+  if (!tab.view) throw new Error(t('rien avant'));
+  const w = nh.getActiveIndex();
+  if (tab.screenAt && tab.screenAt[w]) return showHistoryScreen(tab, w);
+  if (nh.canGoBack()) return traverse(tab, -1);
+  return showHome(tab);
+}
+
+function goForward(tab) {
+  const s = tab.screen;
+  const nh = tab.view && tab.view.webContents.navigationHistory;
+  if (s && s.histAt !== undefined) {
+    const w = nh.getActiveIndex();
+    hideScreen(tab);
+    if (w === s.histAt - 1) traverse(tab, 1);
+    return undefined;
+  }
+  if (!nh || !nh.canGoForward()) throw new Error(t('rien après'));
+  const next = nh.getActiveIndex() + 1;
+  if (tab.screenAt && tab.screenAt[next] && !s) return showHistoryScreen(tab, next);
+  if (!tab.tty) tab.screen = null;
+  traverse(tab, 1);
+  layout();
+  return undefined;
+}
+
 function showInPane(tab, idx) {
+  if (findWin && findWin.tabId !== tab.id && idx === activePane) closeFind(false);
   const other = panes.findIndex((p, i) => i !== idx && p.tabId === tab.id);
   if (other >= 0) panes[other].tabId = panes[idx].tabId; // échange si l'onglet est déjà dans l'autre écran
   panes[idx].tabId = tab.id;
@@ -609,6 +752,13 @@ function closeTab(tab) {
   const i = tabs.indexOf(tab);
   if (i < 0) return;
   tabs.splice(i, 1);
+  if (findWin && findWin.tabId === tab.id) closeFind(false);
+  // Dernier onglet privé d'un écran fermé : ses données s'effacent aussitôt.
+  if (tab.private && !privateMode && privSes && !tabs.some((tb) => tb.private)) wipePrivate();
+  if (!tab.private && /^(https?|file):/.test(tab.url)) {
+    closedTabs.unshift({ url: tab.url, title: tab.title });
+    if (closedTabs.length > 25) closedTabs.pop();
+  }
   destroyTab(tab);
   panes.forEach((p, pi) => {
     if (p.tabId !== tab.id) return;
@@ -661,6 +811,12 @@ function setHtmlFullscreen(tab, on) {
 
 function layout() {
   if (!win) return;
+  if (findWin && !findWin.win.isDestroyed()) {
+    const tab = getTab(findWin.tabId);
+    const b = findBounds();
+    if (!tab || paneOf(tab) !== activePane || tab.screen || !b) closeFind(false);
+    else findWin.win.setBounds(b);
+  }
   if (fullTab && (!tabs.includes(fullTab) || !fullTab.view || paneOf(fullTab) < 0)) setHtmlFullscreen(fullTab, false);
   if (fullTab) {
     const [width, height] = win.getContentSize();
@@ -674,7 +830,7 @@ function layout() {
   tabs.forEach((tab) => {
     const p = paneOf(tab);
     const r = rects[p];
-    const visible = p >= 0 && r && !tab.screen && !dragging && r.width > 0 && r.height > 0;
+    const visible = p >= 0 && r && !tab.screen && !tab.blank && !dragging && r.width > 0 && r.height > 0;
     const devOpen = visible && tab.dev && tab.devOpen && !tab.devWin;
     if (tab.view) tab.view.setVisible(!!visible);
     if (tab.dev && !tab.devWin) tab.dev.setVisible(!!devOpen);
@@ -702,15 +858,24 @@ function sendState() {
     private: !!privateMode,
     platform: process.platform,
     engine: settings.data.engine,
-    tabs: tabs.map((t, i) => ({ id: t.id, n: i + 1, title: tabTitle(t), loading: t.loading, pane: paneOf(t), audible: !!t.audible, muted: isMuted(t) })),
+    tabs: tabs.map((t, i) => ({ id: t.id, n: i + 1, title: tabTitle(t), loading: t.loading, pane: paneOf(t), audible: !!t.audible, muted: isMuted(t), private: !!t.private })),
     panes: panes.map((p) => {
       const t = getTab(p.tabId);
-      return { tabId: p.tabId, screen: t.screen, page: !!t.view && !t.screen, dev: !!(t.dev && t.devOpen && !t.devWin && !t.screen), url: t.url, title: t.screen ? tabTitle(t) : t.title || hostOf(t.url) || tr('nouvel onglet') };
+      return {
+        tabId: p.tabId,
+        screen: t.screen,
+        page: !!t.view && !t.screen && !t.blank,
+        dev: !!(t.dev && t.devOpen && !t.devWin && !t.screen),
+        url: t.url,
+        title: t.screen ? tabTitle(t) : t.title || hostOf(t.url) || tr('nouvel onglet'),
+        host: hostLabel(t),
+        private: !!t.private,
+      };
     }),
     activePane,
     status: {
       mode: tab.screen ? tabTitle(tab).split(':')[0].toUpperCase() : 'SITE',
-      host: tab.screen && tab.screen.kind !== 'tty' ? tabTitle(tab) : hostOf(tab.url),
+      host: hostLabel(tab),
       url: tab.screen && tab.screen.kind !== 'tty' ? '' : tab.url,
       fav: favHere ? favHere.path : null,
       split: panes.length > 1,
@@ -721,6 +886,12 @@ function sendState() {
     downloads: downloads.filter((d) => d.state === 'progressing').length,
     audio: audioState(),
   });
+}
+
+// Ce qui suit « @ » dans l'invite : le site, l'écran, ou l'IA de la discussion.
+function hostLabel(tab) {
+  if (tab.screen && tab.screen.kind === 'ai') return tab.screen.provider.toLowerCase();
+  return tab.screen && tab.screen.kind !== 'tty' ? tabTitle(tab) : hostOf(tab.url);
 }
 
 function hostOf(url) {
@@ -817,8 +988,8 @@ function showDl(tab) {
   setScreen(tab, { kind: 'dl', rows }, downloads.map((d) => ({ kind: 'dl', path: d.path })));
 }
 
-function addHistory(entry) {
-  if (privateMode) return; // rien n'est retenu en navigation privée
+function addHistory(entry, tab) {
+  if (privateMode || (tab && tab.private)) return; // rien n'est retenu en navigation privée
   const entries = history.data.entries;
   const last = entries[entries.length - 1];
   if (last && last.url === entry.url && !entry.query) return;
@@ -920,14 +1091,90 @@ function suggestAction(action, arg) {
   else navigate(activeTab(), arg.url);
 }
 
+// ---------------------------------------------------------------- recherche dans la page
+
+// Ctrl+F : une petite fenêtre en haut à droite de l'écran actif (la page, vue native, couvrirait l'interface).
+let findWin = null; // { win, tabId }
+
+function findBounds() {
+  const r = rects[activePane];
+  if (!r) return null;
+  const b = win.getContentBounds();
+  const width = Math.min(360, Math.max(200, r.width - 32));
+  return { x: b.x + r.x + r.width - width - 16, y: b.y + r.y + 8, width, height: 38 };
+}
+
+function openFind() {
+  const tab = activeTab();
+  if (!tab.view || tab.screen) return focusTerminal('find ');
+  const bounds = findBounds();
+  if (!bounds) return undefined;
+  if (findWin && !findWin.win.isDestroyed()) {
+    if (findWin.tabId !== tab.id) closeFind();
+    else {
+      findWin.win.setBounds(bounds);
+      findWin.win.focus();
+      findWin.win.webContents.send('panel:data', { text: tab.findText || '' });
+      return undefined;
+    }
+  }
+  const fw = new BrowserWindow({
+    ...bounds,
+    parent: win,
+    frame: false,
+    resizable: false,
+    show: false,
+    skipTaskbar: true,
+    backgroundColor: isLight() ? '#F6F7F9' : tab.private ? '#1A1024' : '#0E1116',
+    webPreferences: { preload: path.join(__dirname, 'panel-preload.js'), sandbox: true, contextIsolation: true },
+  });
+  findWin = { win: fw, tabId: tab.id };
+  fw.loadFile(path.join(__dirname, '../renderer/find.html'), { query: { accent: accentColor(), mode: isLight() ? 'jour' : 'nuit', private: tab.private ? '1' : '' } });
+  fw.webContents.once('did-finish-load', () => fw.webContents.send('panel:data', {
+    text: tab.findText || '',
+    labels: { placeholder: t('chercher dans la page'), next: t('Résultat suivant (Entrée)'), prev: t('Résultat précédent (Maj+Entrée)'), close: t('Fermer (Échap)') },
+  }));
+  fw.once('ready-to-show', () => fw.show());
+  fw.on('closed', () => {
+    if (findWin && findWin.win === fw) findWin = null;
+  });
+  return undefined;
+}
+
+function closeFind(focusPage = true) {
+  if (!findWin) return;
+  const { win: fw, tabId } = findWin;
+  findWin = null;
+  if (!fw.isDestroyed()) fw.close();
+  const tab = getTab(tabId);
+  const wc = tab && tab.view && tab.view.webContents;
+  if (!wc || wc.isDestroyed()) return;
+  wc.stopFindInPage('clearSelection');
+  tab.findText = '';
+  if (focusPage && paneOf(tab) >= 0) {
+    lastCommandAt = 0;
+    wc.focus();
+  }
+}
+
+function findAction(action, arg) {
+  const tab = getTab(findWin.tabId);
+  if (action === 'close' || !tab || !tab.view) return closeFind();
+  if (action !== 'find' || !arg || typeof arg.text !== 'string' || !arg.text) return undefined;
+  // Pour Electron, findNext: true ouvre une nouvelle recherche ; false passe au résultat suivant.
+  tab.view.webContents.findInPage(arg.text, { findNext: tab.findText !== arg.text, forward: arg.forward !== false });
+  tab.findText = arg.text;
+  return undefined;
+}
+
 // ---------------------------------------------------------------- recherche
 
 async function runSearch(tab, query, form) {
   const engine = settings.data.engine;
-  if (!form) addHistory({ url: `brows:${query}`, query, title: `brows « ${query} »` });
+  if (!form) addHistory({ url: `brows:${query}`, query, title: `brows « ${query} »` }, tab);
   if (engine !== 'ddg') {
     navigate(tab, C.ENGINES[engine].url(query));
-    return [{ t: t('  page de résultats ouverte, tape « links » pour numéroter les liens'), c: 'dim' }];
+    return [{ t: t('  page de résultats ouverte, tape « clicks » pour numéroter les liens'), c: 'dim' }];
   }
   let html;
   try {
@@ -946,7 +1193,7 @@ async function runSearch(tab, query, form) {
   if (!results.length) {
     // DuckDuckGo a pu demander une vérification : on affiche sa page telle quelle.
     navigate(tab, C.ENGINES.ddg.url(query));
-    return [{ t: t('  aucun résultat lisible, page DuckDuckGo ouverte (tape « links »)'), c: 'warn' }];
+    return [{ t: t('  aucun résultat lisible, page DuckDuckGo ouverte (tape « clicks »)'), c: 'warn' }];
   }
   const prev = form && tab.screen && tab.screen.kind === 'results' ? tab.screen : null;
   const page = prev ? prev.page + 1 : 1;
@@ -971,7 +1218,7 @@ async function runSearch(tab, query, form) {
 
 const LINKS_SCRIPT = `(() => {
   document.querySelectorAll('.__devbrows_hint').forEach((e) => e.remove());
-  const sel = 'a[href], button, input[type=submit], input[type=button], [role=button], [role=link], summary';
+  const sel = 'a[href], button, input:not([type=hidden]), textarea, select, [contenteditable=""], [contenteditable=true], [role=button], [role=link], [role=textbox], summary';
   const vw = innerWidth, vh = innerHeight, els = [];
   for (const el of document.querySelectorAll(sel)) {
     const r = el.getBoundingClientRect();
@@ -1117,15 +1364,26 @@ async function numberLinks(tab) {
   return links.length;
 }
 
+// Un champ de saisie reçoit le curseur (et le clavier passe à la page) ; le reste est cliqué.
 async function clickLink(tab, i) {
-  return tab.view.webContents.executeJavaScript(`(() => {
+  const wc = tab.view.webContents;
+  const r = await wc.executeJavaScript(`(() => {
     const el = window.__devBrows && window.__devBrows[${i}];
     document.querySelectorAll('.__devbrows_hint').forEach((e) => e.remove());
     if (!el) return false;
+    const field = el.isContentEditable || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.getAttribute('role') === 'textbox'
+      || (el.tagName === 'INPUT' && !/^(submit|button|reset|checkbox|radio|file|image|range|color)$/i.test(el.type));
     el.focus();
+    if (field) return 'field';
     el.click();
     return true;
   })()`, true); // true : compte comme un vrai clic, pour que « back » puisse revenir
+  if (r === 'field') {
+    lastCommandAt = 0; // sinon le focus de la page serait rendu au terminal
+    wc.focus();
+    await wc.executeJavaScript(`window.__devBrows[${i}] && window.__devBrows[${i}].focus()`).catch(() => {});
+  }
+  return r;
 }
 
 // ---------------------------------------------------------------- outils de développement
@@ -1215,8 +1473,8 @@ function toggleDevtools(tab) {
 function showContextMenu(tab, p) {
   const wc = tab.view.webContents;
   const items = [
-    { label: t('Précédent'), enabled: wc.navigationHistory.canGoBack(), click: () => wc.navigationHistory.goBack() },
-    { label: t('Suivant'), enabled: wc.navigationHistory.canGoForward(), click: () => wc.navigationHistory.goForward() },
+    { label: t('Précédent'), click: () => goBack(tab) },
+    { label: t('Suivant'), enabled: wc.navigationHistory.canGoForward(), click: () => goForward(tab) },
     { label: t('Recharger'), click: () => wc.reload() },
     { type: 'separator' },
   ];
@@ -1414,6 +1672,35 @@ async function setPrivate(on) {
   layout();
   sendState();
   focusTerminal();
+}
+
+// En split, la navigation privée ne concerne que l'écran actif : un onglet privé y remplace
+// l'onglet affiché, qui revient quand l'écran sort de la navigation privée.
+async function setPanePrivate(idx, on) {
+  const pane = panes[idx];
+  const cur = getTab(pane.tabId);
+  if (!!cur.private === on) return;
+  if (on) {
+    if (!privSes) {
+      print([{ t: t('  ouverture de la navigation privée (chargement des extensions)…'), c: 'dim' }]);
+      await setupPrivateSession();
+    }
+    pane.normalTabId = cur.id;
+    createTab({ pane: idx, priv: true });
+  } else {
+    const other = panes.find((p, i) => i !== idx);
+    const keep = other && other.tabId;
+    const back = getTab(pane.normalTabId);
+    const shown = new Set(panes.map((p) => p.tabId));
+    showInPane(back && !shown.has(back.id) ? back : tabs.find((tb) => !tb.private && !shown.has(tb.id)) || createTab({ background: true, priv: false }), idx);
+    for (const tb of tabs.filter((x) => x.private && x.id !== keep)) closeTab(tb);
+  }
+  focusTerminal();
+}
+
+async function togglePrivate() {
+  if (!privateMode && (panes.length > 1 || activeTab().private)) await setPanePrivate(activePane, !activeTab().private);
+  else await setPrivate(!privateMode);
 }
 
 // Mode nuit (par défaut) ou jour : l'interface, et les sites qui suivent prefers-color-scheme.
@@ -1750,7 +2037,7 @@ function openExtPopup(n, x) {
   const ext = exts.get(n);
   if (ext.enabled && !ext.popup && ext.id) {
     const wc = activeTab()?.view?.webContents;
-    const api = privateMode ? privApi : chromeApi;
+    const api = apiOf(activeTab());
     const details = wc && api.ctx.store.tabDetailsCache.get(wc.id);
     // L'accueil n'est pas un onglet connu des extensions : l'événement part alors sans onglet.
     api.ctx.router.sendEvent(ext.id, 'browserAction.onClicked', details || undefined);
@@ -1777,7 +2064,7 @@ function openExtPopup(n, x) {
     resizable: false,
     show: false,
     skipTaskbar: true,
-    webPreferences: { session: privateMode ? privSes : ses, enablePreferredSizeMode: true },
+    webPreferences: { session: sesOf(activeTab()), enablePreferredSizeMode: true },
   });
   const pw = popupWin;
   pw.extN = n;
@@ -1932,31 +2219,20 @@ async function exec(raw, depth = 0) {
         }
         break;
       }
+      case 'clicks':
       case 'links':
       case 'l': {
         const count = await numberLinks(tab);
-        say(t('  {count} liens numérotés, tape un numéro (« 3t » pour un nouvel onglet)', { count }), 'dim');
+        say(t('  {count} éléments numérotés : un numéro clique un lien ou un bouton, ou place le curseur dans un champ (« 3t » : lien dans un nouvel onglet)', { count }), 'dim');
         break;
       }
       case 'back':
       case 'b':
-        if (tab.screen && tab.view && tab.screen.kind !== 'tty') {
-          if (tab.tty) showTty(tab);
-          else {
-            tab.screen = null;
-            layout();
-            sendState();
-          }
-        } else if (tab.view && tab.view.webContents.navigationHistory.canGoBack()) tab.view.webContents.navigationHistory.goBack();
-        else if (tab.view) showHome(tab);
-        else throw new Error(t('rien avant'));
+        goBack(tab);
         break;
       case 'fwd':
       case 'f':
-        if (!tab.view || !tab.view.webContents.navigationHistory.canGoForward()) throw new Error(t('rien après'));
-        if (!tab.tty) tab.screen = null;
-        tab.view.webContents.navigationHistory.goForward();
-        layout();
+        goForward(tab);
         break;
       case 'reload':
       case 'r':
@@ -2055,10 +2331,8 @@ async function exec(raw, depth = 0) {
         break;
       case 'find':
         if (!tab.view || tab.screen) throw new Error(t('aucune page ouverte'));
-        if (!rest) {
-          tab.view.webContents.stopFindInPage('clearSelection');
-          tab.findText = '';
-        } else {
+        if (!rest) openFind();
+        else {
           // Pour Electron, findNext: true ouvre une nouvelle recherche ; false passe au résultat suivant.
           tab.view.webContents.findInPage(rest, { findNext: tab.findText !== rest });
           tab.findText = rest;
@@ -2090,7 +2364,7 @@ async function exec(raw, depth = 0) {
           if (!C.ENGINES[args[0]]) throw new Error(t('moteurs : ddg, google, bing, qwant'));
           settings.data.engine = args[0];
           settings.save();
-          say(t('  ✓ moteur : {engine}', { engine: C.ENGINES[args[0]].label }) + (args[0] === 'ddg' ? '' : t(' (résultats affichés sur sa page, « links » pour numéroter)')), 'ok');
+          say(t('  ✓ moteur : {engine}', { engine: C.ENGINES[args[0]].label }) + (args[0] === 'ddg' ? '' : t(' (résultats affichés sur sa page, « clicks » pour numéroter)')), 'ok');
         }
         break;
       case 'theme':
@@ -2106,8 +2380,10 @@ async function exec(raw, depth = 0) {
       case 'prive':
       case 'privé': {
         const arg = (args[0] || '').toLowerCase();
-        await setPrivate(arg ? arg === 'on' : !privateMode);
-        say(privateMode ? t('  navigation privée : rien n\'est retenu, tout est effacé en sortant (Ctrl+Maj+N)') : t('  ✓ fin de la navigation privée, ses données sont effacées'), privateMode ? 'acc' : 'ok');
+        if (!privateMode && (panes.length > 1 || tab.private)) await setPanePrivate(activePane, arg ? arg === 'on' : !tab.private);
+        else await setPrivate(arg ? arg === 'on' : !privateMode);
+        const on = activeTab().private;
+        say(on ? t('  navigation privée : rien n\'est retenu, tout est effacé en sortant (Ctrl+Maj+N)') : t('  ✓ fin de la navigation privée, ses données sont effacées'), on ? 'acc' : 'ok');
         break;
       }
       case 'mode': {
@@ -2148,6 +2424,11 @@ async function exec(raw, depth = 0) {
         win.setFullScreen(args[0] === 'off' ? false : args[0] === 'on' ? true : !win.isFullScreen());
         say(win.isFullScreen() ? t('  plein écran (F11 ou « fullscreen » pour en sortir)') : t('  plein écran quitté'), 'dim');
         break;
+      case 'popback': {
+        const n = popback(tab);
+        say(n > 1 ? t('  ✓ {count} onglets rouverts', { count: n }) : t('  ✓ 1 onglet rouvert'), 'ok');
+        break;
+      }
       case 'quit':
       case 'exit':
       case 'q':
@@ -2170,7 +2451,7 @@ async function select(tab, n, newTab, say, onlyKind) {
   const item = tab.numbered[n - 1];
   if (!item || (onlyKind && item.kind !== onlyKind)) {
     if (onlyKind === 'dl' && downloads[n - 1]) return select({ numbered: downloads.map((d) => ({ kind: 'dl', path: d.path })) }, n, newTab, say);
-    throw new Error(tab.numbered.length ? t('pas de numéro {n} ici (1 à {max})', { n, max: tab.numbered.length }) : t('aucune liste numérotée ici (essaie « links »)'));
+    throw new Error(tab.numbered.length ? t('pas de numéro {n} ici (1 à {max})', { n, max: tab.numbered.length }) : t('aucune liste numérotée ici (essaie « clicks »)'));
   }
   switch (item.kind) {
     case 'url':
@@ -2182,7 +2463,7 @@ async function select(tab, n, newTab, say, onlyKind) {
       break;
     case 'link':
       if (newTab && item.href) createTab({ url: item.href, background: true });
-      else if (!(await clickLink(tab, item.i))) throw new Error(t('ce lien n\'existe plus, relance « links »'));
+      else if (!(await clickLink(tab, item.i))) throw new Error(t('ce lien n\'existe plus, relance « clicks »'));
       tab.numbered = [];
       break;
     case 'tab': {
@@ -2582,9 +2863,15 @@ function aiCommand(tab, args, rest, say) {
     say(t('  modèle {name} : {model}', { name: ai.PROVIDERS[id].name, model: ai.model(settings, id) }));
     return;
   }
+  aiAsk(tab, rest, null, say);
+}
+
+// Pose une question ; prev : l'écran de la discussion en cours, dont les échanges servent de contexte.
+function aiAsk(tab, question, prev, say) {
   const id = ++aiRequest;
   const provider = ai.current(settings);
-  const screen = { kind: 'ai', id, provider: ai.PROVIDERS[provider].name, question: rest, text: '', sources: [], done: false, error: null };
+  const turns = prev ? [...prev.turns, { q: prev.question, a: prev.text }] : [];
+  const screen = { kind: 'ai', id, provider: ai.PROVIDERS[provider].name, question, turns, text: '', sources: [], done: false, error: null };
   setScreen(tab, screen, []);
   let timer = null;
   // Le texte arrive en continu : on rafraîchit l'écran au plus toutes les 80 ms.
@@ -2594,10 +2881,11 @@ function aiCommand(tab, args, rest, say) {
     if (final) setScreen(tab, screen, screen.sources.map((src) => ({ kind: 'url', url: src.url })));
     else timer = setTimeout(() => sendState(), 80);
   };
-  ai.ask(settings, rest, (text) => {
+  const history = turns.filter((x) => x.a).flatMap((x) => [{ role: 'user', content: x.q }, { role: 'assistant', content: x.a }]);
+  ai.ask(settings, question, (text) => {
     screen.text = text;
     refresh(false);
-  }).then((r) => {
+  }, history).then((r) => {
     screen.text = r.text || (r.refused ? '' : t('(pas de réponse)'));
     screen.sources = r.sources.map((src, i) => ({ n: i + 1, ...src, short: shortUrl(src.url) }));
     if (r.refused) screen.error = t('{name} a refusé de répondre à cette question.', { name: screen.provider });
@@ -2817,6 +3105,7 @@ function startupUpdateNotes() {
     print([{ t: `  ${report.ok ? t('✓ mise à jour terminée') : t('✗ mise à jour incomplète')}${versions}`, c: report.ok ? 'ok' : 'err' }]);
     for (const step of report.steps.filter((st) => !st.ok)) print([{ t: `    ${step.cmd} : ${step.output}`, c: 'err' }]);
   }
+  if (previousSession.length) print([{ t: previousSession.length > 1 ? t('  « popback » rouvre les {count} onglets de la dernière fois', { count: previousSession.length }) : t('  « popback » rouvre l\'onglet de la dernière fois'), c: 'dim' }]);
   if (updater.installed() && settings.data.lastVersion && settings.data.lastVersion !== app.getVersion()) {
     print([{ t: t('  ✓ dev-brows mis à jour en {version}', { version: app.getVersion() }), c: 'ok' }]);
   }
@@ -2991,6 +3280,7 @@ const SHORTCUTS = [
   ['F11', mark('plein écran')],
   [mark('Échap'), mark('rendre la main à la page')],
   ['Ctrl+T / Ctrl+W', mark('nouvel onglet / fermer l\'onglet')],
+  [mark('Ctrl+Maj+T, clic droit sur +'), mark('rouvrir un onglet fermé / onglets récents')],
   ['Ctrl+Tab', mark('onglet suivant (Ctrl+1…9 : onglet n)')],
   ['Alt+← / Alt+→', mark('précédent / suivant')],
   ['F5', mark('recharger')],
@@ -3032,31 +3322,28 @@ function buildMenu() {
       print([{ t: `  ${err.message}`, c: 'err' }]);
     }
   };
-  const nav = (fn) => act(() => {
-    const tab = activeTab();
-    if (tab.view) fn(tab.view.webContents);
-  });
   const template = [
     {
-      label: 'dev-brows',
+      label: 'Zenith',
       submenu: [
         { label: 'Terminal', accelerator: 'CmdOrCtrl+H', click: () => focusTerminal() },
         { label: t('Vider le terminal'), accelerator: 'CmdOrCtrl+L', click: () => win.webContents.send('term:clear') },
-        { label: t('Cacher le terminal'), accelerator: 'CmdOrCtrl+J', click: () => win.webContents.send('term:toggle') },
+        { label: t('Cacher le terminal'), accelerator: 'CmdOrCtrl+J', click: () => { win.webContents.focus(); win.webContents.send('term:toggle'); } },
         { label: t('Plein écran'), accelerator: 'F11', click: () => win.setFullScreen(!win.isFullScreen()) },
         { label: t('Nouvel onglet'), accelerator: 'CmdOrCtrl+T', click: act(() => { createTab(); focusTerminal(); }) },
         { label: t('Fermer l\'onglet'), accelerator: 'CmdOrCtrl+W', click: act(() => closeTab(activeTab())) },
+        { label: t('Rouvrir l\'onglet fermé'), accelerator: 'CmdOrCtrl+Shift+T', click: act(() => reopenClosed(0)) },
         { label: t('Onglet suivant'), accelerator: 'Ctrl+Tab', click: act(() => cycleTab(1)) },
         { label: t('Onglet précédent'), accelerator: 'Ctrl+Shift+Tab', click: act(() => cycleTab(-1)) },
         ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({
           label: t('Onglet {n}', { n }), accelerator: `CmdOrCtrl+${n}`, visible: false, click: act(() => tabs[n - 1] && showInPane(tabs[n - 1], activePane)),
         })),
-        { label: t('Précédent'), accelerator: 'Alt+Left', click: nav((wc) => wc.navigationHistory.canGoBack() && wc.navigationHistory.goBack()) },
-        { label: t('Suivant'), accelerator: 'Alt+Right', click: nav((wc) => wc.navigationHistory.canGoForward() && wc.navigationHistory.goForward()) },
+        { label: t('Précédent'), accelerator: 'Alt+Left', click: act(() => goBack(activeTab())) },
+        { label: t('Suivant'), accelerator: 'Alt+Right', click: act(() => goForward(activeTab())) },
         { label: t('Recharger'), accelerator: 'F5', click: act(() => reloadTab(activeTab())) },
         { label: t('Recharger'), accelerator: 'CmdOrCtrl+R', visible: false, click: act(() => reloadTab(activeTab())) },
         { label: t('Recharger sans le cache'), accelerator: 'CmdOrCtrl+Shift+R', click: act(() => reloadTab(activeTab(), true)) },
-        { label: t('Chercher'), accelerator: 'CmdOrCtrl+F', click: () => focusTerminal('find ') },
+        { label: t('Chercher'), accelerator: 'CmdOrCtrl+F', click: () => openFind() },
         { label: t('Ajouter aux favoris'), accelerator: 'CmdOrCtrl+D', click: () => focusTerminal('add ') },
         { label: 'Split', accelerator: 'CmdOrCtrl+Shift+S', click: () => runCommand(panes.length > 1 ? 'split off' : 'split') },
         { label: t('Changer d\'écran'), accelerator: 'F6', click: () => panes.length > 1 && runCommand('focus') },
@@ -3065,7 +3352,7 @@ function buildMenu() {
         { label: t('Téléchargements'), accelerator: 'CmdOrCtrl+Shift+J', click: () => win.webContents.send('ui:panel', 'dl') },
         { label: t('Favoris'), accelerator: 'CmdOrCtrl+Shift+B', click: () => win.webContents.send('ui:panel', 'fav') },
         { label: 'Extensions', accelerator: 'CmdOrCtrl+Shift+E', click: () => win.webContents.send('ui:panel', 'ext') },
-        { label: t('Navigation privée'), accelerator: 'CmdOrCtrl+Shift+N', click: () => setPrivate(!privateMode).catch((err) => print([{ t: `  ${err.message}`, c: 'err' }])) },
+        { label: t('Navigation privée'), accelerator: 'CmdOrCtrl+Shift+N', click: () => togglePrivate().catch((err) => print([{ t: `  ${err.message}`, c: 'err' }])) },
         ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({
           label: `Extension ${n}`, accelerator: `Alt+${n}`, visible: false, click: act(() => openExtPopup(n)),
         })),
@@ -3139,11 +3426,25 @@ function setupIpc() {
   });
   ipcMain.handle('ui:exec', (e, line, opts) => {
     lastCommandAt = Date.now();
+    // La commande tapée sous un écran s'applique à cet écran.
+    if (opts && Number.isInteger(opts.pane) && panes[opts.pane] && opts.pane !== activePane) {
+      activePane = opts.pane;
+      sendState();
+    }
     // Ctrl+Entrée : un nouvel onglet d'abord, la commande s'y exécute (pas pour répondre à une question).
     if (opts && opts.newTab && String(line).trim() && !prompts.length) createTab();
     return exec(String(line));
   });
   ipcMain.on('ui:zoom-reset', () => zoom(0));
+  // La ligne « > » sous une réponse de l'IA continue la discussion.
+  ipcMain.on('ui:ai-reply', (e, text) => {
+    const tab = activeTab();
+    const q = String(text || '').trim();
+    if (!q || !tab.screen || tab.screen.kind !== 'ai' || !tab.screen.done) return;
+    lastCommandAt = Date.now();
+    aiAsk(tab, q, tab.screen, (l, c) => print([{ t: l, c }]));
+  });
+  ipcMain.on('ui:recent-menu', () => recentMenu());
   ipcMain.on('ui:lang', (e) => {
     e.returnValue = getLang();
   });
@@ -3228,6 +3529,7 @@ function setupIpc() {
   ipcMain.on('ui:suggest-select', (e, i, rect) => showSuggest(rect, i));
   ipcMain.on('ui:suggest-hide', () => hideSuggest());
   ipcMain.on('panel:act', (e, action, arg) => {
+    if (findWin && !findWin.win.isDestroyed() && e.sender === findWin.win.webContents) return findAction(action, arg);
     if (suggest && !suggest.win.isDestroyed() && e.sender === suggest.win.webContents) return suggestAction(action, arg);
     const p = fromPanel(e);
     if (p) panelAction(p.kind, action, arg).catch((err) => print([{ t: `  ${err.message}`, c: 'err' }]));
@@ -3265,7 +3567,17 @@ function createWindow() {
     hideSuggest();
     if (fullTab) layout();
   });
-  win.on('move', () => hideSuggest());
+  win.on('move', () => {
+    hideSuggest();
+    layout();
+  });
+  // Boutons précédent / suivant de la souris (Windows).
+  win.on('app-command', (e, cmd) => {
+    try {
+      if (cmd === 'browser-backward') goBack(activeTab());
+      else if (cmd === 'browser-forward') goForward(activeTab());
+    } catch {}
+  });
   // F11 ou la fenêtre qui sort du plein écran : la vidéo en sort aussi.
   win.on('leave-full-screen', () => {
     if (!fullTab) return;
@@ -3293,6 +3605,8 @@ app.whenReady().then(async () => {
   const dir = app.getPath('userData');
   favorites = new JsonStore(path.join(dir, 'favoris.json'), { tree: fav.emptyTree() });
   history = new JsonStore(path.join(dir, 'historique.json'), { entries: [] });
+  sessionStore = new JsonStore(path.join(dir, 'session.json'), { tabs: [] });
+  previousSession = sessionStore.data.tabs.slice();
   settings = new JsonStore(path.join(dir, 'reglages.json'), { engine: 'ddg', theme: 'ambre', aliases: {}, extensions: [], builtinAdblock: false });
   ai.migrate(settings);
   nativeTheme.themeSource = isLight() ? 'light' : 'dark';
@@ -3350,7 +3664,7 @@ app.whenReady().then(async () => {
 
 app.on('before-quit', () => {
   guard.done(); // fermeture normale, même avant la fin du démarrage
-  for (const s of [favorites, history, settings]) if (s) s.flush();
+  for (const s of [favorites, history, settings, sessionStore]) if (s) s.flush();
 });
 
 app.on('window-all-closed', () => app.quit());

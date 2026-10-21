@@ -3,16 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'">
-  <title>dev-brows</title>
+  <title>Zenith</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="app">
     <header id="tabbar">
-      <span class="logo">dev-brows</span>
+      <span class="logo">Zenith</span>
       <nav id="tabs" aria-label="Onglets"></nav>
+      <button id="tabs-left" class="tabs-arrow" type="button" aria-label="Onglets à gauche" hidden>‹</button>
+      <button id="tabs-right" class="tabs-arrow" type="button" aria-label="Onglets à droite" hidden>›</button>
       <button id="new-tab" type="button" aria-label="Nouvel onglet" title="Nouvel onglet (Ctrl+T)">+</button>
       <form id="url-form" class="url" autocomplete="off">
+        <button id="url-reload" type="button" title="Recharger (F5)" aria-label="Recharger"></button>
         <input id="url" spellcheck="false" title="Modifier l'adresse (Entrée pour y aller)">
         <span id="copied" hidden>copié</span>
         <button id="url-copy" type="button" title="Copier l'adresse" aria-label="Copier l'adresse"></button>
@@ -31,11 +34,21 @@
     </main>
     <div id="resizer" role="separator" aria-orientation="horizontal" title="Glisser pour redimensionner le terminal (double-clic : taille par défaut)"></div>
     <section id="terminal">
-      <div id="scrollback" aria-live="polite"></div>
-      <form id="prompt" autocomplete="off">
-        <label for="input" id="ps1"></label>
-        <input id="input" spellcheck="false" autofocus>
-      </form>
+      <div class="term-col" data-pane="0">
+        <div class="scrollback" aria-live="polite"></div>
+        <form class="prompt" autocomplete="off">
+          <label class="ps1"></label>
+          <textarea class="input" rows="1" spellcheck="false" autofocus></textarea>
+        </form>
+      </div>
+      <div class="term-sep"></div>
+      <div class="term-col" data-pane="1">
+        <div class="scrollback" aria-live="polite"></div>
+        <form class="prompt" autocomplete="off">
+          <label class="ps1"></label>
+          <textarea class="input" rows="1" spellcheck="false"></textarea>
+        </form>
+      </div>
     </section>
     <footer id="status"></footer>
   </div>

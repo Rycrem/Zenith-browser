@@ -232,9 +232,9 @@ function errorMessage(err, id) {
 }
 
 // Claude : streaming avec recherche web. onText reçoit le texte au fur et à mesure.
-async function askClaude(apiKey, modelId, question, onText) {
+async function askClaude(apiKey, modelId, question, onText, history) {
   const client = new Anthropic({ apiKey });
-  const messages = [{ role: 'user', content: question }];
+  const messages = [...history, { role: 'user', content: question }];
   let text = '';
   const sources = [];
   const seen = new Set();
@@ -282,7 +282,7 @@ async function askClaude(apiKey, modelId, question, onText) {
 }
 
 // Les autres : API compatible OpenAI, réponse en flux SSE (« data: {...} » par ligne).
-async function askCompatible(p, apiKey, modelId, question, onText) {
+async function askCompatible(p, apiKey, modelId, question, onText, history) {
   const headers = { 'content-type': 'application/json', ...p.headers };
   if (apiKey) headers.authorization = `Bearer ${apiKey}`;
   const res = await fetch(`${p.base}/chat/completions`, {
@@ -291,7 +291,7 @@ async function askCompatible(p, apiKey, modelId, question, onText) {
     body: JSON.stringify({
       model: modelId,
       stream: true,
-      messages: [{ role: 'system', content: systemOffline() }, { role: 'user', content: question }],
+      messages: [{ role: 'system', content: systemOffline() }, ...history, { role: 'user', content: question }],
     }),
   });
   if (!res.ok) {
@@ -338,13 +338,14 @@ async function askCompatible(p, apiKey, modelId, question, onText) {
 }
 
 // Pose la question à l'IA choisie. Renvoie { text, sources, refused, switched }.
+// history : les échanges précédents de la discussion ([{ role, content }]).
 // Si le modèle a été retiré, passe tout seul au modèle actuel de l'IA et s'en souvient.
-async function ask(settings, question, onText) {
+async function ask(settings, question, onText, history = []) {
   const id = current(settings);
   const p = PROVIDERS[id];
   const apiKey = readKey(settings, id);
   if (!apiKey && !p.noKey) throw new Error(t('pas de clé pour {name} : crée-en une sur {url} puis tape « ia key <clé> »', { name: t(p.name), url: p.keyUrl.replace('https://', '') }));
-  const run = (m) => (id === 'claude' ? askClaude(apiKey, m, question, onText) : askCompatible(p, apiKey, m, question, onText));
+  const run = (m) => (id === 'claude' ? askClaude(apiKey, m, question, onText, history) : askCompatible(p, apiKey, m, question, onText, history));
   const retired = model(settings, id);
   try {
     return await run(retired);
