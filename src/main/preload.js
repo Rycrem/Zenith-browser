@@ -29,8 +29,10 @@ contextBridge.exposeInMainWorld('brows', {
   readClipboard: () => ipcRenderer.invoke('ui:clipboard-read'),
   writeClipboard: (text) => ipcRenderer.send('ui:clipboard-write', text),
   resetZoom: () => ipcRenderer.send('ui:zoom-reset'),
+  aiReply: (text) => ipcRenderer.send('ui:ai-reply', text),
+  recentMenu: () => ipcRenderer.send('ui:recent-menu'),
   on: (channel, fn) => {
-    if (!['state', 'term:print', 'term:focus', 'term:toggle', 'ui:panel', 'suggest:done'].includes(channel)) return;
+    if (!['state', 'term:print', 'term:focus', 'term:toggle', 'term:clear', 'ui:panel', 'suggest:done'].includes(channel)) return;
     ipcRenderer.on(channel, (e, ...args) => fn(...args));
   },
 });

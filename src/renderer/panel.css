@@ -192,3 +192,10 @@ button.link { border: none; padding: 0; color: var(--accent); text-decoration: u
 .sug.active { box-shadow: inset 2px 0 0 var(--accent); }
 .sug .url { color: var(--green); overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; max-width: 60%; }
 .sug .title { color: var(--dim); font-size: 12px; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
+
+/* Recherche dans la page (Ctrl+F) */
+.find { display: flex; align-items: center; gap: 6px; height: 100vh; padding: 0 6px 0 10px; border-radius: 4px; }
+.find input { flex: 1; min-width: 0; height: 24px; padding: 0 4px; border: 0; outline: none; background: transparent; color: var(--text); font: inherit; caret-color: var(--accent); }
+.find #count { min-width: 5ch; text-align: right; color: var(--dim); font-variant-numeric: tabular-nums; }
+.find button { width: 24px; height: 24px; padding: 0; border: 0; border-radius: 3px; background: none; color: var(--dim); font: inherit; cursor: pointer; }
+.find button:hover { background: var(--line); color: var(--text); }

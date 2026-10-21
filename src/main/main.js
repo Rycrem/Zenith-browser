@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, WebContentsView, Menu, ipcMain, session, shell, clipboard, net, dialog, nativeTheme } = require('electron');
+const { app, BrowserWindow, WebContentsView, Menu, ipcMain, session, shell, clipboard, net, dialog, nativeTheme, screen } = require('electron');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -8,7 +8,7 @@ const { JsonStore } = require('./store');
 const journal = require('./log');
 const { Extensions, newer } = require('./extensions');
 const bookmarks = require('../shared/bookmarks-import');
-const { AdBlock } = require('./adblock');
+const config = require('../shared/config');
 const { ElectronChromeExtensions } = require('electron-chrome-extensions');
 const { registerExtraApis } = require('./ext-api');
 const ai = require('./ai');
@@ -24,6 +24,8 @@ const { parseDuckDuckGoHtml, parseNextPage, shortUrl } = require('../shared/sear
 
 // Lancée depuis le code, l'appli garde ses données à part : la version installée chiffre
 // ses cookies (fuse Electron), et un Electron sans ce réglage ne saurait plus les lire.
+// L'appli s'appelle Zenith, mais ses données restent dans le dossier de dev-brows (son ancien nom).
+app.setPath('userData', path.join(app.getPath('appData'), 'dev-brows'));
 if (!app.isPackaged) {
   const shared = app.getPath('userData');
   const dev = `${shared}-dev`;
@@ -32,10 +34,10 @@ if (!app.isPackaged) {
   app.setPath('userData', dev);
 }
 
-// Sans les mentions Electron et dev-brows, les sites voient un Chrome ordinaire.
+// Sans les mentions Electron et du nom de l'appli, les sites voient un Chrome ordinaire.
 app.userAgentFallback = app.userAgentFallback
   .replace(/ Electron\/\S+/, '')
-  .replace(/ dev-brows\/\S+/, '');
+  .replace(/ (dev-brows|Zenith)\/\S+/, '');
 
 // La connexion Google refuse les navigateurs basés sur Electron (« Ce navigateur ou cette application
 // ne sont peut-être pas sécurisés »). Sur accounts.google.com seulement, on se présente comme Firefox :
@@ -59,7 +61,7 @@ const isGoogleLogin = (url) => {
 };
 
 // Le filtre d'en-têtes n'est posé que pendant une connexion Google : tant qu'un filtre
-// session.webRequest existe (celui-ci ou le bloqueur intégré), Electron ignore le
+// session.webRequest existe, Electron ignore le
 // chrome.webRequest des extensions.
 const onGoogleLogin = new Set();
 
@@ -108,7 +110,9 @@ let ses = null;
 let chromeApi = null; // API d'extensions Chrome (onglets, fenêtres…) qu'Electron ne fournit pas
 let favorites = null; // JsonStore { tree }
 let history = null; // JsonStore { entries }
-let adblock = null;
+let sessionStore = null; // JsonStore { tabs } : adresses des onglets ouverts, pour « popback »
+let previousSession = []; // celles de la dernière fois, lues au lancement
+const closedTabs = []; // onglets fermés, le plus récent d'abord : { url, title }
 let lastCommandAt = 0; // heure de la dernière commande tapée, pour garder le focus dans le terminal
 let settings = null; // JsonStore { engine, theme, aliases, extensions }
 let exts = null;
@@ -149,14 +153,56 @@ function paneOf(tab) {
   return panes.findIndex((p) => p.tabId === tab.id);
 }
 
-function createTab({ url, background = false, pane = activePane } = {}) {
-  const tab = { id: nextTabId++, view: null, dev: null, screen: null, numbered: [], title: '', url: '', loading: false, private: !!privateMode };
+// priv : onglet privé ; par défaut, comme l'onglet affiché dans l'écran (split dont un écran est privé).
+function createTab({ url, background = false, pane = activePane, priv } = {}) {
+  const shown = panes[pane] && getTab(panes[pane].tabId);
+  const isPrivate = !!privateMode || (priv !== undefined ? !!priv : !!(shown && shown.private));
+  const tab = { id: nextTabId++, view: null, dev: null, screen: null, numbered: [], title: '', url: '', loading: false, private: isPrivate };
   tabs.push(tab);
   if (url) navigate(tab, url);
   else showHome(tab);
   if (!background) showInPane(tab, pane);
   else sendState();
+  saveSession();
   return tab;
+}
+
+// Les onglets ouverts (pages seulement, hors navigation privée) remplacent la sauvegarde précédente.
+function saveSession() {
+  if (!sessionStore) return;
+  const urls = tabs.filter((tb) => !tb.private && /^(https?|file):/.test(tb.url)).map((tb) => tb.url);
+  if (!urls.length || JSON.stringify(urls) === JSON.stringify(sessionStore.data.tabs)) return;
+  sessionStore.data.tabs = urls;
+  sessionStore.save();
+}
+
+// « popback » : rouvre les onglets de la dernière fois ; l'accueil vide sert au premier.
+function popback(tab) {
+  if (!previousSession.length) throw new Error(t('aucun onglet de la dernière fois à rouvrir'));
+  const urls = previousSession;
+  previousSession = [];
+  const reuse = !tab.view && tab.screen && tab.screen.kind === 'home';
+  urls.forEach((url, i) => {
+    if (i === 0 && reuse) navigate(tab, url);
+    else createTab({ url, background: i > 0 || reuse });
+  });
+  return urls.length;
+}
+
+function reopenClosed(i = 0) {
+  const c = closedTabs.splice(i, 1)[0];
+  if (!c) throw new Error(t('aucun onglet fermé à rouvrir'));
+  createTab({ url: c.url });
+}
+
+// Clic droit sur + : les onglets fermés, le plus récent en premier.
+function recentMenu() {
+  const recent = closedTabs.map((c, i) => ({ label: (c.title || shortUrl(c.url)).slice(0, 70), click: () => reopenClosed(i) }));
+  Menu.buildFromTemplate([
+    { label: t('Nouvel onglet'), accelerator: 'CmdOrCtrl+T', click: () => { createTab(); focusTerminal(); } },
+    { label: t('Rouvrir l\'onglet fermé'), accelerator: 'CmdOrCtrl+Shift+T', enabled: closedTabs.length > 0, click: () => reopenClosed(0) },
+    { label: t('Onglets récents'), submenu: recent.length ? recent : [{ label: t('Aucun onglet fermé'), enabled: false }] },
+  ]).popup({ window: win });
 }
 
 function ensureView(tab) {
@@ -167,12 +213,20 @@ function ensureView(tab) {
   win.contentView.addChildView(view);
   tab.view = view;
   wireWebContents(tab, view.webContents);
-  apiOf(tab).addTab(view.webContents, win);
-  // L'onglet peut déjà être affiché (page d'accueil qui charge un site) : les extensions doivent le savoir actif.
-  if (panes[activePane] && panes[activePane].tabId === tab.id) apiOf(tab).selectTab(view.webContents);
+  // La bibliothèque des extensions croit chaque nouvel onglet actif et demande à l'afficher :
+  // un onglet ouvert en arrière-plan (Ctrl+clic) ne doit pas passer devant.
+  addingTab = true;
+  try {
+    apiOf(tab).addTab(view.webContents, win);
+  } finally {
+    addingTab = false;
+  }
+  const shown = activeTab();
+  if (shown && shown.view && shown.private === tab.private) apiOf(tab).selectTab(shown.view.webContents);
   return view;
 }
 
+let addingTab = false;
 const tabOfContents = (wc) => tabs.find((t) => t.view && t.view.webContents === wc);
 
 // electron-chrome-extensions n'envoie jamais tabs.onHighlighted, et le sender des messages n'a
@@ -203,6 +257,7 @@ function setupChromeApi(s) {
       return [ensureView(tab).webContents, win];
     },
     selectTab(wc) {
+      if (addingTab) return;
       const tab = tabOfContents(wc);
       if (tab) showInPane(tab, activePane);
     },
@@ -216,7 +271,7 @@ function setupChromeApi(s) {
         width: details.width || 480,
         height: details.height || 640,
         parent: details.type === 'popup' ? win : undefined,
-        title: 'dev-brows',
+        title: 'Zenith',
         webPreferences: { session: s, sandbox: true, contextIsolation: true },
       });
       popup.setMenuBarVisibility(false);
@@ -240,7 +295,7 @@ function setupChromeApi(s) {
     favorites: () => favorites.data.tree,
     downloads: () => downloads,
     download: (url) => s.downloadURL(url),
-    showItem: (p) => shell.showItemInFolder(p),
+    showItem: (p) => showInFolder(p),
     openItem: (p) => shell.openPath(p),
     showDownloadsFolder: () => shell.openPath(app.getPath('downloads')),
     openSidePanel(url, title) {
@@ -287,7 +342,7 @@ function storeButton(tab, busy = false) {
   const installed = !!id && exts.list.some((e) => e.id === id);
   const opts = {
     show: !!id && !tab.storeApi,
-    label: busy ? t('installation…') : installed ? t('✓ installée dans dev-brows') : t('Ajouter à dev-brows'),
+    label: busy ? t('installation…') : installed ? t('✓ installée dans Zenith') : t('Ajouter à Zenith'),
     disabled: busy || installed,
     accent: accentColor(),
     secret: STORE_SECRET,
@@ -371,7 +426,7 @@ async function storeCall(tab, name, args) {
           buttons: [t('Ajouter l\'extension'), t('Annuler')],
           defaultId: 0,
           cancelId: 1,
-          message: t('Ajouter « {name} » à dev-brows ?', { name: label }),
+          message: t('Ajouter « {name} » à Zenith ?', { name: label }),
           detail: perms.length ? t('Elle pourra : {perms}', { perms: perms.join(', ') }) : '',
         });
         if (response !== 0) return { result: STORE.USER_CANCELLED, error: 'User cancelled install' };
@@ -455,6 +510,7 @@ function wireWebContents(tab, wc) {
   });
   wc.on('media-started-playing', () => {
     tab.media = 'playing';
+    tab.pausedByPlayer = false;
     audioChanged();
   });
   wc.on('media-paused', () => {
@@ -467,11 +523,13 @@ function wireWebContents(tab, wc) {
   wc.on('leave-html-full-screen', () => setHtmlFullscreen(tab, false));
   wc.on('did-navigate', () => {
     tab.media = null;
+    tab.pausedByPlayer = false;
     audioChanged();
   });
   wc.on('did-frame-finish-load', () => applyVolume(tab));
   wc.on('did-stop-loading', () => {
     tab.loading = false;
+    tab.blank = false;
     // Notre bouton seulement si le store n'a pas appelé webstorePrivate entre-temps (le sien marche alors).
     setTimeout(() => storeButton(tab), 2000);
     // Une seconde plus tard aussi : l'extension a fini de traiter « page chargée » entre-temps.
@@ -482,6 +540,7 @@ function wireWebContents(tab, wc) {
   });
   // Le texte s'affiche dès que la page est lue, sans attendre les images ou ce qui traîne.
   wc.on('dom-ready', () => {
+    unblank(tab);
     if (tab.tty && (!tab.screen || tab.screen.kind === 'tty')) showTty(tab, true);
   });
   wc.on('page-title-updated', (e, title) => {
@@ -494,12 +553,14 @@ function wireWebContents(tab, wc) {
     sendState();
   });
   wc.on('did-navigate', (e, url) => {
+    recordNavigation(tab, wc);
     tab.url = url;
     if (tab.numberedKind === 'links') tab.numbered = [];
     // En mode tty, l'ancien texte laisse place à « chargement… » (aussi après back et fwd).
     if (tab.tty && tab.screen && tab.screen.kind === 'tty') setScreen(tab, ttyLoading(url), []);
-    addHistory({ url, title: wc.getTitle() });
+    addHistory({ url, title: wc.getTitle() }, tab);
     storeHint(tab, url);
+    saveSession();
     sendState();
   });
   wc.on('did-navigate-in-page', (e, url, isMainFrame) => {
@@ -516,6 +577,7 @@ function wireWebContents(tab, wc) {
     if (message === `${STORE_SECRET}:install`) installFromStore(tab).catch(() => {});
   });
   wc.on('did-fail-load', (e, code, desc, url, isMainFrame) => {
+    if (isMainFrame) unblank(tab);
     if (isMainFrame && code !== -3) print([{ t: t('impossible de charger {url} : {desc}', { url, desc }), c: 'err' }]);
   });
   wc.on('focus', () => {
@@ -546,28 +608,121 @@ function wireWebContents(tab, wc) {
     if (input.type === 'mouseDown') lastCommandAt = 0;
   });
   wc.on('found-in-page', (e, r) => {
-    if (r.finalUpdate) print([{ t: `  ${r.matches ? `${r.activeMatchOrdinal}/${r.matches}` : t('aucun résultat')}`, c: 'dim' }]);
+    if (!r.finalUpdate) return;
+    if (findWin && findWin.tabId === tab.id && !findWin.win.isDestroyed()) findWin.win.webContents.send('panel:data', { ordinal: r.activeMatchOrdinal, matches: r.matches });
+    else print([{ t: `  ${r.matches ? `${r.activeMatchOrdinal}/${r.matches}` : t('aucun résultat')}`, c: 'dim' }]);
   });
   wc.on('context-menu', (e, params) => showContextMenu(tab, params));
   wc.setWindowOpenHandler(({ url, disposition }) => {
     // Les vraies popups (connexion OAuth, etc.) restent des fenêtres ; le reste devient un onglet.
     if (disposition === 'new-window') return { action: 'allow' };
-    createTab({ url, background: disposition === 'background-tab' });
+    createTab({ url, background: disposition === 'background-tab', priv: tab.private });
     return { action: 'deny' };
   });
 }
 
+// Écrans qui comptent comme une page dans l'historique de l'onglet : ouvrir un de leurs
+// résultats puis revenir en arrière les réaffiche.
+const HISTORY_SCREENS = new Set(['results', 'ai', 'hist', 'fav']);
+
 function navigate(tab, url) {
   const view = ensureView(tab);
+  // La nouvelle page remplace l'ancienne : celle-ci n'est plus montrée pendant le chargement.
+  const s = tab.screen;
+  tab.pending = s && HISTORY_SCREENS.has(s.kind) ? { screen: { ...s, histAt: undefined }, numbered: tab.numbered, kind: tab.numberedKind } : null;
+  tab.blank = true;
   tab.screen = tab.tty ? ttyLoading(url) : null;
   tab.url = url;
   tab.title = shortUrl(url);
-  view.webContents.loadURL(url).catch(() => {});
+  view.webContents.loadURL(url).catch(() => unblank(tab));
   layout();
   sendState();
 }
 
+function unblank(tab) {
+  if (!tab.blank) return;
+  tab.blank = false;
+  layout();
+  sendState();
+}
+
+// Historique de l'onglet : l'écran (résultats, réponse de l'IA…) d'où l'on a ouvert l'entrée i
+// est gardé dans tab.screenAt[i] ; « back » depuis l'entrée i le réaffiche avant d'aller à i - 1.
+function recordNavigation(tab, wc) {
+  const nh = wc.navigationHistory;
+  const i = nh.getActiveIndex();
+  const at = tab.screenAt || (tab.screenAt = {});
+  for (const k of Object.keys(at)) if (Number(k) >= nh.length()) delete at[k];
+  if (tab.pending !== undefined) {
+    for (const k of Object.keys(at)) if (Number(k) > i) delete at[k];
+    if (tab.pending) at[i] = tab.pending;
+    else delete at[i];
+    tab.pending = undefined;
+  } else if (!tab.traversing && i === nh.length() - 1) delete at[i]; // lien suivi dans la page
+  tab.traversing = false;
+}
+
+function showHistoryScreen(tab, k) {
+  const e = tab.screenAt[k];
+  setScreen(tab, { ...e.screen, histAt: k }, e.numbered, e.kind);
+}
+
+function traverse(tab, dir) {
+  tab.traversing = true;
+  if (dir < 0) tab.view.webContents.navigationHistory.goBack();
+  else tab.view.webContents.navigationHistory.goForward();
+}
+
+function hideScreen(tab) {
+  tab.screen = null;
+  layout();
+  sendState();
+}
+
+function goBack(tab) {
+  const s = tab.screen;
+  const nh = tab.view && tab.view.webContents.navigationHistory;
+  if (s && s.histAt !== undefined) {
+    // Écran gardé entre les entrées k - 1 et k : on va à k - 1 (ou à l'accueil s'il n'y a rien avant).
+    const w = nh.getActiveIndex();
+    if (w === s.histAt - 1) return hideScreen(tab);
+    if (w === s.histAt && nh.canGoBack()) {
+      hideScreen(tab);
+      return traverse(tab, -1);
+    }
+    return showHome(tab);
+  }
+  if (s && tab.view && s.kind !== 'tty') {
+    if (tab.tty) return showTty(tab);
+    return hideScreen(tab);
+  }
+  if (!tab.view) throw new Error(t('rien avant'));
+  const w = nh.getActiveIndex();
+  if (tab.screenAt && tab.screenAt[w]) return showHistoryScreen(tab, w);
+  if (nh.canGoBack()) return traverse(tab, -1);
+  return showHome(tab);
+}
+
+function goForward(tab) {
+  const s = tab.screen;
+  const nh = tab.view && tab.view.webContents.navigationHistory;
+  if (s && s.histAt !== undefined) {
+    const w = nh.getActiveIndex();
+    hideScreen(tab);
+    if (w === s.histAt - 1) traverse(tab, 1);
+    return undefined;
+  }
+  if (!nh || !nh.canGoForward()) throw new Error(t('rien après'));
+  const next = nh.getActiveIndex() + 1;
+  if (tab.screenAt && tab.screenAt[next] && !s) return showHistoryScreen(tab, next);
+  if (!tab.tty) tab.screen = null;
+  traverse(tab, 1);
+  layout();
+  return undefined;
+}
+
 function showInPane(tab, idx) {
+  if (findWin && findWin.tabId !== tab.id && idx === activePane) closeFind(false);
   const other = panes.findIndex((p, i) => i !== idx && p.tabId === tab.id);
   if (other >= 0) panes[other].tabId = panes[idx].tabId; // échange si l'onglet est déjà dans l'autre écran
   panes[idx].tabId = tab.id;
@@ -600,6 +755,13 @@ function closeTab(tab) {
   const i = tabs.indexOf(tab);
   if (i < 0) return;
   tabs.splice(i, 1);
+  if (findWin && findWin.tabId === tab.id) closeFind(false);
+  // Dernier onglet privé d'un écran fermé : ses données s'effacent aussitôt.
+  if (tab.private && !privateMode && privSes && !tabs.some((tb) => tb.private)) wipePrivate();
+  if (!tab.private && /^(https?|file):/.test(tab.url)) {
+    closedTabs.unshift({ url: tab.url, title: tab.title });
+    if (closedTabs.length > 25) closedTabs.pop();
+  }
   destroyTab(tab);
   panes.forEach((p, pi) => {
     if (p.tabId !== tab.id) return;
@@ -652,6 +814,12 @@ function setHtmlFullscreen(tab, on) {
 
 function layout() {
   if (!win) return;
+  if (findWin && !findWin.win.isDestroyed()) {
+    const tab = getTab(findWin.tabId);
+    const b = findBounds();
+    if (!tab || paneOf(tab) !== activePane || tab.screen || !b) closeFind(false);
+    else findWin.win.setBounds(b);
+  }
   if (fullTab && (!tabs.includes(fullTab) || !fullTab.view || paneOf(fullTab) < 0)) setHtmlFullscreen(fullTab, false);
   if (fullTab) {
     const [width, height] = win.getContentSize();
@@ -665,7 +833,7 @@ function layout() {
   tabs.forEach((tab) => {
     const p = paneOf(tab);
     const r = rects[p];
-    const visible = p >= 0 && r && !tab.screen && !dragging && r.width > 0 && r.height > 0;
+    const visible = p >= 0 && r && !tab.screen && !tab.blank && !dragging && r.width > 0 && r.height > 0;
     const devOpen = visible && tab.dev && tab.devOpen && !tab.devWin;
     if (tab.view) tab.view.setVisible(!!visible);
     if (tab.dev && !tab.devWin) tab.dev.setVisible(!!devOpen);
@@ -680,7 +848,18 @@ function layout() {
   });
 }
 
+// Les événements des pages arrivent par rafales (chargement, titre, son…) : un seul envoi par tour.
+let stateQueued = false;
 function sendState() {
+  if (stateQueued) return;
+  stateQueued = true;
+  setImmediate(() => {
+    stateQueued = false;
+    sendStateNow();
+  });
+}
+
+function sendStateNow() {
   if (!win || win.isDestroyed()) return;
   const tab = activeTab();
   if (!tab || panes.some((p) => !getTab(p.tabId))) return; // pendant la création d'un écran
@@ -693,15 +872,24 @@ function sendState() {
     private: !!privateMode,
     platform: process.platform,
     engine: settings.data.engine,
-    tabs: tabs.map((t, i) => ({ id: t.id, n: i + 1, title: tabTitle(t), loading: t.loading, pane: paneOf(t), audible: !!t.audible, muted: isMuted(t) })),
+    tabs: tabs.map((t, i) => ({ id: t.id, n: i + 1, title: tabTitle(t), loading: t.loading, pane: paneOf(t), audible: !!t.audible, muted: isMuted(t), private: !!t.private })),
     panes: panes.map((p) => {
       const t = getTab(p.tabId);
-      return { tabId: p.tabId, screen: t.screen, page: !!t.view && !t.screen, dev: !!(t.dev && t.devOpen && !t.devWin && !t.screen), url: t.url, title: t.screen ? tabTitle(t) : t.title || hostOf(t.url) || tr('nouvel onglet') };
+      return {
+        tabId: p.tabId,
+        screen: t.screen,
+        page: !!t.view && !t.screen && !t.blank,
+        dev: !!(t.dev && t.devOpen && !t.devWin && !t.screen),
+        url: t.url,
+        title: t.screen ? tabTitle(t) : t.title || hostOf(t.url) || tr('nouvel onglet'),
+        host: hostLabel(t),
+        private: !!t.private,
+      };
     }),
     activePane,
     status: {
       mode: tab.screen ? tabTitle(tab).split(':')[0].toUpperCase() : 'SITE',
-      host: tab.screen && tab.screen.kind !== 'tty' ? tabTitle(tab) : hostOf(tab.url),
+      host: hostLabel(tab),
       url: tab.screen && tab.screen.kind !== 'tty' ? '' : tab.url,
       fav: favHere ? favHere.path : null,
       split: panes.length > 1,
@@ -712,6 +900,12 @@ function sendState() {
     downloads: downloads.filter((d) => d.state === 'progressing').length,
     audio: audioState(),
   });
+}
+
+// Ce qui suit « @ » dans l'invite : le site, l'écran, ou l'IA de la discussion.
+function hostLabel(tab) {
+  if (tab.screen && tab.screen.kind === 'ai') return tab.screen.provider.toLowerCase();
+  return tab.screen && tab.screen.kind !== 'tty' ? tabTitle(tab) : hostOf(tab.url);
 }
 
 function hostOf(url) {
@@ -808,8 +1002,8 @@ function showDl(tab) {
   setScreen(tab, { kind: 'dl', rows }, downloads.map((d) => ({ kind: 'dl', path: d.path })));
 }
 
-function addHistory(entry) {
-  if (privateMode) return; // rien n'est retenu en navigation privée
+function addHistory(entry, tab) {
+  if (privateMode || (tab && tab.private)) return; // rien n'est retenu en navigation privée
   const entries = history.data.entries;
   const last = entries[entries.length - 1];
   if (last && last.url === entry.url && !entry.query) return;
@@ -911,14 +1105,90 @@ function suggestAction(action, arg) {
   else navigate(activeTab(), arg.url);
 }
 
+// ---------------------------------------------------------------- recherche dans la page
+
+// Ctrl+F : une petite fenêtre en haut à droite de l'écran actif (la page, vue native, couvrirait l'interface).
+let findWin = null; // { win, tabId }
+
+function findBounds() {
+  const r = rects[activePane];
+  if (!r) return null;
+  const b = win.getContentBounds();
+  const width = Math.min(360, Math.max(200, r.width - 32));
+  return { x: b.x + r.x + r.width - width - 16, y: b.y + r.y + 8, width, height: 38 };
+}
+
+function openFind() {
+  const tab = activeTab();
+  if (!tab.view || tab.screen) return focusTerminal('find ');
+  const bounds = findBounds();
+  if (!bounds) return undefined;
+  if (findWin && !findWin.win.isDestroyed()) {
+    if (findWin.tabId !== tab.id) closeFind();
+    else {
+      findWin.win.setBounds(bounds);
+      findWin.win.focus();
+      findWin.win.webContents.send('panel:data', { text: tab.findText || '' });
+      return undefined;
+    }
+  }
+  const fw = new BrowserWindow({
+    ...bounds,
+    parent: win,
+    frame: false,
+    resizable: false,
+    show: false,
+    skipTaskbar: true,
+    backgroundColor: isLight() ? '#F6F7F9' : tab.private ? '#1A1024' : '#0E1116',
+    webPreferences: { preload: path.join(__dirname, 'panel-preload.js'), sandbox: true, contextIsolation: true },
+  });
+  findWin = { win: fw, tabId: tab.id };
+  fw.loadFile(path.join(__dirname, '../renderer/find.html'), { query: { accent: accentColor(), mode: isLight() ? 'jour' : 'nuit', private: tab.private ? '1' : '' } });
+  fw.webContents.once('did-finish-load', () => fw.webContents.send('panel:data', {
+    text: tab.findText || '',
+    labels: { placeholder: t('chercher dans la page'), next: t('Résultat suivant (Entrée)'), prev: t('Résultat précédent (Maj+Entrée)'), close: t('Fermer (Échap)') },
+  }));
+  fw.once('ready-to-show', () => fw.show());
+  fw.on('closed', () => {
+    if (findWin && findWin.win === fw) findWin = null;
+  });
+  return undefined;
+}
+
+function closeFind(focusPage = true) {
+  if (!findWin) return;
+  const { win: fw, tabId } = findWin;
+  findWin = null;
+  if (!fw.isDestroyed()) fw.close();
+  const tab = getTab(tabId);
+  const wc = tab && tab.view && tab.view.webContents;
+  if (!wc || wc.isDestroyed()) return;
+  wc.stopFindInPage('clearSelection');
+  tab.findText = '';
+  if (focusPage && paneOf(tab) >= 0) {
+    lastCommandAt = 0;
+    wc.focus();
+  }
+}
+
+function findAction(action, arg) {
+  const tab = getTab(findWin.tabId);
+  if (action === 'close' || !tab || !tab.view) return closeFind();
+  if (action !== 'find' || !arg || typeof arg.text !== 'string' || !arg.text) return undefined;
+  // Pour Electron, findNext: true ouvre une nouvelle recherche ; false passe au résultat suivant.
+  tab.view.webContents.findInPage(arg.text, { findNext: tab.findText !== arg.text, forward: arg.forward !== false });
+  tab.findText = arg.text;
+  return undefined;
+}
+
 // ---------------------------------------------------------------- recherche
 
 async function runSearch(tab, query, form) {
   const engine = settings.data.engine;
-  if (!form) addHistory({ url: `brows:${query}`, query, title: `brows « ${query} »` });
+  if (!form) addHistory({ url: `brows:${query}`, query, title: `brows « ${query} »` }, tab);
   if (engine !== 'ddg') {
     navigate(tab, C.ENGINES[engine].url(query));
-    return [{ t: t('  page de résultats ouverte, tape « links » pour numéroter les liens'), c: 'dim' }];
+    return [{ t: t('  page de résultats ouverte, tape « clicks » pour numéroter les liens'), c: 'dim' }];
   }
   let html;
   try {
@@ -937,7 +1207,7 @@ async function runSearch(tab, query, form) {
   if (!results.length) {
     // DuckDuckGo a pu demander une vérification : on affiche sa page telle quelle.
     navigate(tab, C.ENGINES.ddg.url(query));
-    return [{ t: t('  aucun résultat lisible, page DuckDuckGo ouverte (tape « links »)'), c: 'warn' }];
+    return [{ t: t('  aucun résultat lisible, page DuckDuckGo ouverte (tape « clicks »)'), c: 'warn' }];
   }
   const prev = form && tab.screen && tab.screen.kind === 'results' ? tab.screen : null;
   const page = prev ? prev.page + 1 : 1;
@@ -962,7 +1232,7 @@ async function runSearch(tab, query, form) {
 
 const LINKS_SCRIPT = `(() => {
   document.querySelectorAll('.__devbrows_hint').forEach((e) => e.remove());
-  const sel = 'a[href], button, input[type=submit], input[type=button], [role=button], [role=link], summary';
+  const sel = 'a[href], button, input:not([type=hidden]), textarea, select, [contenteditable=""], [contenteditable=true], [role=button], [role=link], [role=textbox], summary';
   const vw = innerWidth, vh = innerHeight, els = [];
   for (const el of document.querySelectorAll(sel)) {
     const r = el.getBoundingClientRect();
@@ -1108,15 +1378,26 @@ async function numberLinks(tab) {
   return links.length;
 }
 
+// Un champ de saisie reçoit le curseur (et le clavier passe à la page) ; le reste est cliqué.
 async function clickLink(tab, i) {
-  return tab.view.webContents.executeJavaScript(`(() => {
+  const wc = tab.view.webContents;
+  const r = await wc.executeJavaScript(`(() => {
     const el = window.__devBrows && window.__devBrows[${i}];
     document.querySelectorAll('.__devbrows_hint').forEach((e) => e.remove());
     if (!el) return false;
+    const field = el.isContentEditable || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.getAttribute('role') === 'textbox'
+      || (el.tagName === 'INPUT' && !/^(submit|button|reset|checkbox|radio|file|image|range|color)$/i.test(el.type));
     el.focus();
+    if (field) return 'field';
     el.click();
     return true;
   })()`, true); // true : compte comme un vrai clic, pour que « back » puisse revenir
+  if (r === 'field') {
+    lastCommandAt = 0; // sinon le focus de la page serait rendu au terminal
+    wc.focus();
+    await wc.executeJavaScript(`window.__devBrows[${i}] && window.__devBrows[${i}].focus()`).catch(() => {});
+  }
+  return r;
 }
 
 // ---------------------------------------------------------------- outils de développement
@@ -1206,8 +1487,8 @@ function toggleDevtools(tab) {
 function showContextMenu(tab, p) {
   const wc = tab.view.webContents;
   const items = [
-    { label: t('Précédent'), enabled: wc.navigationHistory.canGoBack(), click: () => wc.navigationHistory.goBack() },
-    { label: t('Suivant'), enabled: wc.navigationHistory.canGoForward(), click: () => wc.navigationHistory.goForward() },
+    { label: t('Précédent'), click: () => goBack(tab) },
+    { label: t('Suivant'), enabled: wc.navigationHistory.canGoForward(), click: () => goForward(tab) },
     { label: t('Recharger'), click: () => wc.reload() },
     { type: 'separator' },
   ];
@@ -1325,10 +1606,12 @@ function audioTabs() {
   return tabs.filter((t) => t.view && (t.audible || t.media));
 }
 
+// Le player disparaît quand plus aucun onglet ne joue de son ; il reste pour un média mis en pause
+// avec son bouton, qu'on puisse le reprendre.
 function audioState() {
   const list = audioTabs();
   return {
-    show: list.length > 0,
+    show: list.some((t) => t.media === 'playing' || t.audible || t.pausedByPlayer),
     playing: list.some((t) => t.media === 'playing' || t.audible),
     volume: globalVolume(),
     muted: !!settings.data.muteAll,
@@ -1407,6 +1690,35 @@ async function setPrivate(on) {
   focusTerminal();
 }
 
+// En split, la navigation privée ne concerne que l'écran actif : un onglet privé y remplace
+// l'onglet affiché, qui revient quand l'écran sort de la navigation privée.
+async function setPanePrivate(idx, on) {
+  const pane = panes[idx];
+  const cur = getTab(pane.tabId);
+  if (!!cur.private === on) return;
+  if (on) {
+    if (!privSes) {
+      print([{ t: t('  ouverture de la navigation privée (chargement des extensions)…'), c: 'dim' }]);
+      await setupPrivateSession();
+    }
+    pane.normalTabId = cur.id;
+    createTab({ pane: idx, priv: true });
+  } else {
+    const other = panes.find((p, i) => i !== idx);
+    const keep = other && other.tabId;
+    const back = getTab(pane.normalTabId);
+    const shown = new Set(panes.map((p) => p.tabId));
+    showInPane(back && !shown.has(back.id) ? back : tabs.find((tb) => !tb.private && !shown.has(tb.id)) || createTab({ background: true, priv: false }), idx);
+    for (const tb of tabs.filter((x) => x.private && x.id !== keep)) closeTab(tb);
+  }
+  focusTerminal();
+}
+
+async function togglePrivate() {
+  if (!privateMode && (panes.length > 1 || activeTab().private)) await setPanePrivate(activePane, !activeTab().private);
+  else await setPrivate(!privateMode);
+}
+
 // Mode nuit (par défaut) ou jour : l'interface, et les sites qui suivent prefers-color-scheme.
 const isLight = () => settings.data.mode === 'jour';
 
@@ -1458,6 +1770,7 @@ async function togglePlayAll() {
 async function togglePlay(tab) {
   const r = await mediaCall(tab, 'toggle');
   if (r) tab.media = r;
+  tab.pausedByPlayer = r === 'paused';
   audioChanged();
 }
 
@@ -1571,6 +1884,13 @@ function sendPanel(kind) {
 
 const sendDl = () => sendPanel('dl');
 
+// Pendant le téléchargement, le fichier n'existe pas encore sous son nom (Chromium écrit un
+// .crdownload) : showItemInFolder ne ferait rien, on ouvre alors le dossier.
+function showInFolder(file) {
+  if (fs.existsSync(file)) shell.showItemInFolder(file);
+  else shell.openPath(path.dirname(file));
+}
+
 // Ouvre la popup au-dessus de son bouton de la barre du bas, ou la ferme.
 // x : bord droit du bouton (téléchargements, à droite) ou bord gauche (favoris, à gauche).
 function togglePanel(kind, x) {
@@ -1619,7 +1939,10 @@ async function panelAction(kind, action, arg) {
     if (action === 'dir') return void shell.openPath(app.getPath('downloads'));
     const d = Number.isInteger(arg) ? downloads[arg] : null;
     if (!d) return;
-    if (action === 'folder') shell.showItemInFolder(d.path);
+    if (action === 'folder') {
+      if (panel && !panel.win.isDestroyed()) panel.win.close();
+      showInFolder(d.path);
+    }
     else if (action === 'open' && d.state === 'completed') {
       const err = await shell.openPath(d.path);
       if (err) print([{ t: `  ${err}`, c: 'err' }]);
@@ -1731,7 +2054,7 @@ function openExtPopup(n, x) {
   const ext = exts.get(n);
   if (ext.enabled && !ext.popup && ext.id) {
     const wc = activeTab()?.view?.webContents;
-    const api = privateMode ? privApi : chromeApi;
+    const api = apiOf(activeTab());
     const details = wc && api.ctx.store.tabDetailsCache.get(wc.id);
     // L'accueil n'est pas un onglet connu des extensions : l'événement part alors sans onglet.
     api.ctx.router.sendEvent(ext.id, 'browserAction.onClicked', details || undefined);
@@ -1758,7 +2081,7 @@ function openExtPopup(n, x) {
     resizable: false,
     show: false,
     skipTaskbar: true,
-    webPreferences: { session: privateMode ? privSes : ses, enablePreferredSizeMode: true },
+    webPreferences: { session: sesOf(activeTab()), enablePreferredSizeMode: true },
   });
   const pw = popupWin;
   pw.extN = n;
@@ -1913,35 +2236,24 @@ async function exec(raw, depth = 0) {
         }
         break;
       }
+      case 'clicks':
       case 'links':
       case 'l': {
         const count = await numberLinks(tab);
-        say(t('  {count} liens numérotés, tape un numéro (« 3t » pour un nouvel onglet)', { count }), 'dim');
+        say(t('  {count} éléments numérotés : un numéro clique un lien ou un bouton, ou place le curseur dans un champ (« 3t » : lien dans un nouvel onglet)', { count }), 'dim');
         break;
       }
       case 'back':
       case 'b':
-        if (tab.screen && tab.view && tab.screen.kind !== 'tty') {
-          if (tab.tty) showTty(tab);
-          else {
-            tab.screen = null;
-            layout();
-            sendState();
-          }
-        } else if (tab.view && tab.view.webContents.navigationHistory.canGoBack()) tab.view.webContents.navigationHistory.goBack();
-        else if (tab.view) showHome(tab);
-        else throw new Error(t('rien avant'));
+        goBack(tab);
         break;
       case 'fwd':
       case 'f':
-        if (!tab.view || !tab.view.webContents.navigationHistory.canGoForward()) throw new Error(t('rien après'));
-        if (!tab.tty) tab.screen = null;
-        tab.view.webContents.navigationHistory.goForward();
-        layout();
+        goForward(tab);
         break;
       case 'reload':
       case 'r':
-        reloadTab(tab);
+        reloadTab(tab, args[0] === 'hard');
         break;
       case 'tab':
       case 'tabs':
@@ -2036,10 +2348,8 @@ async function exec(raw, depth = 0) {
         break;
       case 'find':
         if (!tab.view || tab.screen) throw new Error(t('aucune page ouverte'));
-        if (!rest) {
-          tab.view.webContents.stopFindInPage('clearSelection');
-          tab.findText = '';
-        } else {
+        if (!rest) openFind();
+        else {
           // Pour Electron, findNext: true ouvre une nouvelle recherche ; false passe au résultat suivant.
           tab.view.webContents.findInPage(rest, { findNext: tab.findText !== rest });
           tab.findText = rest;
@@ -2061,17 +2371,13 @@ async function exec(raw, depth = 0) {
         settings.save();
         say(t('  ✓ alias {name} supprimé', { name: args[0] }), 'ok');
         break;
-      case 'adblock':
-      case 'pub':
-        await adblockCommand(args[0], say);
-        break;
       case 'engine':
         if (!args.length) say(t('  moteur : {engine} (ddg | google | bing | qwant)', { engine: C.ENGINES[settings.data.engine].label }));
         else {
           if (!C.ENGINES[args[0]]) throw new Error(t('moteurs : ddg, google, bing, qwant'));
           settings.data.engine = args[0];
           settings.save();
-          say(t('  ✓ moteur : {engine}', { engine: C.ENGINES[args[0]].label }) + (args[0] === 'ddg' ? '' : t(' (résultats affichés sur sa page, « links » pour numéroter)')), 'ok');
+          say(t('  ✓ moteur : {engine}', { engine: C.ENGINES[args[0]].label }) + (args[0] === 'ddg' ? '' : t(' (résultats affichés sur sa page, « clicks » pour numéroter)')), 'ok');
         }
         break;
       case 'theme':
@@ -2087,8 +2393,10 @@ async function exec(raw, depth = 0) {
       case 'prive':
       case 'privé': {
         const arg = (args[0] || '').toLowerCase();
-        await setPrivate(arg ? arg === 'on' : !privateMode);
-        say(privateMode ? t('  navigation privée : rien n\'est retenu, tout est effacé en sortant (Ctrl+Maj+N)') : t('  ✓ fin de la navigation privée, ses données sont effacées'), privateMode ? 'acc' : 'ok');
+        if (!privateMode && (panes.length > 1 || tab.private)) await setPanePrivate(activePane, arg ? arg === 'on' : !tab.private);
+        else await setPrivate(arg ? arg === 'on' : !privateMode);
+        const on = activeTab().private;
+        say(on ? t('  navigation privée : rien n\'est retenu, tout est effacé en sortant (Ctrl+Maj+N)') : t('  ✓ fin de la navigation privée, ses données sont effacées'), on ? 'acc' : 'ok');
         break;
       }
       case 'mode': {
@@ -2129,6 +2437,17 @@ async function exec(raw, depth = 0) {
         win.setFullScreen(args[0] === 'off' ? false : args[0] === 'on' ? true : !win.isFullScreen());
         say(win.isFullScreen() ? t('  plein écran (F11 ou « fullscreen » pour en sortir)') : t('  plein écran quitté'), 'dim');
         break;
+      case 'default':
+        await defaultCommand(say);
+        break;
+      case 'config':
+        await configCommand(args[0], args.slice(1).join(' '), say);
+        break;
+      case 'popback': {
+        const n = popback(tab);
+        say(n > 1 ? t('  ✓ {count} onglets rouverts', { count: n }) : t('  ✓ 1 onglet rouvert'), 'ok');
+        break;
+      }
       case 'quit':
       case 'exit':
       case 'q':
@@ -2151,7 +2470,7 @@ async function select(tab, n, newTab, say, onlyKind) {
   const item = tab.numbered[n - 1];
   if (!item || (onlyKind && item.kind !== onlyKind)) {
     if (onlyKind === 'dl' && downloads[n - 1]) return select({ numbered: downloads.map((d) => ({ kind: 'dl', path: d.path })) }, n, newTab, say);
-    throw new Error(tab.numbered.length ? t('pas de numéro {n} ici (1 à {max})', { n, max: tab.numbered.length }) : t('aucune liste numérotée ici (essaie « links »)'));
+    throw new Error(tab.numbered.length ? t('pas de numéro {n} ici (1 à {max})', { n, max: tab.numbered.length }) : t('aucune liste numérotée ici (essaie « clicks »)'));
   }
   switch (item.kind) {
     case 'url':
@@ -2163,7 +2482,7 @@ async function select(tab, n, newTab, say, onlyKind) {
       break;
     case 'link':
       if (newTab && item.href) createTab({ url: item.href, background: true });
-      else if (!(await clickLink(tab, item.i))) throw new Error(t('ce lien n\'existe plus, relance « links »'));
+      else if (!(await clickLink(tab, item.i))) throw new Error(t('ce lien n\'existe plus, relance « clicks »'));
       tab.numbered = [];
       break;
     case 'tab': {
@@ -2180,7 +2499,7 @@ async function select(tab, n, newTab, say, onlyKind) {
       break;
     case 'dl':
       if (!item.path) throw new Error(t('fichier pas encore enregistré'));
-      if (newTab) shell.showItemInFolder(item.path);
+      if (newTab) showInFolder(item.path);
       else {
         const err = await shell.openPath(item.path);
         if (err) throw new Error(err);
@@ -2381,10 +2700,6 @@ async function extCommand(tab, args, say) {
       const ext = await exts.add(source);
       say(t('  ✓ {name} installée, alias « {alias} »', { name: ext.name, alias: ext.alias }) + (ext.popup ? '' : t(' (pas de popup)')), 'ok');
       if (ext.dnrOnly) say(t('  ⚠ cette extension bloque avec declarativeNetRequest, qu\'Electron ne gère pas : elle ne bloquera rien. Pour bloquer les pubs : uBlock Origin (« ext add ublock »).'), 'warn');
-      if (/ublock origin/i.test(ext.name || '') && adblock.on) {
-        // Electron n'accepte qu'un filtre de requêtes : le bloqueur intégré empêcherait uBlock de filtrer.
-        await adblockCommand('off', say);
-      }
       break;
     }
     case 'on':
@@ -2423,27 +2738,6 @@ async function extCommand(tab, args, say) {
   sendState();
 }
 
-async function adblockCommand(arg, say) {
-  if (arg === 'on') {
-    settings.data.builtinAdblock = true;
-    settings.save();
-    say(t('  chargement des listes de blocage…'), 'dim');
-    try {
-      await adblock.enable();
-    } catch (err) {
-      throw new Error(t('listes non téléchargées : {error}', { error: err.message }));
-    }
-  } else if (arg === 'off') {
-    settings.data.builtinAdblock = false;
-    settings.save();
-    adblock.disable();
-  } else if (arg) throw new Error('adblock [on | off]');
-  if (adblock.on) say(adblock.blocked > 1 ? t('  ✓ bloqueur de pub intégré actif : {count} requêtes bloquées depuis le démarrage', { count: adblock.blocked }) : t('  ✓ bloqueur de pub intégré actif : {count} requête bloquée depuis le démarrage', { count: adblock.blocked }), 'ok');
-  if (adblock.on) say(t('  ⚠ tant qu\'il est actif, uBlock Origin et les autres extensions de blocage ne filtrent plus les requêtes'), 'warn');
-  else say(t('  bloqueur de pub intégré éteint : uBlock Origin s\'occupe des pubs (« adblock on » pour le bloqueur de secours)'), 'dim');
-  sendState();
-}
-
 function aliasCommand(tab, text, say) {
   const aliases = settings.data.aliases;
   if (!text) {
@@ -2462,6 +2756,126 @@ function aliasCommand(tab, text, say) {
   aliases[key] = value;
   settings.save();
   say(`  ✓ alias ${key} = ${value}`, 'ok');
+}
+
+// ---------------------------------------------------------------- navigateur par défaut
+
+// Adresses passées par le système (Zenith navigateur par défaut, lien ouvert depuis une autre appli).
+const urlsIn = (argv) => argv.filter((a) => /^https?:\/\//i.test(a));
+
+function openExternalUrls(argv) {
+  const urls = urlsIn(argv);
+  if (!urls.length || !win) return;
+  for (const url of urls) createTab({ url });
+  if (win.isMinimized()) win.restore();
+  win.focus();
+}
+
+// Windows ne laisse pas une appli se déclarer navigateur par défaut : on l'inscrit comme navigateur
+// (clés du registre de l'utilisateur), puis on ouvre la page des applis par défaut où la choisir.
+async function registerWindowsBrowser() {
+  const { execFile } = require('child_process');
+  const exe = process.execPath;
+  const reg = (key, name, value) => new Promise((resolve, reject) => {
+    const args = ['add', `HKCU\\Software\\${key}`, ...(name ? ['/v', name] : ['/ve']), '/d', value, '/f'];
+    execFile('reg', args, { windowsHide: true }, (err) => (err ? reject(err) : resolve()));
+  });
+  const base = 'Clients\\StartMenuInternet\\Zenith';
+  await reg(base, null, 'Zenith');
+  await reg(`${base}\\DefaultIcon`, null, `"${exe}",0`);
+  await reg(`${base}\\shell\\open\\command`, null, `"${exe}"`);
+  await reg(`${base}\\Capabilities`, 'ApplicationName', 'Zenith');
+  await reg(`${base}\\Capabilities`, 'ApplicationDescription', t('Navigateur qui se pilote comme un terminal'));
+  await reg(`${base}\\Capabilities`, 'ApplicationIcon', `"${exe}",0`);
+  for (const p of ['http', 'https']) await reg(`${base}\\Capabilities\\URLAssociations`, p, 'ZenithURL');
+  for (const ext of ['.htm', '.html']) await reg(`${base}\\Capabilities\\FileAssociations`, ext, 'ZenithHTML');
+  await reg('RegisteredApplications', 'Zenith', `Software\\${base}\\Capabilities`);
+  for (const cls of ['ZenithURL', 'ZenithHTML']) {
+    await reg(`Classes\\${cls}`, null, cls === 'ZenithURL' ? 'Zenith URL' : 'Zenith HTML');
+    if (cls === 'ZenithURL') await reg(`Classes\\${cls}`, 'URL Protocol', '');
+    await reg(`Classes\\${cls}\\DefaultIcon`, null, `"${exe}",0`);
+    await reg(`Classes\\${cls}\\shell\\open\\command`, null, `"${exe}" "%1"`);
+  }
+}
+
+async function defaultCommand(say) {
+  if (!app.isPackaged) throw new Error(t('seulement pour Zenith installé, pas lancé depuis le code'));
+  if (process.platform === 'win32') {
+    await registerWindowsBrowser();
+    await shell.openExternal('ms-settings:defaultapps?registeredAppUser=Zenith');
+    say(t('  ✓ Zenith est inscrit comme navigateur : choisis-le dans la page des applications par défaut qui vient de s\'ouvrir'), 'ok');
+    return;
+  }
+  const ok = app.setAsDefaultProtocolClient('http') && app.setAsDefaultProtocolClient('https');
+  say(ok ? t('  ✓ Zenith est maintenant le navigateur par défaut') : t('  le système a refusé : choisis Zenith dans ses réglages des applications par défaut'), ok ? 'ok' : 'warn');
+}
+
+// ---------------------------------------------------------------- fichier de configuration
+
+const CONFIG_FILTERS = () => [{ name: t('Configuration Zenith'), extensions: ['json'] }];
+
+async function configCommand(sub, file, say) {
+  if (sub !== 'export' && sub !== 'import') throw new Error('config export | import [fichier]');
+  const target = file ? file.replace(/^~(?=$|[\\/])/, os.homedir()).replace(/^"(.*)"$/, '$1') : null;
+  if (sub === 'export') {
+    let out = target;
+    if (!out) {
+      const r = await dialog.showSaveDialog(win, { title: t('Exporter la configuration'), defaultPath: path.join(app.getPath('documents'), 'zenith-config.json'), filters: CONFIG_FILTERS() });
+      if (r.canceled || !r.filePath) return say(t('  annulé'), 'dim');
+      out = r.filePath;
+    }
+    const data = config.exportConfig({
+      settings: settings.data,
+      favorites: favorites.data.tree,
+      extensions: exts.list.map((e) => ({ source: exts.updateSource(e), alias: e.alias, enabled: !!e.enabled, pinned: e.pinned !== false })).filter((e) => e.source),
+      version: app.getVersion(),
+    });
+    fs.writeFileSync(out, JSON.stringify(data, null, 2));
+    return say(t('  ✓ configuration exportée : {file} (sans les clés des IA)', { file: out }), 'ok');
+  }
+  let src = target;
+  if (!src) {
+    const r = await dialog.showOpenDialog(win, { title: t('Importer une configuration'), properties: ['openFile'], filters: CONFIG_FILTERS() });
+    if (r.canceled || !r.filePaths.length) return say(t('  annulé'), 'dim');
+    src = r.filePaths[0];
+  }
+  let data;
+  try {
+    data = config.parseConfig(fs.readFileSync(src, 'utf8'));
+  } catch {
+    throw new Error(t('{file} n\'est pas un fichier de configuration Zenith', { file: src }));
+  }
+  const missing = data.extensions.filter((e) => !exts.list.some((x) => exts.updateSource(x) === e.source));
+  ask(say, t('remplacer tes réglages{favs} par ceux de {file}{exts} ?', {
+    file: path.basename(src),
+    favs: data.favorites ? t(' et tes favoris') : '',
+    exts: missing.length ? t(', et installer {count} extension(s)', { count: missing.length }) : '',
+  }), async (s) => {
+    Object.assign(settings.data, data.settings);
+    settings.save();
+    if (data.favorites) {
+      favorites.data.tree = data.favorites;
+      saveFavorites();
+    }
+    setLang(initialLang());
+    buildMenu();
+    setMode(isLight());
+    for (const e of missing) {
+      try {
+        const ext = await exts.add(e.source);
+        if (e.alias) ext.alias = e.alias;
+        if (e.pinned === false) ext.pinned = false;
+        if (!e.enabled) await exts.setEnabled(exts.list.indexOf(ext) + 1, false);
+        settings.save();
+        s(t('  ✓ {name} installée', { name: ext.name }), 'ok');
+      } catch (err) {
+        s(t('  extension {id} : {error}', { id: e.source, error: err.message }), 'err');
+      }
+    }
+    for (const tab of tabs) if (tab.screen && tab.screen.kind === 'home') showHome(tab);
+    sendState();
+    s(t('  ✓ configuration importée'), 'ok');
+  }, false);
 }
 
 // ---------------------------------------------------------------- langue
@@ -2563,9 +2977,15 @@ function aiCommand(tab, args, rest, say) {
     say(t('  modèle {name} : {model}', { name: ai.PROVIDERS[id].name, model: ai.model(settings, id) }));
     return;
   }
+  aiAsk(tab, rest, null, say);
+}
+
+// Pose une question ; prev : l'écran de la discussion en cours, dont les échanges servent de contexte.
+function aiAsk(tab, question, prev, say) {
   const id = ++aiRequest;
   const provider = ai.current(settings);
-  const screen = { kind: 'ai', id, provider: ai.PROVIDERS[provider].name, question: rest, text: '', sources: [], done: false, error: null };
+  const turns = prev ? [...prev.turns, { q: prev.question, a: prev.text }] : [];
+  const screen = { kind: 'ai', id, provider: ai.PROVIDERS[provider].name, question, turns, text: '', sources: [], done: false, error: null };
   setScreen(tab, screen, []);
   let timer = null;
   // Le texte arrive en continu : on rafraîchit l'écran au plus toutes les 80 ms.
@@ -2575,10 +2995,11 @@ function aiCommand(tab, args, rest, say) {
     if (final) setScreen(tab, screen, screen.sources.map((src) => ({ kind: 'url', url: src.url })));
     else timer = setTimeout(() => sendState(), 80);
   };
-  ai.ask(settings, rest, (text) => {
+  const history = turns.filter((x) => x.a).flatMap((x) => [{ role: 'user', content: x.q }, { role: 'assistant', content: x.a }]);
+  ai.ask(settings, question, (text) => {
     screen.text = text;
     refresh(false);
-  }).then((r) => {
+  }, history).then((r) => {
     screen.text = r.text || (r.refused ? '' : t('(pas de réponse)'));
     screen.sources = r.sources.map((src, i) => ({ n: i + 1, ...src, short: shortUrl(src.url) }));
     if (r.refused) screen.error = t('{name} a refusé de répondre à cette question.', { name: screen.provider });
@@ -2622,7 +3043,7 @@ async function updateCommand(args, say) {
       settings.save();
     }
     const state = autoUpdateOn()
-      ? t('vérification automatique au lancement : activée (dev-brows et extensions)')
+      ? t('vérification automatique au lancement : activée (Zenith et extensions)')
       : t('vérification automatique au lancement : désactivée (« update » et « ext » restent possibles à la main)');
     say(`  ${arg ? '✓ ' : ''}${state}`, arg ? 'ok' : '');
     return;
@@ -2675,8 +3096,6 @@ async function updateCommand(args, say) {
   }
   say(t('  vérification…'), 'dim');
   const r = await updater.check();
-  settings.data.lastUpdateCheck = Date.now();
-  settings.save();
   for (const l of updateLines(r)) say(l.t, l.c);
   await updateRecap(r, say);
 }
@@ -2703,7 +3122,7 @@ async function updateRecap(r, say) {
   if (!wanted.length) return;
   say(t('  au programme :'), 'dim');
   for (const x of wanted) {
-    say(`  dev-brows ${x.version}`, 'ok');
+    say(`  Zenith ${x.version}`, 'ok');
     const notes = exactNotes(x.version, lang) || releaseNotes(x.body, lang);
     if (notes.length) for (const n of notes) say(`  · ${n}`);
     else say(t('  pas de notes pour cette version'), 'dim');
@@ -2738,7 +3157,7 @@ async function versionsCommand(wanted, say) {
 async function showVersion(r, say) {
   const lang = getLang();
   const notes = exactNotes(r.version, lang) || releaseNotes(r.body, lang);
-  say(`  dev-brows ${r.version}`, 'ok');
+  say(`  Zenith ${r.version}`, 'ok');
   if (notes.length) for (const n of notes) say(`  · ${n}`);
   else say(t('  pas de notes pour cette version'), 'dim');
   const current = app.getVersion();
@@ -2773,7 +3192,7 @@ async function showVersion(r, say) {
 
 function updateLines(r) {
   if (r.installed) {
-    const lines = [{ t: `  dev-brows ${r.current} (Electron ${process.versions.electron}, Chromium ${process.versions.chrome})` }];
+    const lines = [{ t: `  Zenith ${r.current} (Electron ${process.versions.electron}, Chromium ${process.versions.chrome})` }];
     if (r.available) lines.push({ t: t('  ↑ nouvelle version publiée sur GitHub : {version} → « update install »', { version: r.latest }), c: 'warn' });
     else lines.push({ t: t('  ✓ à jour'), c: 'ok' });
     return lines;
@@ -2798,8 +3217,9 @@ function startupUpdateNotes() {
     print([{ t: `  ${report.ok ? t('✓ mise à jour terminée') : t('✗ mise à jour incomplète')}${versions}`, c: report.ok ? 'ok' : 'err' }]);
     for (const step of report.steps.filter((st) => !st.ok)) print([{ t: `    ${step.cmd} : ${step.output}`, c: 'err' }]);
   }
+  if (previousSession.length) print([{ t: previousSession.length > 1 ? t('  « popback » rouvre les {count} onglets de la dernière fois', { count: previousSession.length }) : t('  « popback » rouvre l\'onglet de la dernière fois'), c: 'dim' }]);
   if (updater.installed() && settings.data.lastVersion && settings.data.lastVersion !== app.getVersion()) {
-    print([{ t: t('  ✓ dev-brows mis à jour en {version}', { version: app.getVersion() }), c: 'ok' }]);
+    print([{ t: t('  ✓ Zenith mis à jour en {version}', { version: app.getVersion() }), c: 'ok' }]);
   }
   settings.data.lastVersion = app.getVersion();
   settings.save();
@@ -2808,8 +3228,6 @@ function startupUpdateNotes() {
   setTimeout(async () => {
     try {
       const r = await updater.check();
-      settings.data.lastUpdateCheck = Date.now();
-      settings.save();
       print(updateLines(r).filter((l) => l.c === 'warn'));
     } catch {
       // hors ligne : on réessaiera au prochain démarrage
@@ -2966,14 +3384,17 @@ function complete(line) {
 // ---------------------------------------------------------------- fenêtre et raccourcis
 
 const SHORTCUTS = [
-  ['Ctrl+L', mark('aller au terminal')],
+  ['Ctrl+H', mark('aller au terminal')],
+  ['Ctrl+L', mark('vider le terminal')],
   ['Ctrl+J', mark('cacher / montrer le terminal')],
   ['F11', mark('plein écran')],
   [mark('Échap'), mark('rendre la main à la page')],
   ['Ctrl+T / Ctrl+W', mark('nouvel onglet / fermer l\'onglet')],
+  [mark('Ctrl+Maj+T, clic droit sur +'), mark('rouvrir un onglet fermé / onglets récents')],
   ['Ctrl+Tab', mark('onglet suivant (Ctrl+1…9 : onglet n)')],
   ['Alt+← / Alt+→', mark('précédent / suivant')],
   ['F5', mark('recharger')],
+  [mark('Ctrl+Maj+R'), mark('recharger sans le cache')],
   ['Ctrl+F / Ctrl+D', mark('chercher dans la page / ajouter aux favoris')],
   [mark('Ctrl+Maj+S / F6'), mark('split / changer d\'écran')],
   [mark('F12, clic droit › Inspecter'), mark('outils de développement')],
@@ -2985,10 +3406,12 @@ const SHORTCUTS = [
 ];
 
 // Recharge la page et retire l'écran du terminal (résultats, aide…) qui pouvait la cacher.
-function reloadTab(tab) {
+// hard : sans le cache (Ctrl+Maj+R).
+function reloadTab(tab, hard = false) {
   if (!tab.view) throw new Error(t('aucune page ouverte'));
   tab.screen = null;
-  tab.view.webContents.reload();
+  if (hard) tab.view.webContents.reloadIgnoringCache();
+  else tab.view.webContents.reload();
   layout();
   sendState();
 }
@@ -3009,29 +3432,28 @@ function buildMenu() {
       print([{ t: `  ${err.message}`, c: 'err' }]);
     }
   };
-  const nav = (fn) => act(() => {
-    const tab = activeTab();
-    if (tab.view) fn(tab.view.webContents);
-  });
   const template = [
     {
-      label: 'dev-brows',
+      label: 'Zenith',
       submenu: [
-        { label: 'Terminal', accelerator: 'CmdOrCtrl+L', click: () => focusTerminal() },
-        { label: t('Cacher le terminal'), accelerator: 'CmdOrCtrl+J', click: () => win.webContents.send('term:toggle') },
+        { label: 'Terminal', accelerator: 'CmdOrCtrl+H', click: () => focusTerminal() },
+        { label: t('Vider le terminal'), accelerator: 'CmdOrCtrl+L', click: () => win.webContents.send('term:clear') },
+        { label: t('Cacher le terminal'), accelerator: 'CmdOrCtrl+J', click: () => { win.webContents.focus(); win.webContents.send('term:toggle'); } },
         { label: t('Plein écran'), accelerator: 'F11', click: () => win.setFullScreen(!win.isFullScreen()) },
         { label: t('Nouvel onglet'), accelerator: 'CmdOrCtrl+T', click: act(() => { createTab(); focusTerminal(); }) },
         { label: t('Fermer l\'onglet'), accelerator: 'CmdOrCtrl+W', click: act(() => closeTab(activeTab())) },
+        { label: t('Rouvrir l\'onglet fermé'), accelerator: 'CmdOrCtrl+Shift+T', click: act(() => reopenClosed(0)) },
         { label: t('Onglet suivant'), accelerator: 'Ctrl+Tab', click: act(() => cycleTab(1)) },
         { label: t('Onglet précédent'), accelerator: 'Ctrl+Shift+Tab', click: act(() => cycleTab(-1)) },
         ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({
           label: t('Onglet {n}', { n }), accelerator: `CmdOrCtrl+${n}`, visible: false, click: act(() => tabs[n - 1] && showInPane(tabs[n - 1], activePane)),
         })),
-        { label: t('Précédent'), accelerator: 'Alt+Left', click: nav((wc) => wc.navigationHistory.canGoBack() && wc.navigationHistory.goBack()) },
-        { label: t('Suivant'), accelerator: 'Alt+Right', click: nav((wc) => wc.navigationHistory.canGoForward() && wc.navigationHistory.goForward()) },
+        { label: t('Précédent'), accelerator: 'Alt+Left', click: act(() => goBack(activeTab())) },
+        { label: t('Suivant'), accelerator: 'Alt+Right', click: act(() => goForward(activeTab())) },
         { label: t('Recharger'), accelerator: 'F5', click: act(() => reloadTab(activeTab())) },
         { label: t('Recharger'), accelerator: 'CmdOrCtrl+R', visible: false, click: act(() => reloadTab(activeTab())) },
-        { label: t('Chercher'), accelerator: 'CmdOrCtrl+F', click: () => focusTerminal('find ') },
+        { label: t('Recharger sans le cache'), accelerator: 'CmdOrCtrl+Shift+R', click: act(() => reloadTab(activeTab(), true)) },
+        { label: t('Chercher'), accelerator: 'CmdOrCtrl+F', click: () => openFind() },
         { label: t('Ajouter aux favoris'), accelerator: 'CmdOrCtrl+D', click: () => focusTerminal('add ') },
         { label: 'Split', accelerator: 'CmdOrCtrl+Shift+S', click: () => runCommand(panes.length > 1 ? 'split off' : 'split') },
         { label: t('Changer d\'écran'), accelerator: 'F6', click: () => panes.length > 1 && runCommand('focus') },
@@ -3040,7 +3462,7 @@ function buildMenu() {
         { label: t('Téléchargements'), accelerator: 'CmdOrCtrl+Shift+J', click: () => win.webContents.send('ui:panel', 'dl') },
         { label: t('Favoris'), accelerator: 'CmdOrCtrl+Shift+B', click: () => win.webContents.send('ui:panel', 'fav') },
         { label: 'Extensions', accelerator: 'CmdOrCtrl+Shift+E', click: () => win.webContents.send('ui:panel', 'ext') },
-        { label: t('Navigation privée'), accelerator: 'CmdOrCtrl+Shift+N', click: () => setPrivate(!privateMode).catch((err) => print([{ t: `  ${err.message}`, c: 'err' }])) },
+        { label: t('Navigation privée'), accelerator: 'CmdOrCtrl+Shift+N', click: () => togglePrivate().catch((err) => print([{ t: `  ${err.message}`, c: 'err' }])) },
         ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({
           label: `Extension ${n}`, accelerator: `Alt+${n}`, visible: false, click: act(() => openExtPopup(n)),
         })),
@@ -3104,36 +3526,60 @@ function setupDownloads(s = ses) {
 }
 
 function setupIpc() {
-  ipcMain.on('ui:layout', (e, r) => {
+  // Les canaux ui:* ne répondent qu'à l'interface de la fenêtre, jamais à une page ou une extension.
+  const fromUi = (e) => !!win && !win.isDestroyed() && e.sender === win.webContents;
+  const onUi = (channel, fn) => ipcMain.on(channel, (e, ...args) => {
+    if (fromUi(e)) fn(e, ...args);
+    else e.returnValue = null;
+  });
+  const handleUi = (channel, fn) => ipcMain.handle(channel, (e, ...args) => {
+    if (!fromUi(e)) throw new Error('refused');
+    return fn(e, ...args);
+  });
+  onUi('ui:layout', (e, r) => {
     rects = r.map((x) => x && { x: Math.round(x.x), y: Math.round(x.y), width: Math.round(x.width), height: Math.round(x.height) });
     layout();
   });
-  ipcMain.on('ui:drag', (e, on) => {
+  onUi('ui:drag', (e, on) => {
     dragging = !!on;
     layout();
   });
-  ipcMain.handle('ui:exec', (e, line, opts) => {
+  handleUi('ui:exec', (e, line, opts) => {
     lastCommandAt = Date.now();
+    // La commande tapée sous un écran s'applique à cet écran.
+    if (opts && Number.isInteger(opts.pane) && panes[opts.pane] && opts.pane !== activePane) {
+      activePane = opts.pane;
+      sendState();
+    }
     // Ctrl+Entrée : un nouvel onglet d'abord, la commande s'y exécute (pas pour répondre à une question).
     if (opts && opts.newTab && String(line).trim() && !prompts.length) createTab();
     return exec(String(line));
   });
-  ipcMain.on('ui:zoom-reset', () => zoom(0));
-  ipcMain.on('ui:lang', (e) => {
+  onUi('ui:zoom-reset', () => zoom(0));
+  // La ligne « > » sous une réponse de l'IA continue la discussion.
+  onUi('ui:ai-reply', (e, text) => {
+    const tab = activeTab();
+    const q = String(text || '').trim();
+    if (!q || !tab.screen || tab.screen.kind !== 'ai' || !tab.screen.done) return;
+    lastCommandAt = Date.now();
+    aiAsk(tab, q, tab.screen, (l, c) => print([{ t: l, c }]));
+  });
+  onUi('ui:recent-menu', () => recentMenu());
+  onUi('ui:lang', (e) => {
     e.returnValue = getLang();
   });
-  ipcMain.handle('ui:complete', (e, line) => complete(String(line)));
-  ipcMain.handle('ui:clipboard-read', () => clipboard.readText());
-  ipcMain.on('ui:clipboard-write', (e, text) => clipboard.writeText(String(text)));
+  handleUi('ui:complete', (e, line) => complete(String(line)));
+  handleUi('ui:clipboard-read', () => clipboard.readText());
+  onUi('ui:clipboard-write', (e, text) => clipboard.writeText(String(text)));
   let started = false;
-  ipcMain.on('ui:ready', () => {
+  onUi('ui:ready', () => {
     sendState();
     if (!started) {
       started = true;
       startupUpdateNotes();
     }
   });
-  ipcMain.on('ui:focus-page', () => {
+  onUi('ui:focus-page', () => {
     lastCommandAt = 0;
     const tab = activeTab();
     if (tab.screen && tab.view) {
@@ -3143,12 +3589,12 @@ function setupIpc() {
     }
     if (tab.view && !tab.screen) tab.view.webContents.focus();
   });
-  ipcMain.on('ui:tab', (e, id) => {
+  onUi('ui:tab', (e, id) => {
     const t = getTab(id);
     if (t) showInPane(t, activePane);
   });
   // gap : indice de l'onglet devant lequel poser celui qu'on déplace (tabs.length : à la fin).
-  ipcMain.on('ui:tab-move', (e, id, gap) => {
+  onUi('ui:tab-move', (e, id, gap) => {
     const from = tabs.findIndex((t) => t.id === id);
     if (from < 0 || !Number.isInteger(gap) || gap < 0 || gap > tabs.length) return;
     const to = gap > from ? gap - 1 : gap;
@@ -3156,37 +3602,37 @@ function setupIpc() {
     tabs.splice(to, 0, tabs.splice(from, 1)[0]);
     sendState();
   });
-  ipcMain.on('ui:devtools', (e, action) => {
+  onUi('ui:devtools', (e, action) => {
     const tab = activeTab();
     if (action === 'detach') detachDevtools(tab);
     else if (action === 'attach') attachDevtools(tab);
     else closeDevtools(tab);
   });
-  ipcMain.on('ui:tab-close', (e, id) => {
+  onUi('ui:tab-close', (e, id) => {
     const t = getTab(id);
     if (t) closeTab(t);
   });
-  ipcMain.on('ui:tab-new', () => {
+  onUi('ui:tab-new', () => {
     createTab();
     focusTerminal();
   });
-  ipcMain.on('ui:pane', (e, idx) => {
+  onUi('ui:pane', (e, idx) => {
     if (panes[idx] && idx !== activePane) {
       activePane = idx;
       sendState();
     }
   });
-  ipcMain.on('ui:tab-mute', (e, id) => {
+  onUi('ui:tab-mute', (e, id) => {
     const tab = getTab(id);
     if (tab) setMuted(tab, !isMuted(tab));
   });
-  ipcMain.on('ui:volume', (e, v) => Number.isFinite(v) && setGlobalVolume(v));
-  ipcMain.on('ui:mode', () => setMode(!isLight()));
-  ipcMain.on('ui:media-toggle', () => togglePlayAll().catch(() => {}));
-  ipcMain.on('ui:mute-all', () => setMuteAll(!settings.data.muteAll));
-  ipcMain.on('ui:panel', (e, kind, x) => PANELS[kind] && togglePanel(kind, Number.isFinite(x) ? x : undefined));
+  onUi('ui:volume', (e, v) => Number.isFinite(v) && setGlobalVolume(v));
+  onUi('ui:mode', () => setMode(!isLight()));
+  onUi('ui:media-toggle', () => togglePlayAll().catch(() => {}));
+  onUi('ui:mute-all', () => setMuteAll(!settings.data.muteAll));
+  onUi('ui:panel', (e, kind, x) => PANELS[kind] && togglePanel(kind, Number.isFinite(x) ? x : undefined));
   const fromPanel = (e) => (panel && !panel.win.isDestroyed() && e.sender === panel.win.webContents ? panel : null);
-  ipcMain.handle('ui:suggest', (e, text, rect) => {
+  handleUi('ui:suggest', (e, text, rect) => {
     suggestList = historySuggestions(text);
     showSuggest(rect, -1);
     return suggestList;
@@ -3200,9 +3646,10 @@ function setupIpc() {
     if (!tab || e.senderFrame !== e.sender.mainFrame || origin !== STORE_ORIGIN) throw new Error('refused');
     return storeCall(tab, String(name), args);
   });
-  ipcMain.on('ui:suggest-select', (e, i, rect) => showSuggest(rect, i));
-  ipcMain.on('ui:suggest-hide', () => hideSuggest());
+  onUi('ui:suggest-select', (e, i, rect) => showSuggest(rect, i));
+  onUi('ui:suggest-hide', () => hideSuggest());
   ipcMain.on('panel:act', (e, action, arg) => {
+    if (findWin && !findWin.win.isDestroyed() && e.sender === findWin.win.webContents) return findAction(action, arg);
     if (suggest && !suggest.win.isDestroyed() && e.sender === suggest.win.webContents) return suggestAction(action, arg);
     const p = fromPanel(e);
     if (p) panelAction(p.kind, action, arg).catch((err) => print([{ t: `  ${err.message}`, c: 'err' }]));
@@ -3211,7 +3658,7 @@ function setupIpc() {
     const p = fromPanel(e);
     if (p && Number.isFinite(height)) p.win.setBounds(p.place(Math.min(Math.max(Math.ceil(height), 60), 520)));
   });
-  ipcMain.on('ui:ext-popup', (e, n, x) => {
+  onUi('ui:ext-popup', (e, n, x) => {
     try {
       openExtPopup(n, x);
     } catch (err) {
@@ -3220,27 +3667,66 @@ function setupIpc() {
   });
 }
 
+// Position de la fenêtre gardée d'un lancement à l'autre, si elle tombe encore sur un écran branché.
+function savedBounds() {
+  const w = settings.data.window;
+  if (!w || !Number.isFinite(w.x) || !Number.isFinite(w.y) || !(w.width > 0) || !(w.height > 0)) return {};
+  const onScreen = screen.getAllDisplays().some(({ workArea: a }) => w.x < a.x + a.width - 80 && w.x + w.width > a.x + 80 && w.y >= a.y - 20 && w.y < a.y + a.height - 80);
+  return onScreen ? { x: w.x, y: w.y, width: w.width, height: w.height } : {};
+}
+
 function createWindow() {
   // Les onglets montent dans la barre de titre, noire, à côté des boutons de la fenêtre.
   const mac = process.platform === 'darwin';
   win = new BrowserWindow({
     width: 1280,
     height: 820,
+    ...savedBounds(),
     minWidth: 640,
     minHeight: 420,
     backgroundColor: isLight() ? '#F6F7F9' : '#0E1116',
-    title: 'dev-brows',
+    title: 'Zenith',
     titleBarStyle: 'hidden',
     ...(mac ? { trafficLightPosition: { x: 12, y: 13 } } : { titleBarOverlay: { color: '#000000', symbolColor: '#D6DEE8', height: 40 } }),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), sandbox: true, contextIsolation: true },
   });
   win.setMenuBarVisibility(false);
+  if (settings.data.window && settings.data.window.maximized) win.maximize();
   win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
+  // Réduite puis rouverte, la fenêtre revient sur l'écran où elle était, pas sur l'écran principal.
+  let beforeMinimize = null;
+  win.on('minimize', () => {
+    beforeMinimize = { normal: win.getNormalBounds(), display: screen.getDisplayMatching(win.getBounds()).id };
+  });
+  win.on('restore', () => {
+    const m = beforeMinimize;
+    beforeMinimize = null;
+    if (!m || win.isFullScreen() || screen.getDisplayMatching(win.getBounds()).id === m.display) return;
+    const maximized = win.isMaximized();
+    if (maximized) win.unmaximize();
+    win.setBounds(m.normal);
+    if (maximized) win.maximize();
+  });
+  win.on('close', () => {
+    const b = win.getNormalBounds();
+    settings.data.window = { x: b.x, y: b.y, width: b.width, height: b.height, maximized: win.isMaximized() };
+    settings.save();
+  });
   win.on('resize', () => {
     hideSuggest();
     if (fullTab) layout();
   });
-  win.on('move', () => hideSuggest());
+  win.on('move', () => {
+    hideSuggest();
+    layout();
+  });
+  // Boutons précédent / suivant de la souris (Windows).
+  win.on('app-command', (e, cmd) => {
+    try {
+      if (cmd === 'browser-backward') goBack(activeTab());
+      else if (cmd === 'browser-forward') goForward(activeTab());
+    } catch {}
+  });
   // F11 ou la fenêtre qui sort du plein écran : la vidéo en sort aussi.
   win.on('leave-full-screen', () => {
     if (!fullTab) return;
@@ -3254,13 +3740,18 @@ function createWindow() {
   });
 }
 
-// Journal (dev-brows.log dans le dossier de données) : lancement, extensions, plantages.
+// Journal (zenith.log dans le dossier de données) : lancement, extensions, plantages.
 journal.open(app.getPath('userData'));
-journal.log(`lancement de dev-brows ${app.getVersion()} (Electron ${process.versions.electron}, ${process.platform} ${os.release()})`);
+journal.log(`lancement de Zenith ${app.getVersion()} (Electron ${process.versions.electron}, ${process.platform} ${os.release()})`);
 process.on('uncaughtException', (err) => journal.log('erreur non rattrapée :', err));
 process.on('unhandledRejection', (err) => journal.log('promesse rejetée non rattrapée :', err instanceof Error ? err : String(err)));
 app.on('render-process-gone', (e, wc, d) => journal.log(`page arrêtée (${d.reason}, code ${d.exitCode}) : ${wc && !wc.isDestroyed() ? wc.getURL() : '?'}`));
 app.on('child-process-gone', (e, d) => journal.log(`processus ${d.type}${d.name ? ` (${d.name})` : ''} arrêté : ${d.reason}, code ${d.exitCode}`));
+// Une seule fenêtre Zenith : un second lancement (lien ouvert depuis une autre appli) passe ses adresses à la première.
+if (!app.requestSingleInstanceLock()) {
+  app.exit(0);
+}
+app.on('second-instance', (e, argv) => openExternalUrls(argv));
 const guard = journal.startupGuard(app.getPath('userData'));
 
 app.whenReady().then(async () => {
@@ -3268,7 +3759,12 @@ app.whenReady().then(async () => {
   const dir = app.getPath('userData');
   favorites = new JsonStore(path.join(dir, 'favoris.json'), { tree: fav.emptyTree() });
   history = new JsonStore(path.join(dir, 'historique.json'), { entries: [] });
-  settings = new JsonStore(path.join(dir, 'reglages.json'), { engine: 'ddg', theme: 'ambre', aliases: {}, extensions: [], builtinAdblock: false });
+  sessionStore = new JsonStore(path.join(dir, 'session.json'), { tabs: [] });
+  previousSession = sessionStore.data.tabs.slice();
+  settings = new JsonStore(path.join(dir, 'reglages.json'), { engine: 'ddg', theme: 'ambre', aliases: {}, extensions: [] });
+  // Plus rien d'enregistré pour ce qui a disparu : le bloqueur de secours, la date de la dernière vérification.
+  for (const k of ['builtinAdblock', 'lastUpdateCheck']) delete settings.data[k];
+  fs.rmSync(path.join(dir, 'adblock.bin'), { force: true });
   ai.migrate(settings);
   nativeTheme.themeSource = isLight() ? 'light' : 'dark';
   setLang(initialLang());
@@ -3288,12 +3784,12 @@ app.whenReady().then(async () => {
     if (culprit) {
       culprit.enabled = false;
       settings.save();
-      safeNote = t('  ⚠ dev-brows a planté au dernier lancement en chargeant l\'extension {name} : elle est désactivée (« ext on » pour la réactiver). Détails : {file}', { name: culprit.name || culprit.alias, file: path.join(dir, 'dev-brows.log') });
+      safeNote = t('  ⚠ Zenith a planté au dernier lancement en chargeant l\'extension {name} : elle est désactivée (« ext on » pour la réactiver). Détails : {file}', { name: culprit.name || culprit.alias, file: path.join(dir, 'zenith.log') });
     } else if (exts.list.some((e) => e.enabled)) {
       // Cause inconnue : on coupe les extensions (« ext on n » une par une retrouve la fautive).
       for (const e of exts.list) e.enabled = false;
       settings.save();
-      safeNote = t('  ⚠ dev-brows a planté au dernier lancement : les extensions sont désactivées, « ext on <n> » les réactive une par une. Détails : {file}', { file: path.join(dir, 'dev-brows.log') });
+      safeNote = t('  ⚠ Zenith a planté au dernier lancement : les extensions sont désactivées, « ext on <n> » les réactive une par une. Détails : {file}', { file: path.join(dir, 'zenith.log') });
     }
   }
   await exts.loadAll({
@@ -3309,11 +3805,11 @@ app.whenReady().then(async () => {
   setupPermissions();
   setupWebAuthn();
   setupGoogleLogin();
-  adblock = new AdBlock(ses, path.join(dir, 'adblock.bin'));
-  if (settings.data.builtinAdblock) adblock.enable().catch((err) => print([{ t: t('  bloqueur de pub : listes non téléchargées ({error}), « adblock on » pour réessayer', { error: err.message }), c: 'err' }]));
   buildMenu();
   createWindow();
-  createTab();
+  const startUrls = urlsIn(process.argv.slice(1));
+  if (startUrls.length) for (const url of startUrls) createTab({ url });
+  else createTab();
   guard.step('en marche');
   if (safeNote) win.webContents.once('did-finish-load', () => setTimeout(() => print([{ t: safeNote, c: 'warn' }]), 500));
   // Stable après 20 s : un plantage plus tard ne viendra pas du démarrage.
@@ -3325,7 +3821,7 @@ app.whenReady().then(async () => {
 
 app.on('before-quit', () => {
   guard.done(); // fermeture normale, même avant la fin du démarrage
-  for (const s of [favorites, history, settings]) if (s) s.flush();
+  for (const s of [favorites, history, settings, sessionStore]) if (s) s.flush();
 });
 
 app.on('window-all-closed', () => app.quit());

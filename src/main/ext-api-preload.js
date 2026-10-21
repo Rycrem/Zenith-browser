@@ -29,7 +29,7 @@ function installApis(invoke, listen) {
   const call = (name) => wrap((...args) => invoke(name, ...args));
   const value = (v) => wrap(() => (typeof v === 'function' ? v() : v));
   const refuse = (what) => wrap(() => {
-    throw new Error(`dev-brows : ${what} n'est pas pris en charge`);
+    throw new Error(`Zenith : ${what} n'est pas pris en charge`);
   });
   // Un seul relais par événement vers le monde isolé (les fonctions qui traversent le pont
   // changent d'identité) : il appelle les fonctions inscrites ici.

@@ -1,8 +1,8 @@
 'use strict';
 
-// Journal de dev-brows : dev-brows.log dans le dossier de données. On y note le lancement,
+// Journal de Zenith : zenith.log dans le dossier de données. On y note le lancement,
 // le chargement de chaque extension et tout plantage (main, page, processus enfant), pour
-// savoir pourquoi l'appli s'est fermée. Au-delà de 1 Mo, l'ancien journal devient dev-brows.old.log.
+// savoir pourquoi l'appli s'est fermée. Au-delà de 1 Mo, l'ancien journal devient zenith.old.log.
 const fs = require('fs');
 const path = require('path');
 
@@ -11,9 +11,9 @@ let file = null;
 
 function open(dir) {
   fs.mkdirSync(dir, { recursive: true });
-  file = path.join(dir, 'dev-brows.log');
+  file = path.join(dir, 'zenith.log');
   try {
-    if (fs.statSync(file).size > MAX) fs.renameSync(file, path.join(dir, 'dev-brows.old.log'));
+    if (fs.statSync(file).size > MAX) fs.renameSync(file, path.join(dir, 'zenith.old.log'));
   } catch {}
   return file;
 }
