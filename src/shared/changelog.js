@@ -4,6 +4,23 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.25',
+    notes: [
+      'En split, chaque écran a ses propres onglets : la barre d\'onglets se divise comme le terminal, avec un + et des flèches de chaque côté. Ctrl+Tab ne passe que par les onglets de l\'écran actif.',
+      'Les flèches ‹ › sont dans un petit cadre à droite du + et passent à l\'onglet précédent ou suivant.',
+      'Glisser un onglet écarte doucement ses voisins pour montrer la place où il sera posé, puis il y glisse.',
+      'Ctrl+Tab, Ctrl+Maj+Tab et les autres raccourcis marchent aussi quand le curseur est dans le terminal.',
+      'La barre d\'adresse garde toujours la même largeur, quelle que soit l\'adresse.',
+    ],
+    en: [
+      'In split, each pane has its own tabs: the tab bar splits like the terminal, with a + and arrows on each side. Ctrl+Tab only goes through the active pane\'s tabs.',
+      'The ‹ › arrows sit in a small box right of + and go to the previous or next tab.',
+      'Dragging a tab gently slides its neighbours apart to show where it will land, then it slides into place.',
+      'Ctrl+Tab, Ctrl+Shift+Tab and the other shortcuts also work while the cursor is in the terminal.',
+      'The address box always keeps the same width, whatever the address.',
+    ],
+  },
+  {
     version: '0.1.24',
     notes: [
       'dev-brows s\'appelle maintenant Zenith, avec un nouveau logo : le soleil orange sur fond noir. Tes données (favoris, historique, extensions) restent les mêmes ; le journal devient zenith.log.',
