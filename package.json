@@ -1,7 +1,7 @@
 {
-  "name": "dev-brows",
+  "name": "zenith",
   "productName": "Zenith",
-  "version": "0.1.27",
+  "version": "0.1.28",
   "description": "Zenith, navigateur basé sur Chromium qui se pilote comme un terminal",
   "main": "src/main/main.js",
   "scripts": {

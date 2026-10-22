@@ -22,13 +22,29 @@ const tr = t; // là où une variable locale « t » (un onglet) cache t()
 const { storeExtensionId } = require('../shared/crx');
 const { parseDuckDuckGoHtml, parseNextPage, shortUrl } = require('../shared/search');
 
+// Les données de l'ancien nom (dev-brows) passent dans le dossier Zenith au premier lancement.
+// Un dossier Zenith sans réglages (créé vide par Electron) ne compte pas. Si le déplacement
+// échoue (fichier encore ouvert), l'appli reste sur l'ancien dossier cette fois-ci.
+function dataDir(name, old) {
+  const dir = path.join(app.getPath('appData'), name);
+  const prev = path.join(app.getPath('appData'), old);
+  const ours = (d) => fs.existsSync(path.join(d, 'reglages.json'));
+  if (ours(dir) || !ours(prev)) return dir;
+  try {
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.renameSync(prev, dir);
+    return dir;
+  } catch {
+    return prev;
+  }
+}
+
 // Lancée depuis le code, l'appli garde ses données à part : la version installée chiffre
 // ses cookies (fuse Electron), et un Electron sans ce réglage ne saurait plus les lire.
-// L'appli s'appelle Zenith, mais ses données restent dans le dossier de dev-brows (son ancien nom).
-app.setPath('userData', path.join(app.getPath('appData'), 'dev-brows'));
+app.setPath('userData', dataDir('Zenith', 'dev-brows'));
 if (!app.isPackaged) {
   const shared = app.getPath('userData');
-  const dev = `${shared}-dev`;
+  const dev = dataDir('Zenith-dev', 'dev-brows-dev');
   // Les données créées avant cette séparation suivent la version lancée depuis le code.
   if (fs.existsSync(shared) && !fs.existsSync(dev)) fs.cpSync(shared, dev, { recursive: true });
   app.setPath('userData', dev);
@@ -2065,7 +2081,7 @@ function watchExtensionLogs() {
       const fromPage = EXT_URL.exec(wc.getURL());
       const m = fromScript || fromPage;
       if (!m) return;
-      const where = fromPage ? t('page') : wc.getURL().startsWith('file:') ? 'dev-brows' : hostOf(wc.getURL()) || t('page');
+      const where = fromPage ? t('page') : wc.getURL().startsWith('file:') ? 'Zenith' : hostOf(wc.getURL()) || t('page');
       logExt(m[1], where, `${message} (${source.replace(EXT_URL, '')}${line ? `:${line}` : ''})`);
     });
   });

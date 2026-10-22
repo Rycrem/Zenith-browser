@@ -21,7 +21,7 @@ Installers are on the [Releases](https://github.com/Rycrem/Zenith-browser/releas
 - macOS: `.dmg` (`arm64` for Apple Silicon Macs, `x64` for Intel Macs). The app is not signed: on first launch, right-click the app › Open.
 - Linux: `.AppImage` (make it executable, then run it) or `.deb`.
 
-**Uninstall:** on Windows, Settings › Apps › Installed apps › Zenith › Uninstall. On macOS, drag Zenith from Applications to the Trash. On Linux, delete the `.AppImage`, or `sudo apt remove dev-brows` for the `.deb`. Your data stays in the folder listed under "Data" until you delete it.
+**Uninstall:** on Windows, Settings › Apps › Installed apps › Zenith › Uninstall. On macOS, drag Zenith from Applications to the Trash. On Linux, delete the `.AppImage`, or `sudo apt remove zenith` for the `.deb`. Your data stays in the folder listed under "Data" until you delete it.
 
 ## Language
 
@@ -141,11 +141,11 @@ The app closes, the update runs with the system's `node` (on Windows, Electron c
 
 ## Data
 
-Bookmarks, history and settings are JSON files in Electron's data folder (`~/.config/dev-brows` on Linux, `%APPDATA%\dev-brows` on Windows, `~/Library/Application Support/dev-brows` on macOS).
+Bookmarks, history and settings are JSON files in Electron's data folder (`~/.config/Zenith` on Linux, `%APPDATA%\Zenith` on Windows, `~/Library/Application Support/Zenith` on macOS).
 
 The same folder holds `zenith.log`, the log: each launch, the loading of each extension and any crash. If Zenith crashes while starting, the next launch disables the extension at fault (or all of them when it cannot tell which) and says so in the terminal; `ext on <n>` turns them back on.
 
-Run from source, the app uses a separate folder, `dev-brows-dev` (copied from `dev-brows` the first time): the installed app encrypts its cookies with a key the development version cannot read.
+Run from source, the app uses a separate folder, `Zenith-dev` (copied from `Zenith` the first time): the installed app encrypts its cookies with a key the development version cannot read.
 
 ## Privacy
 

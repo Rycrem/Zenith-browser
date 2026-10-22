@@ -14,7 +14,7 @@ Les installateurs sont sur la page [Releases](https://github.com/Rycrem/Zenith-b
 - macOS : `.dmg` (`arm64` pour les Mac Apple Silicon, `x64` pour les Mac Intel). L'appli n'est pas signée : au premier lancement, clic droit sur l'appli › Ouvrir.
 - Linux : `.AppImage` (le rendre exécutable puis le lancer) ou `.deb`.
 
-**Désinstaller :** sous Windows, Paramètres › Applications › Applications installées › Zenith › Désinstaller. Sous macOS, glisser Zenith des Applications vers la Corbeille. Sous Linux, supprimer le `.AppImage`, ou `sudo apt remove dev-brows` pour le `.deb`. Tes données restent dans le dossier indiqué dans « Données » tant que tu ne le supprimes pas.
+**Désinstaller :** sous Windows, Paramètres › Applications › Applications installées › Zenith › Désinstaller. Sous macOS, glisser Zenith des Applications vers la Corbeille. Sous Linux, supprimer le `.AppImage`, ou `sudo apt remove zenith` pour le `.deb`. Tes données restent dans le dossier indiqué dans « Données » tant que tu ne le supprimes pas.
 
 ## Langue
 
@@ -135,11 +135,11 @@ L'appli se ferme, la mise à jour se fait avec le `node` du système (sous Windo
 
 ## Données
 
-Favoris, historique et réglages sont des fichiers JSON dans le dossier de données d'Electron (`~/.config/dev-brows` sous Linux, `%APPDATA%\dev-brows` sous Windows, `~/Library/Application Support/dev-brows` sous macOS).
+Favoris, historique et réglages sont des fichiers JSON dans le dossier de données d'Electron (`~/.config/Zenith` sous Linux, `%APPDATA%\Zenith` sous Windows, `~/Library/Application Support/Zenith` sous macOS).
 
 Le même dossier contient `zenith.log`, le journal : chaque lancement, le chargement de chaque extension et les plantages. Si Zenith plante pendant son démarrage, le lancement suivant désactive l'extension en cause (ou toutes, si on ne sait pas laquelle) et le dit dans le terminal ; `ext on <n>` les réactive.
 
-Lancée depuis le code, l'appli utilise un dossier à part, `dev-brows-dev` (copié depuis `dev-brows` la première fois) : l'appli installée chiffre ses cookies avec une clé que la version de développement ne peut pas relire.
+Lancée depuis le code, l'appli utilise un dossier à part, `Zenith-dev` (copié depuis `Zenith` la première fois) : l'appli installée chiffre ses cookies avec une clé que la version de développement ne peut pas relire.
 
 ## Confidentialité
 
