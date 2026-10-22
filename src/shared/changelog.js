@@ -4,6 +4,15 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.32',
+    notes: [
+      'Les captures d\'écran du README montrent le nouveau visuel de Zenith (logo, barre d\'adresse, barre d\'état).',
+    ],
+    en: [
+      'The README screenshots show Zenith\'s new look (logo, address bar, status bar).',
+    ],
+  },
+  {
     version: '0.1.30',
     notes: [
       'Le README indique le nom complet de l\'auteur de Zenith.',
