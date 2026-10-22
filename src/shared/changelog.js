@@ -4,6 +4,15 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.26',
+    notes: [
+      'Les flèches ‹ › qui changent d\'onglet sont au bout de la barre, à côté du bouton recharger de l\'adresse.',
+    ],
+    en: [
+      'The ‹ › arrows that switch tabs sit at the end of the bar, next to the address reload button.',
+    ],
+  },
+  {
     version: '0.1.25',
     notes: [
       'En split, chaque écran a ses propres onglets : la barre d\'onglets se divise comme le terminal, avec un + et des flèches de chaque côté. Ctrl+Tab ne passe que par les onglets de l\'écran actif.',
