@@ -613,6 +613,7 @@
     "enregistrer ou charger tes réglages, favoris et extensions (pour un autre ordinateur)": "save or load your settings, bookmarks and extensions (for another computer)",
     "Onglet précédent (Ctrl+Maj+Tab)": "Previous tab (Ctrl+Shift+Tab)",
     "Onglet suivant (Ctrl+Tab)": "Next tab (Ctrl+Tab)",
+    "chercher dans l'écran": "find on the screen",
   };
 
   let lang = 'fr';

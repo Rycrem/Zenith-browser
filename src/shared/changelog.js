@@ -4,6 +4,23 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.27',
+    notes: [
+      'La barre d\'adresse a une largeur fixe, deux fois celle qu\'elle avait sur l\'accueil ; elle n\'affiche toujours que le site, l\'adresse complète au clic.',
+      'Ctrl+F marche partout : sur l\'historique, les favoris, l\'aide et les autres écrans, les résultats sont surlignés.',
+      'Glisser un onglet : le contour animé revient, plus lent, en plus de la place qui s\'ouvre ; on peut aussi le poser tout au bout à droite.',
+      'L\'installateur Windows affiche le détail de l\'installation dès le début (vérification, fichiers, réglages, raccourcis) et attend qu\'on clique sur Suivant.',
+      'L\'installateur inscrit Zenith comme navigateur : il apparaît dans les applications par défaut de Windows et dans « Ouvrir avec » quand une autre appli ouvre un lien, sans passer par « default ».',
+    ],
+    en: [
+      'The address box has a fixed width, twice what it had on the home screen; it still only shows the site, with the full address on click.',
+      'Ctrl+F works everywhere: on history, bookmarks, help and the other screens, matches are highlighted.',
+      'Dragging a tab: the animated outline is back, slower, along with the opening spot; a tab can also be dropped at the far right.',
+      'The Windows installer shows the installation details from the start (check, files, settings, shortcuts) and waits for a click on Next.',
+      'The installer registers Zenith as a browser: it shows up in Windows default apps and in “Open with” when another app opens a link, without running “default”.',
+    ],
+  },
+  {
     version: '0.1.26',
     notes: [
       'Les flèches ‹ › qui changent d\'onglet sont au bout de la barre, à côté du bouton recharger de l\'adresse.',

@@ -598,8 +598,9 @@ function alignTabGroups() {
 }
 
 // Glisser un onglet : il suit la souris de gauche à droite, et ses voisins s'écartent doucement
-// pour ouvrir la place où il sera posé. Lâché, il glisse dans cette place.
-const TAB_SLIDE_MS = 320;
+// pour ouvrir la place où il sera posé ; un contour glisse vers les bords de cette place.
+// Lâché, l'onglet glisse dans la place.
+const TAB_SLIDE_MS = 400;
 let tabDrag = null; // { id, side, el, strip, startX, moved, from, pos, w, others, center, min, max, dropping }
 
 function slotShift(d, i) {
@@ -643,17 +644,20 @@ function startTabDrag(e, tb) {
       el.classList.add('dragging');
       strip.classList.add('sorting');
     }
-    const dx = Math.min(Math.max(raw, d.min), d.max);
-    el.style.transform = `translateX(${dx}px)`;
-    // Sa place : après chaque voisin dont il a dépassé le milieu.
-    const c = d.center + dx;
+    el.style.transform = `translateX(${Math.min(Math.max(raw, d.min), d.max)}px)`;
+    // Sa place : après chaque voisin dont la souris a dépassé le milieu (même hors de la barre,
+    // pour pouvoir le poser tout au bout).
+    const c = d.center + raw;
     const pos = d.others.filter((o, i) => i !== d.from && o.center < c).length;
     if (pos === d.pos) return;
     d.pos = pos;
+    const rest = d.others.filter((o, i) => i !== d.from);
     d.others.forEach((o, i) => {
       if (i === d.from) return;
       const s = slotShift(d, i);
       o.el.style.transform = s ? `translateX(${s}px)` : '';
+      o.el.classList.toggle('drop-r', pos !== d.from && o === rest[pos - 1]);
+      o.el.classList.toggle('drop-l', pos !== d.from && o === rest[pos]);
     });
   };
   const up = () => {
@@ -777,6 +781,43 @@ function renderPanes() {
     }
   });
 }
+
+// Ctrl+F sur un écran du terminal (historique, favoris, aide…) : les résultats sont surlignés dans
+// l'écran, le résultat courant d'une autre couleur, et la popup affiche leur compte.
+let found = { text: '', pane: -1, ranges: [], i: -1 };
+api.on('ui:find', ({ pane, text, forward }) => {
+  if (!text) {
+    CSS.highlights.clear();
+    found = { text: '', pane: -1, ranges: [], i: -1 };
+    return;
+  }
+  if (text !== found.text || pane !== found.pane || !found.ranges.every((r) => r.startContainer.isConnected)) {
+    const needle = text.toLowerCase();
+    const ranges = [];
+    const walker = document.createTreeWalker($('.screen', panesEl[pane]), NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const hay = node.data.toLowerCase();
+      for (let at = hay.indexOf(needle); at >= 0; at = hay.indexOf(needle, at + needle.length)) {
+        const r = new Range();
+        r.setStart(node, at);
+        r.setEnd(node, at + needle.length);
+        ranges.push(r);
+      }
+    }
+    found = { text, pane, ranges, i: forward ? -1 : 0 };
+    CSS.highlights.set('find', new Highlight(...ranges));
+  }
+  const n = found.ranges.length;
+  if (n) {
+    found.i = (found.i + (forward ? 1 : -1) + n) % n;
+    const r = found.ranges[found.i];
+    CSS.highlights.set('find-current', new Highlight(r));
+    r.startContainer.parentElement.scrollIntoView({ block: 'center' });
+  } else {
+    CSS.highlights.delete('find-current');
+  }
+  api.findResult({ ordinal: n ? found.i + 1 : 0, matches: n });
+});
 
 panesEl.forEach((p, i) => p.addEventListener('pointerdown', () => state && state.activePane !== i && api.pane(i)));
 

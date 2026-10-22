@@ -841,7 +841,7 @@ function layout() {
   if (findWin && !findWin.win.isDestroyed()) {
     const tab = getTab(findWin.tabId);
     const b = findBounds();
-    if (!tab || paneOf(tab) !== activePane || tab.screen || !b) closeFind(false);
+    if (!tab || paneOf(tab) !== activePane || !!tab.screen !== findWin.screen || !b) closeFind(false);
     else findWin.win.setBounds(b);
   }
   if (fullTab && (!tabs.includes(fullTab) || !fullTab.view || paneOf(fullTab) < 0)) setHtmlFullscreen(fullTab, false);
@@ -1132,7 +1132,8 @@ function suggestAction(action, arg) {
 // ---------------------------------------------------------------- recherche dans la page
 
 // Ctrl+F : une petite fenêtre en haut à droite de l'écran actif (la page, vue native, couvrirait l'interface).
-let findWin = null; // { win, tabId }
+// Sur un écran du terminal (historique, favoris, aide…), c'est l'interface qui cherche et surligne.
+let findWin = null; // { win, tabId, screen }
 
 function findBounds() {
   const r = rects[activePane];
@@ -1144,11 +1145,11 @@ function findBounds() {
 
 function openFind() {
   const tab = activeTab();
-  if (!tab.view || tab.screen) return focusTerminal('find ');
+  const screen = !tab.view || !!tab.screen;
   const bounds = findBounds();
   if (!bounds) return undefined;
   if (findWin && !findWin.win.isDestroyed()) {
-    if (findWin.tabId !== tab.id) closeFind();
+    if (findWin.tabId !== tab.id || findWin.screen !== screen) closeFind(false);
     else {
       findWin.win.setBounds(bounds);
       findWin.win.focus();
@@ -1166,11 +1167,11 @@ function openFind() {
     backgroundColor: isLight() ? '#F6F7F9' : tab.private ? '#1A1024' : '#0E1116',
     webPreferences: { preload: path.join(__dirname, 'panel-preload.js'), sandbox: true, contextIsolation: true },
   });
-  findWin = { win: fw, tabId: tab.id };
+  findWin = { win: fw, tabId: tab.id, screen };
   fw.loadFile(path.join(__dirname, '../renderer/find.html'), { query: { accent: accentColor(), mode: isLight() ? 'jour' : 'nuit', private: tab.private ? '1' : '' } });
   fw.webContents.once('did-finish-load', () => fw.webContents.send('panel:data', {
     text: tab.findText || '',
-    labels: { placeholder: t('chercher dans la page'), next: t('Résultat suivant (Entrée)'), prev: t('Résultat précédent (Maj+Entrée)'), close: t('Fermer (Échap)') },
+    labels: { placeholder: screen ? t('chercher dans l\'écran') : t('chercher dans la page'), next: t('Résultat suivant (Entrée)'), prev: t('Résultat précédent (Maj+Entrée)'), close: t('Fermer (Échap)') },
   }));
   fw.once('ready-to-show', () => fw.show());
   fw.on('closed', () => {
@@ -1181,10 +1182,16 @@ function openFind() {
 
 function closeFind(focusPage = true) {
   if (!findWin) return;
-  const { win: fw, tabId } = findWin;
+  const { win: fw, tabId, screen } = findWin;
   findWin = null;
   if (!fw.isDestroyed()) fw.close();
   const tab = getTab(tabId);
+  if (tab) tab.findText = '';
+  if (screen) {
+    if (win && !win.isDestroyed()) win.webContents.send('ui:find', { text: '' });
+    if (focusPage) focusTerminal();
+    return;
+  }
   const wc = tab && tab.view && tab.view.webContents;
   if (!wc || wc.isDestroyed()) return;
   wc.stopFindInPage('clearSelection');
@@ -1197,8 +1204,12 @@ function closeFind(focusPage = true) {
 
 function findAction(action, arg) {
   const tab = getTab(findWin.tabId);
-  if (action === 'close' || !tab || !tab.view) return closeFind();
+  if (action === 'close' || !tab || (!findWin.screen && !tab.view)) return closeFind();
   if (action !== 'find' || !arg || typeof arg.text !== 'string' || !arg.text) return undefined;
+  if (findWin.screen) {
+    win.webContents.send('ui:find', { pane: paneOf(tab), text: arg.text, forward: arg.forward !== false });
+    return undefined;
+  }
   // Pour Electron, findNext: true ouvre une nouvelle recherche ; false passe au résultat suivant.
   tab.view.webContents.findInPage(arg.text, { findNext: tab.findText !== arg.text, forward: arg.forward !== false });
   tab.findText = arg.text;
@@ -2371,8 +2382,10 @@ async function exec(raw, depth = 0) {
         }
         break;
       case 'find':
-        if (!tab.view || tab.screen) throw new Error(t('aucune page ouverte'));
-        if (!rest) openFind();
+        if (!rest || !tab.view || tab.screen) {
+          if (rest) tab.findText = rest;
+          openFind();
+        }
         else {
           // Pour Electron, findNext: true ouvre une nouvelle recherche ; false passe au résultat suivant.
           tab.view.webContents.findInPage(rest, { findNext: tab.findText !== rest });
@@ -2811,6 +2824,7 @@ async function registerWindowsBrowser() {
   await reg(`${base}\\Capabilities`, 'ApplicationName', 'Zenith');
   await reg(`${base}\\Capabilities`, 'ApplicationDescription', t('Navigateur qui se pilote comme un terminal'));
   await reg(`${base}\\Capabilities`, 'ApplicationIcon', `"${exe}",0`);
+  await reg(`${base}\\Capabilities\\StartMenu`, 'StartMenuInternet', 'Zenith');
   for (const p of ['http', 'https']) await reg(`${base}\\Capabilities\\URLAssociations`, p, 'ZenithURL');
   for (const ext of ['.htm', '.html']) await reg(`${base}\\Capabilities\\FileAssociations`, ext, 'ZenithHTML');
   await reg('RegisteredApplications', 'Zenith', `Software\\${base}\\Capabilities`);
@@ -2819,7 +2833,10 @@ async function registerWindowsBrowser() {
     if (cls === 'ZenithURL') await reg(`Classes\\${cls}`, 'URL Protocol', '');
     await reg(`Classes\\${cls}\\DefaultIcon`, null, `"${exe}",0`);
     await reg(`Classes\\${cls}\\shell\\open\\command`, null, `"${exe}" "%1"`);
+    await reg(`Classes\\${cls}\\Application`, 'ApplicationName', 'Zenith');
+    await reg(`Classes\\${cls}\\Application`, 'ApplicationIcon', `"${exe}",0`);
   }
+  for (const ext of ['.htm', '.html']) await reg(`Classes\\${ext}\\OpenWithProgids`, 'ZenithHTML', '');
 }
 
 async function defaultCommand(say) {
@@ -3589,6 +3606,9 @@ function setupIpc() {
     aiAsk(tab, q, tab.screen, (l, c) => print([{ t: l, c }]));
   });
   onUi('ui:recent-menu', () => recentMenu());
+  onUi('ui:find-result', (e, r) => {
+    if (findWin && findWin.screen && !findWin.win.isDestroyed() && r) findWin.win.webContents.send('panel:data', { ordinal: Number(r.ordinal) || 0, matches: Number(r.matches) || 0 });
+  });
   onUi('ui:lang', (e) => {
     e.returnValue = getLang();
   });
