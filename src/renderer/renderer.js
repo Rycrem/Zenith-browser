@@ -287,6 +287,15 @@ $('#url-reload').addEventListener('click', () => run('reload', { echo: false }))
 // L'adresse en haut se modifie à la main (Entrée : y aller, Échap : annuler) ; le bouton à droite la copie.
 // En tapant, l'historique propose des pages (↑/↓ pour choisir, clic pour y aller).
 const urlInput = $('#url');
+// Au repos, seul le site s'affiche ; un clic montre l'adresse complète.
+const siteOf = (url) => {
+  try {
+    const u = new URL(url);
+    return /^https?:$/.test(u.protocol) ? u.host : url;
+  } catch {
+    return url;
+  }
+};
 let suggestions = [];
 let suggestSel = -1;
 let suggestTyped = '';
@@ -308,7 +317,10 @@ $('#url-form').addEventListener('submit', async (e) => {
   await run(`go ${url}`);
   api.focusPage();
 });
-urlInput.addEventListener('focus', () => urlInput.select());
+urlInput.addEventListener('focus', () => {
+  urlInput.value = state.status.url;
+  urlInput.select();
+});
 urlInput.addEventListener('input', async () => {
   suggestTyped = urlInput.value;
   suggestSel = -1;
@@ -345,7 +357,7 @@ urlInput.addEventListener('keydown', async (e) => {
   urlInput.blur();
 });
 urlInput.addEventListener('blur', () => {
-  urlInput.value = state.status.url;
+  urlInput.value = siteOf(state.status.url);
   // Laisse passer un clic sur une suggestion avant de fermer la liste.
   setTimeout(() => { if (document.activeElement !== urlInput) closeSuggest(); }, 200);
 });
@@ -721,7 +733,7 @@ function renderTabs() {
     }
   });
   // Pas pendant qu'on la modifie.
-  if (document.activeElement !== urlInput) urlInput.value = state.status.url;
+  if (document.activeElement !== urlInput) urlInput.value = siteOf(state.status.url);
 }
 
 function renderPanes() {

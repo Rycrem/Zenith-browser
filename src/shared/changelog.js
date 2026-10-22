@@ -10,14 +10,14 @@ const CHANGELOG = [
       'Les flèches ‹ › sont dans un petit cadre à droite du + et passent à l\'onglet précédent ou suivant.',
       'Glisser un onglet écarte doucement ses voisins pour montrer la place où il sera posé, puis il y glisse.',
       'Ctrl+Tab, Ctrl+Maj+Tab et les autres raccourcis marchent aussi quand le curseur est dans le terminal.',
-      'La barre d\'adresse garde toujours la même largeur, quelle que soit l\'adresse.',
+      'La barre d\'adresse n\'affiche que le site (easyrea.atlassian.net) ; un clic montre l\'adresse complète, et le bouton copier copie toujours le lien entier.',
     ],
     en: [
       'In split, each pane has its own tabs: the tab bar splits like the terminal, with a + and arrows on each side. Ctrl+Tab only goes through the active pane\'s tabs.',
       'The ‹ › arrows sit in a small box right of + and go to the previous or next tab.',
       'Dragging a tab gently slides its neighbours apart to show where it will land, then it slides into place.',
       'Ctrl+Tab, Ctrl+Shift+Tab and the other shortcuts also work while the cursor is in the terminal.',
-      'The address box always keeps the same width, whatever the address.',
+      'The address box only shows the site (easyrea.atlassian.net); click it to see the full address, and the copy button still copies the whole link.',
     ],
   },
   {
