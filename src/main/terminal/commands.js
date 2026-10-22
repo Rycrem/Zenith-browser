@@ -382,14 +382,14 @@ async function select(tab, n, newTab, say, onlyKind) {
   }
   switch (item.kind) {
     case 'url':
-      if (newTab) tabList.createTab({ url: item.url, background: true });
+      if (newTab) tabList.createTab({ url: item.url, background: true, opener: tab });
       else navigation.navigate(tab, item.url);
       break;
     case 'search':
       for (const l of await search.runSearch(tab, item.query)) say(l.t, l.c);
       break;
     case 'link':
-      if (newTab && item.href) tabList.createTab({ url: item.href, background: true });
+      if (newTab && item.href) tabList.createTab({ url: item.href, background: true, opener: tab });
       else if (!(await links.clickLink(tab, item.i))) throw new Error(t('ce lien n\'existe plus, relance « clicks »'));
       tab.numbered = [];
       break;

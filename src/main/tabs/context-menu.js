@@ -20,7 +20,7 @@ function showContextMenu(tab, p) {
   ];
   if (p.linkURL) {
     items.push(
-      { label: t('Ouvrir le lien dans un nouvel onglet'), click: () => tabList.createTab({ url: p.linkURL, background: true }) },
+      { label: t('Ouvrir le lien dans un nouvel onglet'), click: () => tabList.createTab({ url: p.linkURL, background: true, opener: tab }) },
       { label: t('Ouvrir le lien dans l\'autre écran'), click: () => split.openInOtherPane(p.linkURL) },
       { label: t('Copier l\'adresse du lien'), click: () => clipboard.writeText(p.linkURL) },
       { label: t('Télécharger le lien'), click: () => wc.downloadURL(p.linkURL) },
@@ -30,7 +30,7 @@ function showContextMenu(tab, p) {
   if (p.mediaType === 'image' && p.srcURL) {
     items.push(
       { label: t('Enregistrer l\'image (dans Téléchargements)'), click: () => wc.downloadURL(p.srcURL) },
-      { label: t('Ouvrir l\'image dans un nouvel onglet'), click: () => tabList.createTab({ url: p.srcURL, background: true }) },
+      { label: t('Ouvrir l\'image dans un nouvel onglet'), click: () => tabList.createTab({ url: p.srcURL, background: true, opener: tab }) },
       { label: t('Copier l\'image'), click: () => wc.copyImageAt(p.x, p.y) },
       { label: t('Copier l\'adresse de l\'image'), click: () => clipboard.writeText(p.srcURL) },
       { type: 'separator' },

@@ -86,7 +86,7 @@ function sendStateNow() {
     private: !!state.privateMode,
     platform: process.platform,
     engine: state.settings.data.engine,
-    tabs: state.tabs.map((t, i) => ({ id: t.id, n: i + 1, side: tabList.sideOf(t), title: tabList.tabTitle(t), loading: t.loading, pane: tabList.paneOf(t), audible: !!t.audible, muted: audio.isMuted(t), private: !!t.private })),
+    tabs: state.tabs.map((t, i) => ({ id: t.id, n: i + 1, side: tabList.sideOf(t), title: tabList.tabTitle(t), loading: t.loading, pane: tabList.paneOf(t), audible: !!t.audible, muted: audio.isMuted(t), private: !!t.private, favicon: !t.screen && t.view ? t.favicon || null : null })),
     panes: state.panes.map((p) => {
       const t = tabList.getTab(p.tabId);
       return {

@@ -50,11 +50,18 @@ function replacement(side, except) {
 }
 
 // priv : onglet privé ; par défaut, comme l'onglet affiché dans l'écran (split dont un écran est privé).
-function createTab({ url, background = false, pane = state.activePane, priv } = {}) {
+// opener : onglet d'où vient le lien (Ctrl+clic…) ; le nouvel onglet se place juste après lui, et
+// après ceux déjà ouverts depuis lui à la suite, pour qu'ils restent dans l'ordre des clics.
+function createTab({ url, background = false, pane = state.activePane, priv, opener } = {}) {
   const shown = state.panes[pane] && getTab(state.panes[pane].tabId);
   const isPrivate = !!state.privateMode || (priv !== undefined ? !!priv : !!(shown && shown.private));
   const tab = { id: nextTabId++, side: state.panes.length > 1 ? pane : 0, view: null, dev: null, screen: null, numbered: [], title: '', url: '', loading: false, private: isPrivate };
-  state.tabs.push(tab);
+  let at = opener && sideOf(opener) === tab.side ? state.tabs.indexOf(opener) + 1 : 0;
+  if (at) {
+    tab.openerId = opener.id;
+    while (state.tabs[at] && state.tabs[at].openerId === opener.id) at++;
+    state.tabs.splice(at, 0, tab);
+  } else state.tabs.push(tab);
   sortSides();
   if (url) navigation.navigate(tab, url);
   else screens.showHome(tab);
