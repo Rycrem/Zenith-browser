@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, WebContentsView, Menu, ipcMain, session, shell, clipboard, net, dialog, nativeTheme, screen } = require('electron');
+const { app, BrowserWindow, WebContentsView, Menu, ipcMain, session, shell, clipboard, net, dialog, nativeTheme, screen, crashReporter } = require('electron');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -3760,6 +3760,22 @@ function createWindow() {
   win.setMenuBarVisibility(false);
   if (settings.data.window && settings.data.window.maximized) win.maximize();
   win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
+  // Les erreurs et les blocages de l'interface vont dans le journal ; bloquée, elle est relancée.
+  win.webContents.on('console-message', (e) => {
+    if (e.level === 'error') journal.log(`interface : ${e.message} (${path.basename(e.sourceId || '')}:${e.lineNumber})`);
+  });
+  let hung = null;
+  win.webContents.on('unresponsive', () => {
+    journal.log('interface bloquée');
+    hung = setTimeout(() => {
+      journal.log('interface toujours bloquée : relancée');
+      if (!win.isDestroyed()) win.webContents.forcefullyCrashRenderer();
+    }, 5000);
+  });
+  win.webContents.on('responsive', () => {
+    clearTimeout(hung);
+    journal.log('interface débloquée');
+  });
   // Réduite puis rouverte, la fenêtre revient sur l'écran où elle était, pas sur l'écran principal.
   let beforeMinimize = null;
   win.on('minimize', () => {
@@ -3816,9 +3832,22 @@ function createWindow() {
 // Journal (zenith.log dans le dossier de données) : lancement, extensions, plantages.
 journal.open(app.getPath('userData'));
 journal.log(`lancement de Zenith ${app.getVersion()} (Electron ${process.versions.electron}, ${process.platform} ${os.release()})`);
+// Un plantage du processus principal ne passe par aucun code JavaScript : seul un rapport de
+// plantage (gardé sur le disque, jamais envoyé) et le témoin de session en laissent une trace.
+app.setPath('crashDumps', path.join(app.getPath('userData'), 'Crashpad'));
+crashReporter.start({ uploadToServer: false });
+const session_ = journal.sessionGuard(app.getPath('userData'));
+if (session_.previous) {
+  const dumps = journal.dumpsSince(app.getPath('crashDumps'), session_.previous);
+  journal.log(`la session commencée à ${session_.previous} s'est arrêtée sans fermeture normale${dumps.length ? ` ; rapport de plantage : ${dumps[0]}` : ' (pas de rapport de plantage : fin de tâche, coupure ou blocage)'}`);
+}
 process.on('uncaughtException', (err) => journal.log('erreur non rattrapée :', err));
 process.on('unhandledRejection', (err) => journal.log('promesse rejetée non rattrapée :', err instanceof Error ? err : String(err)));
-app.on('render-process-gone', (e, wc, d) => journal.log(`page arrêtée (${d.reason}, code ${d.exitCode}) : ${wc && !wc.isDestroyed() ? wc.getURL() : '?'}`));
+app.on('render-process-gone', (e, wc, d) => {
+  journal.log(`page arrêtée (${d.reason}, code ${d.exitCode}) : ${wc && !wc.isDestroyed() ? wc.getURL() : '?'}`);
+  // L'interface (onglets, terminal) s'est arrêtée : on la recharge plutôt que de laisser une fenêtre vide.
+  if (win && !win.isDestroyed() && wc === win.webContents && d.reason !== 'clean-exit') setTimeout(() => !win.isDestroyed() && win.webContents.reload(), 500);
+});
 app.on('child-process-gone', (e, d) => journal.log(`processus ${d.type}${d.name ? ` (${d.name})` : ''} arrêté : ${d.reason}, code ${d.exitCode}`));
 // Une seule fenêtre Zenith : un second lancement (lien ouvert depuis une autre appli) passe ses adresses à la première.
 if (!app.requestSingleInstanceLock()) {
@@ -3894,6 +3923,7 @@ app.whenReady().then(async () => {
 
 app.on('before-quit', () => {
   guard.done(); // fermeture normale, même avant la fin du démarrage
+  session_.done();
   for (const s of [favorites, history, settings, sessionStore]) if (s) s.flush();
 });
 
