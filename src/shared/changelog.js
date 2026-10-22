@@ -7,9 +7,15 @@ const CHANGELOG = [
     version: '0.1.27',
     notes: [
       'La barre d\'adresse a une largeur fixe, deux fois celle qu\'elle avait sur l\'accueil ; elle n\'affiche toujours que le site, l\'adresse complète au clic.',
+      'Ctrl+F marche partout : sur l\'historique, les favoris, l\'aide et les autres écrans, les résultats sont surlignés.',
+      'Glisser un onglet : le contour animé revient, plus lent, en plus de la place qui s\'ouvre ; on peut aussi le poser tout au bout à droite.',
+      'L\'installateur Windows affiche le détail de l\'installation dès le début (vérification, fichiers, réglages, raccourcis) et attend qu\'on clique sur Suivant.',
     ],
     en: [
       'The address box has a fixed width, twice what it had on the home screen; it still only shows the site, with the full address on click.',
+      'Ctrl+F works everywhere: on history, bookmarks, help and the other screens, matches are highlighted.',
+      'Dragging a tab: the animated outline is back, slower, along with the opening spot; a tab can also be dropped at the far right.',
+      'The Windows installer shows the installation details from the start (check, files, settings, shortcuts) and waits for a click on Next.',
     ],
   },
   {

@@ -6,10 +6,38 @@
 
 !include LogicLib.nsh
 
-; Le détail de l'installation (fichiers copiés, réglages écrits) reste affiché pendant l'installation.
+; Le détail de l'installation (fichiers copiés, réglages écrits) reste affiché pendant l'installation,
+; et la page ne passe pas toute seule à la fin : on a le temps de le lire.
 !macro customHeader
   ShowInstDetails show
   ShowUninstDetails show
+  AutoCloseWindow false
+!macroend
+
+; electron-builder coupe le détail (SetDetailsPrint none) au tout début de l'installation, avant de
+; décompresser les fichiers : on le rallume dès la vérification « Zenith est-il ouvert ? » qui suit,
+; puis on fait cette vérification comme lui (avec ce qu'il n'inclut plus quand elle est personnalisée).
+!include "getProcessInfo.nsh"
+Var pid
+
+!macro customCheckAppRunning
+  ${IfNot} ${Silent}
+    SetDetailsPrint both
+  ${EndIf}
+  ${If} $LANGUAGE == 1036
+    DetailPrint "Vérification que Zenith est fermé…"
+  ${Else}
+    DetailPrint "Checking that Zenith is closed…"
+  ${EndIf}
+  !insertmacro IS_POWERSHELL_AVAILABLE
+  !insertmacro _CHECK_APP_RUNNING
+  !ifndef BUILD_UNINSTALLER
+    ${If} $LANGUAGE == 1036
+      DetailPrint "Installation des fichiers de Zenith dans $INSTDIR…"
+    ${Else}
+      DetailPrint "Installing Zenith files to $INSTDIR…"
+    ${EndIf}
+  !endif
 !macroend
 
 !ifndef BUILD_UNINSTALLER
@@ -61,7 +89,6 @@
 !endif
 
 !macro customInstall
-  ; electron-builder coupe le détail (SetDetailsPrint none) au début de l'installation : on le rallume.
   ${IfNot} ${Silent}
     SetDetailsPrint both
   ${EndIf}
