@@ -165,4 +165,6 @@ Everything else happens only when you ask for it, and then goes to a service you
 
 ## License
 
+Copyright (C) 2026 Emeric Krikor Keskin ([Rycrem](https://github.com/Rycrem)).
+
 GPL-3.0 or later (see [LICENSE](LICENSE)), because of the electron-chrome-extensions library, distributed under GPL-3.0.
