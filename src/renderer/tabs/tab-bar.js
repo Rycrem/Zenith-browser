@@ -135,7 +135,7 @@ function tabEl(tb, shown) {
       onauxclick: (e) => { if (e.button === 1) api.closeTab(tb.id); },
       onpointerdown: (e) => startTabDrag(e, tb),
     },
-    h('button', { type: 'button', class: 'label', title: tb.title, onclick: () => api.tab(tb.id) }, tb.loading ? h('span', { class: 'spin', 'aria-label': t('chargement…') }) : null, `[${tb.n}] `, tb.title),
+    h('button', { type: 'button', class: 'label', title: tb.title, onclick: () => api.tab(tb.id) }, tb.loading ? h('span', { class: 'spin', 'aria-label': t('chargement…') }) : tb.favicon ? h('img', { class: 'favicon', src: tb.favicon, alt: '' }) : null, h('span', { class: 'text' }, `[${tb.n}] `, tb.title)),
     tb.audible || tb.muted ? h('button', {
       type: 'button',
       class: `speaker${tb.muted ? ' muted' : ''}`,

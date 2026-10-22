@@ -16,6 +16,7 @@ const output = require('../terminal/output');
 const tty = require('../page/tty');
 const contextMenu = require('./context-menu');
 const audio = require('../audio/audio');
+const favicon = require('./favicon');
 
 function ensureView(tab) {
   if (tab.view) return tab.view;
@@ -79,6 +80,7 @@ function wireWebContents(tab, wc) {
   wc.on('did-frame-finish-load', () => audio.applyVolume(tab));
   wc.on('did-stop-loading', () => {
     tab.loading = false;
+    favicon.faviconLoaded(tab);
     tab.blank = false;
     // Notre bouton seulement si le store n'a pas appelé webstorePrivate entre-temps (le sien marche alors).
     setTimeout(() => webStore.storeButton(tab), 2000);
@@ -93,6 +95,7 @@ function wireWebContents(tab, wc) {
     navigation.unblank(tab);
     if (tab.tty && (!tab.screen || tab.screen.kind === 'tty')) tty.showTty(tab, true);
   });
+  wc.on('page-favicon-updated', (e, favicons) => favicon.setFavicon(tab, favicons[0]));
   wc.on('page-title-updated', (e, title) => {
     tab.title = title;
     const last = state.history.data.entries[state.history.data.entries.length - 1];
@@ -103,6 +106,7 @@ function wireWebContents(tab, wc) {
     ui.sendState();
   });
   wc.on('did-navigate', (e, url) => {
+    favicon.faviconNavigated(tab);
     navigation.recordNavigation(tab, wc);
     tab.url = url;
     if (tab.numberedKind === 'links') tab.numbered = [];
@@ -166,7 +170,7 @@ function wireWebContents(tab, wc) {
   wc.setWindowOpenHandler(({ url, disposition }) => {
     // Les vraies popups (connexion OAuth, etc.) restent des fenêtres ; le reste devient un onglet.
     if (disposition === 'new-window') return { action: 'allow' };
-    tabList.createTab({ url, background: disposition === 'background-tab', priv: tab.private });
+    tabList.createTab({ url, background: disposition === 'background-tab', priv: tab.private, opener: tab });
     return { action: 'deny' };
   });
 }

@@ -128,6 +128,9 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
   display: flex;
   align-items: center;
   gap: 6px;
+  /* Trop d'onglets : ils rétrécissent jusqu'au tiers de leur largeur, puis la barre défile. */
+  flex: 0 1 auto;
+  min-width: 74px;
   max-width: 220px;
   padding: 4px 6px 4px 10px;
   border-radius: 4px;
@@ -140,11 +143,16 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
 .tab .label { overflow: hidden; text-overflow: ellipsis; }
 .tab .close { width: 18px; height: 18px; border-radius: 3px; color: var(--dim); }
 .tab .close:hover { background: var(--line); color: var(--text); }
-.tab .label { display: flex; align-items: center; gap: 6px; }
+.tab .label { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1 1 auto; }
+.tab .text { overflow: hidden; text-overflow: ellipsis; }
+.tab .favicon { flex: none; width: 14px; height: 14px; object-fit: contain; }
 /* Chargement : un petit anneau qui tourne devant le titre. */
 .tab .spin { flex: none; width: 11px; height: 11px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: tab-spin .7s linear infinite; }
 @keyframes tab-spin { to { transform: rotate(360deg); } }
 .tab.private { box-shadow: inset 0 -2px 0 #B48CF2; }
+/* Onglet affiché : souligné de la couleur d'accent (orange par défaut) ; plus discret dans l'écran inactif du split. */
+.tab.active { box-shadow: inset 0 -2px 0 var(--accent); }
+#app.split .tab-group:not(.active) .tab.active { box-shadow: inset 0 -2px 0 var(--dim); }
 .pane[data-private], .term-col[data-private] { --accent: #E5484D; }
 .tab.dragging { position: relative; z-index: 2; background: var(--chip); color: var(--text); box-shadow: 0 0 0 1px var(--accent); cursor: grabbing; }
 /* Les voisins s'écartent doucement pour ouvrir la place, puis l'onglet lâché y glisse. */

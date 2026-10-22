@@ -4,6 +4,19 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.35',
+    notes: [
+      'Les onglets affichent l\'icône de leur site, et celui affiché est souligné en orange (la couleur d\'accent).',
+      'Quand il y a trop d\'onglets, ils rétrécissent jusqu\'au tiers de leur largeur avant que la barre défile.',
+      'Un lien ouvert en Ctrl+clic s\'ouvre juste à côté de l\'onglet d\'où il vient, dans l\'ordre des clics.',
+    ],
+    en: [
+      'Tabs show their site\'s icon, and the one shown is underlined in orange (the accent color).',
+      'When there are too many tabs, they shrink down to a third of their width before the bar scrolls.',
+      'A link opened with Ctrl+click opens right next to the tab it came from, in click order.',
+    ],
+  },
+  {
     version: '0.1.34',
     notes: [
       'Installer ou désinstaller une extension depuis le Chrome Web Store ouvre une fenêtre aux couleurs de Zenith (accent, mode nuit ou jour, navigation privée), avec la liste de ce que l\'extension pourra faire.',
