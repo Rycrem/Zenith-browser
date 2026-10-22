@@ -153,12 +153,29 @@ function paneOf(tab) {
   return panes.findIndex((p) => p.tabId === tab.id);
 }
 
+// En split, chaque écran a ses propres onglets (tab.side : 0 ou 1). Ceux de gauche restent
+// en tête de la liste, pour que les numéros se suivent d'une barre à l'autre.
+const sideOf = (tab) => (panes.length > 1 ? tab.side : 0);
+const sideTabs = (side) => tabs.filter((tb) => sideOf(tb) === side);
+const sortSides = () => tabs.sort((a, b) => a.side - b.side);
+
+// L'onglet est choisi dans son propre écran.
+function selectTab(tab) {
+  showInPane(tab, sideOf(tab));
+}
+
+// Un autre onglet du même côté, ou un nouveau s'il n'en reste pas.
+function replacement(side, except) {
+  return sideTabs(side).find((tb) => tb !== except) || createTab({ background: true, pane: side });
+}
+
 // priv : onglet privé ; par défaut, comme l'onglet affiché dans l'écran (split dont un écran est privé).
 function createTab({ url, background = false, pane = activePane, priv } = {}) {
   const shown = panes[pane] && getTab(panes[pane].tabId);
   const isPrivate = !!privateMode || (priv !== undefined ? !!priv : !!(shown && shown.private));
-  const tab = { id: nextTabId++, view: null, dev: null, screen: null, numbered: [], title: '', url: '', loading: false, private: isPrivate };
+  const tab = { id: nextTabId++, side: panes.length > 1 ? pane : 0, view: null, dev: null, screen: null, numbered: [], title: '', url: '', loading: false, private: isPrivate };
   tabs.push(tab);
+  sortSides();
   if (url) navigate(tab, url);
   else showHome(tab);
   if (!background) showInPane(tab, pane);
@@ -259,7 +276,7 @@ function setupChromeApi(s) {
     selectTab(wc) {
       if (addingTab) return;
       const tab = tabOfContents(wc);
-      if (tab) showInPane(tab, activePane);
+      if (tab) selectTab(tab);
     },
     removeTab(wc) {
       const tab = tabOfContents(wc);
@@ -723,8 +740,13 @@ function goForward(tab) {
 
 function showInPane(tab, idx) {
   if (findWin && findWin.tabId !== tab.id && idx === activePane) closeFind(false);
-  const other = panes.findIndex((p, i) => i !== idx && p.tabId === tab.id);
-  if (other >= 0) panes[other].tabId = panes[idx].tabId; // échange si l'onglet est déjà dans l'autre écran
+  // Onglet de l'autre côté : il change de côté, et son ancien écran affiche un autre de ses onglets.
+  if (sideOf(tab) !== idx) {
+    const other = paneOf(tab);
+    tab.side = idx;
+    sortSides();
+    if (other >= 0) panes[other].tabId = replacement(other, tab).id;
+  }
   panes[idx].tabId = tab.id;
   activePane = idx;
   if (tab.view?.webContents) apiOf(tab).selectTab(tab.view.webContents);
@@ -737,6 +759,7 @@ function closePane(idx) {
   if (panes.length === 1) throw new Error(t('pas de split en cours'));
   const keep = panes[1 - idx];
   panes.splice(0, panes.length, keep);
+  for (const tb of tabs) tb.side = 0;
   activePane = 0;
   layout();
   sendState();
@@ -754,6 +777,8 @@ function destroyTab(tab) {
 function closeTab(tab) {
   const i = tabs.indexOf(tab);
   if (i < 0) return;
+  const side = sideOf(tab);
+  const si = sideTabs(side).indexOf(tab);
   tabs.splice(i, 1);
   if (findWin && findWin.tabId === tab.id) closeFind(false);
   // Dernier onglet privé d'un écran fermé : ses données s'effacent aussitôt.
@@ -765,20 +790,19 @@ function closeTab(tab) {
   destroyTab(tab);
   panes.forEach((p, pi) => {
     if (p.tabId !== tab.id) return;
-    const shown = new Set(panes.map((q) => q.tabId));
-    const next = tabs[Math.min(i, tabs.length - 1)];
-    const candidate = next && !shown.has(next.id) ? next : tabs.find((t) => !shown.has(t.id));
-    p.tabId = candidate ? candidate.id : createTab({ background: true }).id;
+    const same = sideTabs(side);
+    p.tabId = (same[Math.min(si, same.length - 1)] || createTab({ background: true, pane: pi })).id;
     if (pi === activePane) focusTerminal();
   });
   layout();
   sendState();
 }
 
+// Onglet suivant ou précédent, parmi ceux de l'écran actif.
 function cycleTab(dir) {
-  const tab = activeTab();
-  const i = tabs.indexOf(tab);
-  showInPane(tabs[(i + dir + tabs.length) % tabs.length], activePane);
+  const same = sideTabs(activePane);
+  const i = same.indexOf(activeTab());
+  showInPane(same[(i + dir + same.length) % same.length], activePane);
 }
 
 function setScreen(tab, screen, numbered = [], kind = screen.kind) {
@@ -872,7 +896,7 @@ function sendStateNow() {
     private: !!privateMode,
     platform: process.platform,
     engine: settings.data.engine,
-    tabs: tabs.map((t, i) => ({ id: t.id, n: i + 1, title: tabTitle(t), loading: t.loading, pane: paneOf(t), audible: !!t.audible, muted: isMuted(t), private: !!t.private })),
+    tabs: tabs.map((t, i) => ({ id: t.id, n: i + 1, side: sideOf(t), title: tabTitle(t), loading: t.loading, pane: paneOf(t), audible: !!t.audible, muted: isMuted(t), private: !!t.private })),
     panes: panes.map((p) => {
       const t = getTab(p.tabId);
       return {
@@ -1539,7 +1563,7 @@ function showContextMenu(tab, p) {
 function openInOtherPane(url) {
   if (panes.length === 1) panes.push({ tabId: null });
   const target = activePane === 0 ? 1 : 0;
-  const tab = createTab({ url, background: true });
+  const tab = createTab({ url, background: true, pane: target });
   showInPane(tab, target);
 }
 
@@ -1960,7 +1984,7 @@ async function panelAction(kind, action, arg) {
       applyVolume(tab);
       audioChanged();
     } else if (action === 'show') {
-      showInPane(tab, activePane);
+      selectTab(tab);
       if (panel && !panel.win.isDestroyed()) panel.win.close();
     }
   } else if (kind === 'ext') {
@@ -2275,7 +2299,7 @@ async function exec(raw, depth = 0) {
         } else {
           const t = tabs[Number(args[0]) - 1];
           if (!t) throw new Error(tr('pas d\'onglet numéro {n}', { n: args[0] }));
-          showInPane(t, activePane);
+          selectTab(t);
         }
         break;
       case 'close': {
@@ -2295,8 +2319,8 @@ async function exec(raw, depth = 0) {
         } else {
           panes.push({ tabId: null });
           const t = args.length
-            ? createTab({ url: C.looksLikeUrl(rest) ? C.normalizeUrl(rest) : undefined, background: true })
-            : createTab({ background: true });
+            ? createTab({ url: C.looksLikeUrl(rest) ? C.normalizeUrl(rest) : undefined, background: true, pane: 1 })
+            : createTab({ background: true, pane: 1 });
           showInPane(t, 1);
           if (args.length && !C.looksLikeUrl(rest)) out.push(...(await runSearch(t, rest)));
         }
@@ -2488,7 +2512,7 @@ async function select(tab, n, newTab, say, onlyKind) {
     case 'tab': {
       const t = getTab(item.id);
       if (!t) throw new Error(tr('onglet fermé'));
-      showInPane(t, activePane);
+      selectTab(t);
       break;
     }
     case 'aiuse':
@@ -3446,7 +3470,7 @@ function buildMenu() {
         { label: t('Onglet suivant'), accelerator: 'Ctrl+Tab', click: act(() => cycleTab(1)) },
         { label: t('Onglet précédent'), accelerator: 'Ctrl+Shift+Tab', click: act(() => cycleTab(-1)) },
         ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({
-          label: t('Onglet {n}', { n }), accelerator: `CmdOrCtrl+${n}`, visible: false, click: act(() => tabs[n - 1] && showInPane(tabs[n - 1], activePane)),
+          label: t('Onglet {n}', { n }), accelerator: `CmdOrCtrl+${n}`, visible: false, click: act(() => tabs[n - 1] && selectTab(tabs[n - 1])),
         })),
         { label: t('Précédent'), accelerator: 'Alt+Left', click: act(() => goBack(activeTab())) },
         { label: t('Suivant'), accelerator: 'Alt+Right', click: act(() => goForward(activeTab())) },
@@ -3591,7 +3615,7 @@ function setupIpc() {
   });
   onUi('ui:tab', (e, id) => {
     const t = getTab(id);
-    if (t) showInPane(t, activePane);
+    if (t) selectTab(t);
   });
   // gap : indice de l'onglet devant lequel poser celui qu'on déplace (tabs.length : à la fin).
   onUi('ui:tab-move', (e, id, gap) => {
@@ -3600,7 +3624,14 @@ function setupIpc() {
     const to = gap > from ? gap - 1 : gap;
     if (to === from) return;
     tabs.splice(to, 0, tabs.splice(from, 1)[0]);
+    sortSides();
     sendState();
+  });
+  // Flèches de la barre d'onglets : onglet précédent ou suivant de cet écran.
+  onUi('ui:tab-cycle', (e, idx, dir) => {
+    if (!panes[idx] || (dir !== 1 && dir !== -1)) return;
+    activePane = idx;
+    cycleTab(dir);
   });
   onUi('ui:devtools', (e, action) => {
     const tab = activeTab();
@@ -3612,8 +3643,8 @@ function setupIpc() {
     const t = getTab(id);
     if (t) closeTab(t);
   });
-  onUi('ui:tab-new', () => {
-    createTab();
+  onUi('ui:tab-new', (e, idx) => {
+    createTab({ pane: panes[idx] ? idx : activePane });
     focusTerminal();
   });
   onUi('ui:pane', (e, idx) => {
@@ -3726,6 +3757,12 @@ function createWindow() {
       if (cmd === 'browser-backward') goBack(activeTab());
       else if (cmd === 'browser-forward') goForward(activeTab());
     } catch {}
+  });
+  // Ctrl+Tab passe avant le terminal, qui garderait sinon Tab pour l'autocomplétion.
+  win.webContents.on('before-input-event', (e, input) => {
+    if (input.type !== 'keyDown' || input.key !== 'Tab' || !input.control || input.alt || input.meta) return;
+    e.preventDefault();
+    cycleTab(input.shift ? -1 : 1);
   });
   // F11 ou la fenêtre qui sort du plein écran : la vidéo en sort aussi.
   win.on('leave-full-screen', () => {

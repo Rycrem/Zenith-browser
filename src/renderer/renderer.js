@@ -281,18 +281,21 @@ function renderPs1() {
   });
 }
 
-$('#new-tab').addEventListener('click', () => api.newTab());
-// Clic droit sur + : les onglets fermés récemment.
-$('#new-tab').addEventListener('contextmenu', (e) => {
-  e.preventDefault();
-  api.recentMenu();
-});
 $('#url-reload').append(reloadIcon());
 $('#url-reload').addEventListener('click', () => run('reload', { echo: false }));
 
 // L'adresse en haut se modifie à la main (Entrée : y aller, Échap : annuler) ; le bouton à droite la copie.
 // En tapant, l'historique propose des pages (↑/↓ pour choisir, clic pour y aller).
 const urlInput = $('#url');
+// Au repos, seul le site s'affiche ; un clic montre l'adresse complète.
+const siteOf = (url) => {
+  try {
+    const u = new URL(url);
+    return /^https?:$/.test(u.protocol) ? u.host : url;
+  } catch {
+    return url;
+  }
+};
 let suggestions = [];
 let suggestSel = -1;
 let suggestTyped = '';
@@ -314,7 +317,10 @@ $('#url-form').addEventListener('submit', async (e) => {
   await run(`go ${url}`);
   api.focusPage();
 });
-urlInput.addEventListener('focus', () => urlInput.select());
+urlInput.addEventListener('focus', () => {
+  urlInput.value = state.status.url;
+  urlInput.select();
+});
 urlInput.addEventListener('input', async () => {
   suggestTyped = urlInput.value;
   suggestSel = -1;
@@ -351,7 +357,7 @@ urlInput.addEventListener('keydown', async (e) => {
   urlInput.blur();
 });
 urlInput.addEventListener('blur', () => {
-  urlInput.value = state.status.url;
+  urlInput.value = siteOf(state.status.url);
   // Laisse passer un clic sur une suggestion avant de fermer la liste.
   setTimeout(() => { if (document.activeElement !== urlInput) closeSuggest(); }, 200);
 });
@@ -408,6 +414,8 @@ cols.forEach((c, i) => {
       if (ta.value) print([{ t: `❯ ${masked(ta.value)}^C`, c: 'cmd' }]);
       setInput(ta, '');
       histIndex = cmdHistory.length;
+    } else if (e.ctrlKey || e.altKey || e.metaKey) {
+      // Les autres raccourcis (Ctrl+Tab, Alt+←…) restent ceux du navigateur.
     } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
       e.preventDefault();
       histIndex = Math.max(0, Math.min(cmdHistory.length, histIndex + (e.key === 'ArrowUp' ? -1 : 1)));
@@ -512,11 +520,13 @@ dragger($('.pane-resizer'), (e) => {
   const r = content.getBoundingClientRect();
   ratio = Math.min(Math.max((e.clientX - r.left) / r.width, 0.15), 0.85);
   document.documentElement.style.setProperty('--ratio', ratio);
+  alignTabGroups();
 }, () => persist('paneRatio', ratio));
 
 // Envoyé seulement quand la place des écrans change : chaque envoi replace toutes les pages.
 let sentRects = '';
 function sendRects() {
+  alignTabGroups();
   const split = state && state.panes.length > 1;
   const rects = panesEl.map((p, i) => {
     if (i > 0 && !split) return null;
@@ -555,123 +565,132 @@ api.on('state', (s) => {
   requestAnimationFrame(sendRects);
 });
 
-// Glisser un onglet : il ne bouge que de gauche à droite. Quand un nouvel emplacement est visé,
-// les onglets qui l'entourent s'entourent d'un contour qui glisse vers lui puis reste sur leur bord,
-// et un curseur texte apparaît entre les deux.
-let tabDrag = null; // { id, el, startX, moved, gap }
-
-function tabGapAt(x) {
-  const els = [...$('#tabs').querySelectorAll('.tab')];
-  let gap = els.length;
-  for (let i = 0; i < els.length; i++) {
-    if (els[i] === tabDrag.el) continue;
-    const r = els[i].getBoundingClientRect();
-    if (x < r.left + r.width / 2) {
-      gap = i;
-      break;
-    }
-  }
-  const from = state.tabs.findIndex((tb) => tb.id === tabDrag.id);
-  return gap === from || gap === from + 1 ? -1 : gap;
-}
-
-function markTabGap(gap) {
-  const nav = $('#tabs');
-  const els = [...nav.querySelectorAll('.tab')];
-  let caret = $('.tab-caret', nav);
-  els.forEach((el, i) => {
-    el.classList.toggle('drop-r', gap >= 0 && i === gap - 1);
-    el.classList.toggle('drop-l', gap >= 0 && i === gap);
+// Une barre d'onglets par écran : en split, elle se divise comme le terminal, chaque côté avec
+// ses onglets, son + et ses flèches (onglet précédent / suivant).
+const groups = [...document.querySelectorAll('.tab-group')].map((el) => ({ el, strip: $('.tab-strip', el), prev: $('.tab-prev', el), next: $('.tab-next', el), shownId: null }));
+groups.forEach((g, i) => {
+  const plus = $('.new-tab', g.el);
+  plus.addEventListener('click', () => api.newTab(i));
+  // Clic droit sur + : les onglets fermés récemment.
+  plus.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    api.recentMenu();
   });
-  if (caret) caret.remove();
-  if (gap < 0) return;
-  caret = h('span', { class: 'tab-caret', 'aria-hidden': 'true' }, caretIcon());
-  const left = els[gap - 1];
-  const right = els[gap];
-  const x = left ? left.offsetLeft + left.offsetWidth + 2 : right.offsetLeft - 2;
-  caret.style.left = `${x - 7}px`;
-  nav.append(caret);
-  // Le curseur attend la fin de l'animation du contour.
-  setTimeout(() => caret.classList.add('on'), 260);
+  g.prev.addEventListener('click', () => api.cycleTab(i, -1));
+  g.next.addEventListener('click', () => api.cycleTab(i, 1));
+  // La molette fait défiler les onglets de côté.
+  g.strip.addEventListener('wheel', (e) => {
+    if (!e.deltaY || e.deltaX) return;
+    e.preventDefault();
+    g.strip.scrollBy({ left: e.deltaY });
+  }, { passive: false });
+});
+
+// La séparation des deux barres tombe sur celle des écrans.
+function alignTabGroups() {
+  const g = groups[0].el;
+  if (!state || state.panes.length < 2) {
+    g.style.flex = '';
+    return;
+  }
+  const edge = $('.pane-resizer').getBoundingClientRect().left;
+  g.style.flex = `0 0 ${Math.max(80, Math.round(edge - g.getBoundingClientRect().left))}px`;
 }
 
-function caretIcon() {
-  const NS = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(NS, 'svg');
-  svg.setAttribute('viewBox', '0 0 14 20');
-  const p = document.createElementNS(NS, 'path');
-  p.setAttribute('d', 'M3 2.5c2 0 4 .8 4 2.5v10c0 1.7-2 2.5-4 2.5M11 2.5c-2 0-4 .8-4 2.5v10c0 1.7 2 2.5 4 2.5M4.5 10h5');
-  p.setAttribute('fill', 'none');
-  p.setAttribute('stroke', 'currentColor');
-  p.setAttribute('stroke-width', '1.6');
-  p.setAttribute('stroke-linecap', 'round');
-  svg.append(p);
-  return svg;
+// Glisser un onglet : il suit la souris de gauche à droite, et ses voisins s'écartent doucement
+// pour ouvrir la place où il sera posé. Lâché, il glisse dans cette place.
+const TAB_SLIDE_MS = 320;
+let tabDrag = null; // { id, side, el, strip, startX, moved, from, pos, w, others, center, min, max, dropping }
+
+function slotShift(d, i) {
+  if (d.from < i && i <= d.pos) return -d.w;
+  if (d.pos <= i && i < d.from) return d.w;
+  return 0;
 }
 
 function startTabDrag(e, tb) {
-  if (e.button !== 0 || e.target.closest('.close, .speaker')) return;
+  if (e.button !== 0 || tabDrag || e.target.closest('.close, .speaker')) return;
   const el = e.currentTarget;
-  tabDrag = { id: tb.id, el, startX: e.clientX, moved: false, gap: -1 };
+  const strip = el.parentNode;
+  const els = [...strip.querySelectorAll('.tab')];
+  const r = el.getBoundingClientRect();
+  const sr = strip.getBoundingClientRect();
+  const from = els.indexOf(el);
+  const d = {
+    id: tb.id,
+    side: tb.side,
+    el,
+    strip,
+    startX: e.clientX,
+    moved: false,
+    from,
+    pos: from,
+    w: r.width + 4,
+    others: els.map((x) => {
+      const b = x.getBoundingClientRect();
+      return { el: x, center: b.left + b.width / 2, w: b.width + 4 };
+    }),
+    center: r.left + r.width / 2,
+    min: sr.left - r.left,
+    max: sr.right - r.right,
+  };
+  tabDrag = d;
   const move = (ev) => {
-    const dx = ev.clientX - tabDrag.startX;
-    if (!tabDrag.moved && Math.abs(dx) < 5) return;
-    if (!tabDrag.moved) {
-      tabDrag.moved = true;
+    const raw = ev.clientX - d.startX;
+    if (!d.moved && Math.abs(raw) < 5) return;
+    if (!d.moved) {
+      d.moved = true;
       el.classList.add('dragging');
+      strip.classList.add('sorting');
     }
-    // Toujours à la hauteur de départ : seul le déplacement horizontal compte.
+    const dx = Math.min(Math.max(raw, d.min), d.max);
     el.style.transform = `translateX(${dx}px)`;
-    const gap = tabGapAt(ev.clientX);
-    if (gap !== tabDrag.gap) {
-      tabDrag.gap = gap;
-      markTabGap(gap);
-    }
+    // Sa place : après chaque voisin dont il a dépassé le milieu.
+    const c = d.center + dx;
+    const pos = d.others.filter((o, i) => i !== d.from && o.center < c).length;
+    if (pos === d.pos) return;
+    d.pos = pos;
+    d.others.forEach((o, i) => {
+      if (i === d.from) return;
+      const s = slotShift(d, i);
+      o.el.style.transform = s ? `translateX(${s}px)` : '';
+    });
   };
   const up = () => {
     window.removeEventListener('pointermove', move);
     window.removeEventListener('pointerup', up);
     window.removeEventListener('blur', up);
-    const d = tabDrag;
-    tabDrag = null;
-    if (!d.moved) return;
+    if (!d.moved) {
+      tabDrag = null;
+      return;
+    }
     // Le clic qui suit le glissement ne doit pas changer d'onglet.
     window.addEventListener('click', (ev) => ev.stopPropagation(), { capture: true, once: true });
-    setTimeout(() => renderTabs(), 0);
-    if (d.gap >= 0) api.moveTab(d.id, d.gap);
+    d.dropping = true;
+    const lo = Math.min(d.from, d.pos);
+    const hi = Math.max(d.from, d.pos);
+    const slot = d.others.slice(lo, hi + 1).filter((o, k) => lo + k !== d.from).reduce((sum, o) => sum + o.w, 0);
+    el.classList.add('settling');
+    el.style.transform = `translateX(${d.pos > d.from ? slot : -slot}px)`;
+    setTimeout(() => {
+      tabDrag = null;
+      if (d.pos !== d.from) {
+        const offset = state.tabs.findIndex((x) => x.side === d.side);
+        api.moveTab(d.id, offset + (d.pos > d.from ? d.pos + 1 : d.pos));
+      }
+      renderTabs();
+    }, TAB_SLIDE_MS);
   };
   window.addEventListener('pointermove', move);
   window.addEventListener('pointerup', up);
   window.addEventListener('blur', up);
 }
 
-const tabsNav = $('#tabs');
-function updateTabArrows() {
-  const over = tabsNav.scrollWidth > tabsNav.clientWidth + 1;
-  $('#tabs-left').hidden = !over;
-  $('#tabs-right').hidden = !over;
-  $('#tabs-left').disabled = tabsNav.scrollLeft <= 0;
-  $('#tabs-right').disabled = tabsNav.scrollLeft + tabsNav.clientWidth >= tabsNav.scrollWidth - 1;
-}
-$('#tabs-left').addEventListener('click', () => tabsNav.scrollBy({ left: -240, behavior: 'smooth' }));
-$('#tabs-right').addEventListener('click', () => tabsNav.scrollBy({ left: 240, behavior: 'smooth' }));
-tabsNav.addEventListener('scroll', updateTabArrows);
-new ResizeObserver(updateTabArrows).observe(tabsNav);
-// La molette fait défiler les onglets de côté.
-tabsNav.addEventListener('wheel', (e) => {
-  if (!e.deltaY || e.deltaX) return;
-  e.preventDefault();
-  tabsNav.scrollBy({ left: e.deltaY });
-}, { passive: false });
-
-let shownActiveId = null;
-function renderTabs() {
-  if (tabDrag && tabDrag.moved) return; // rendu à la fin du glissement
-  const activeId = state.panes[state.activePane].tabId;
-  fill(tabsNav, state.tabs.map((tb) => h(
+function tabEl(tb, shown) {
+  return h(
     'div',
     {
-      class: `tab${tb.id === activeId ? ' active' : ''}${tb.pane >= 0 && tb.id !== activeId ? ' other-pane' : ''}${tb.private ? ' private' : ''}`,
+      class: `tab${shown ? ' active' : ''}${tb.private ? ' private' : ''}`,
       // Clic molette : ferme l'onglet.
       onmousedown: (e) => { if (e.button === 1) e.preventDefault(); },
       onauxclick: (e) => { if (e.button === 1) api.closeTab(tb.id); },
@@ -688,16 +707,33 @@ function renderTabs() {
       },
     }, speaker(tb.muted)) : null,
     h('button', { type: 'button', class: 'close', 'aria-label': t('Fermer l\'onglet {n}', { n: tb.n }), onclick: () => api.closeTab(tb.id) }, '×'),
-  )));
-  // L'onglet choisi reste visible dans la barre.
-  if (activeId !== shownActiveId) {
-    shownActiveId = activeId;
-    const el = $('.tab.active', tabsNav);
-    if (el) el.scrollIntoView({ inline: 'nearest', block: 'nearest' });
-  }
-  updateTabArrows();
+  );
+}
+
+function renderTabs() {
+  if (tabDrag && tabDrag.moved) return; // rendu à la fin du glissement
+  const split = state.panes.length > 1;
+  groups.forEach((g, i) => {
+    g.el.classList.toggle('active', split && i === state.activePane);
+    if (i > 0 && !split) {
+      fill(g.strip, []);
+      g.shownId = null;
+      return;
+    }
+    const shownId = state.panes[i].tabId;
+    const list = state.tabs.filter((tb) => tb.side === i);
+    fill(g.strip, list.map((tb) => tabEl(tb, tb.id === shownId)));
+    g.prev.disabled = list.length < 2;
+    g.next.disabled = list.length < 2;
+    // L'onglet affiché reste visible dans sa barre.
+    if (shownId !== g.shownId) {
+      g.shownId = shownId;
+      const el = $('.tab.active', g.strip);
+      if (el) el.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+    }
+  });
   // Pas pendant qu'on la modifie.
-  if (document.activeElement !== urlInput) urlInput.value = state.status.url;
+  if (document.activeElement !== urlInput) urlInput.value = siteOf(state.status.url);
 }
 
 function renderPanes() {
@@ -1165,9 +1201,19 @@ function dlState(r) {
 // Libellés écrits dans index.html : traduits au démarrage et quand la langue change.
 function applyStaticLabels() {
   document.documentElement.lang = getLang();
-  $('#tabs').setAttribute('aria-label', t('Onglets'));
-  $('#new-tab').setAttribute('aria-label', t('Nouvel onglet'));
-  $('#new-tab').title = t('Nouvel onglet (Ctrl+T)');
+  for (const el of document.querySelectorAll('.tab-strip')) el.setAttribute('aria-label', t('Onglets'));
+  for (const b of document.querySelectorAll('.new-tab')) {
+    b.setAttribute('aria-label', t('Nouvel onglet'));
+    b.title = t('Nouvel onglet (Ctrl+T)');
+  }
+  for (const b of document.querySelectorAll('.tab-prev')) {
+    b.setAttribute('aria-label', t('Onglet précédent'));
+    b.title = t('Onglet précédent (Ctrl+Maj+Tab)');
+  }
+  for (const b of document.querySelectorAll('.tab-next')) {
+    b.setAttribute('aria-label', t('Onglet suivant'));
+    b.title = t('Onglet suivant (Ctrl+Tab)');
+  }
   $('#url').title = t('Modifier l\'adresse (Entrée pour y aller)');
   $('#url').placeholder = t('adresse ou recherche');
   $('#url-copy').title = t('Copier l\'adresse');

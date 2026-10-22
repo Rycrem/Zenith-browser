@@ -611,6 +611,8 @@
     "faire de Zenith le navigateur par défaut": "make Zenith the default browser",
     "<export | import> [fichier]": "<export | import> [file]",
     "enregistrer ou charger tes réglages, favoris et extensions (pour un autre ordinateur)": "save or load your settings, bookmarks and extensions (for another computer)",
+    "Onglet précédent (Ctrl+Maj+Tab)": "Previous tab (Ctrl+Shift+Tab)",
+    "Onglet suivant (Ctrl+Tab)": "Next tab (Ctrl+Tab)",
   };
 
   let lang = 'fr';

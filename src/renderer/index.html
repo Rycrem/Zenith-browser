@@ -10,10 +10,25 @@
   <div id="app">
     <header id="tabbar">
       <span class="logo">Zenith</span>
-      <nav id="tabs" aria-label="Onglets"></nav>
-      <button id="tabs-left" class="tabs-arrow" type="button" aria-label="Onglets à gauche" hidden>‹</button>
-      <button id="tabs-right" class="tabs-arrow" type="button" aria-label="Onglets à droite" hidden>›</button>
-      <button id="new-tab" type="button" aria-label="Nouvel onglet" title="Nouvel onglet (Ctrl+T)">+</button>
+      <div id="tabs">
+        <div class="tab-group" data-pane="0">
+          <nav class="tab-strip" aria-label="Onglets"></nav>
+          <button class="new-tab" type="button" aria-label="Nouvel onglet" title="Nouvel onglet (Ctrl+T)">+</button>
+          <span class="tab-nav">
+            <button class="tab-prev" type="button" aria-label="Onglet précédent" title="Onglet précédent (Ctrl+Maj+Tab)">‹</button>
+            <button class="tab-next" type="button" aria-label="Onglet suivant" title="Onglet suivant (Ctrl+Tab)">›</button>
+          </span>
+        </div>
+        <div class="tab-sep"></div>
+        <div class="tab-group" data-pane="1">
+          <nav class="tab-strip" aria-label="Onglets"></nav>
+          <button class="new-tab" type="button" aria-label="Nouvel onglet" title="Nouvel onglet (Ctrl+T)">+</button>
+          <span class="tab-nav">
+            <button class="tab-prev" type="button" aria-label="Onglet précédent" title="Onglet précédent (Ctrl+Maj+Tab)">‹</button>
+            <button class="tab-next" type="button" aria-label="Onglet suivant" title="Onglet suivant (Ctrl+Tab)">›</button>
+          </span>
+        </div>
+      </div>
       <form id="url-form" class="url" autocomplete="off">
         <button id="url-reload" type="button" title="Recharger (F5)" aria-label="Recharger"></button>
         <input id="url" spellcheck="false" title="Modifier l'adresse (Entrée pour y aller)">
