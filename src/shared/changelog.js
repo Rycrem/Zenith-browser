@@ -4,6 +4,15 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.30',
+    notes: [
+      'Le README indique le nom complet de l\'auteur de Zenith.',
+    ],
+    en: [
+      'The README shows the full name of Zenith\'s author.',
+    ],
+  },
+  {
     version: '0.1.29',
     notes: [
       'Si l\'interface (onglets, terminal) se bloque ou s\'arrête, elle se relance toute seule au bout de quelques secondes, sans fermer tes pages. Ses erreurs, ses blocages et les arrêts anormaux de Zenith sont notés dans zenith.log, avec un rapport de plantage local (jamais envoyé) dans le dossier Crashpad.',
