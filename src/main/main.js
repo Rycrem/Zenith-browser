@@ -2824,6 +2824,7 @@ async function registerWindowsBrowser() {
   await reg(`${base}\\Capabilities`, 'ApplicationName', 'Zenith');
   await reg(`${base}\\Capabilities`, 'ApplicationDescription', t('Navigateur qui se pilote comme un terminal'));
   await reg(`${base}\\Capabilities`, 'ApplicationIcon', `"${exe}",0`);
+  await reg(`${base}\\Capabilities\\StartMenu`, 'StartMenuInternet', 'Zenith');
   for (const p of ['http', 'https']) await reg(`${base}\\Capabilities\\URLAssociations`, p, 'ZenithURL');
   for (const ext of ['.htm', '.html']) await reg(`${base}\\Capabilities\\FileAssociations`, ext, 'ZenithHTML');
   await reg('RegisteredApplications', 'Zenith', `Software\\${base}\\Capabilities`);
@@ -2832,7 +2833,10 @@ async function registerWindowsBrowser() {
     if (cls === 'ZenithURL') await reg(`Classes\\${cls}`, 'URL Protocol', '');
     await reg(`Classes\\${cls}\\DefaultIcon`, null, `"${exe}",0`);
     await reg(`Classes\\${cls}\\shell\\open\\command`, null, `"${exe}" "%1"`);
+    await reg(`Classes\\${cls}\\Application`, 'ApplicationName', 'Zenith');
+    await reg(`Classes\\${cls}\\Application`, 'ApplicationIcon', `"${exe}",0`);
   }
+  for (const ext of ['.htm', '.html']) await reg(`Classes\\${ext}\\OpenWithProgids`, 'ZenithHTML', '');
 }
 
 async function defaultCommand(say) {

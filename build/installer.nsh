@@ -135,12 +135,56 @@ Var pid
     DetailPrint "uBlock Origin is preinstalled (ad blocker)"
     DetailPrint "Creating Start menu and desktop shortcuts…"
   ${EndIf}
+  !insertmacro zenithRegisterBrowser
 !macroend
 
-; Désinstallation : retire aussi l'inscription comme navigateur (commande « default »).
+; Inscription comme navigateur, à chaque installation (chemin à jour) : Zenith apparaît dans les
+; applications par défaut de Windows et dans « Ouvrir avec » quand une autre appli ouvre un lien.
+!macro zenithRegisterBrowser
+  ${If} $LANGUAGE == 1036
+    DetailPrint "Inscription de Zenith comme navigateur web"
+  ${Else}
+    DetailPrint "Registering Zenith as a web browser"
+  ${EndIf}
+  StrCpy $1 "$INSTDIR\${APP_EXECUTABLE_FILENAME}"
+  StrCpy $2 "Software\Clients\StartMenuInternet\Zenith"
+  WriteRegStr HKCU "$2" "" "Zenith"
+  WriteRegStr HKCU "$2\DefaultIcon" "" '"$1",0'
+  WriteRegStr HKCU "$2\shell\open\command" "" '"$1"'
+  WriteRegStr HKCU "$2\Capabilities" "ApplicationName" "Zenith"
+  WriteRegStr HKCU "$2\Capabilities" "ApplicationIcon" '"$1",0'
+  WriteRegStr HKCU "$2\Capabilities" "ApplicationDescription" "Zenith web browser"
+  WriteRegStr HKCU "$2\Capabilities\StartMenu" "StartMenuInternet" "Zenith"
+  WriteRegStr HKCU "$2\Capabilities\URLAssociations" "http" "ZenithURL"
+  WriteRegStr HKCU "$2\Capabilities\URLAssociations" "https" "ZenithURL"
+  WriteRegStr HKCU "$2\Capabilities\FileAssociations" ".htm" "ZenithHTML"
+  WriteRegStr HKCU "$2\Capabilities\FileAssociations" ".html" "ZenithHTML"
+  WriteRegStr HKCU "Software\RegisteredApplications" "Zenith" "$2\Capabilities"
+  !insertmacro zenithProgId "ZenithURL" "Zenith URL"
+  WriteRegStr HKCU "Software\Classes\ZenithURL" "URL Protocol" ""
+  !insertmacro zenithProgId "ZenithHTML" "Zenith HTML"
+  WriteRegStr HKCU "Software\Classes\.htm\OpenWithProgids" "ZenithHTML" ""
+  WriteRegStr HKCU "Software\Classes\.html\OpenWithProgids" "ZenithHTML" ""
+  ; Windows relit les associations tout de suite, sans attendre une reconnexion.
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
+!macroend
+
+!macro zenithProgId CLS LABEL
+  WriteRegStr HKCU "Software\Classes\${CLS}" "" "${LABEL}"
+  WriteRegStr HKCU "Software\Classes\${CLS}\DefaultIcon" "" '"$1",0'
+  WriteRegStr HKCU "Software\Classes\${CLS}\shell\open\command" "" '"$1" "%1"'
+  WriteRegStr HKCU "Software\Classes\${CLS}\Application" "ApplicationName" "Zenith"
+  WriteRegStr HKCU "Software\Classes\${CLS}\Application" "ApplicationIcon" '"$1",0'
+  WriteRegStr HKCU "Software\Classes\${CLS}\Application" "AppUserModelId" "${APP_ID}"
+!macroend
+
+; Désinstallation : retire l'inscription comme navigateur.
 !macro customUnInstall
   DeleteRegKey HKCU "Software\Clients\StartMenuInternet\Zenith"
   DeleteRegValue HKCU "Software\RegisteredApplications" "Zenith"
   DeleteRegKey HKCU "Software\Classes\ZenithURL"
   DeleteRegKey HKCU "Software\Classes\ZenithHTML"
+  DeleteRegValue HKCU "Software\Classes\.htm\OpenWithProgids" "ZenithHTML"
+  DeleteRegValue HKCU "Software\Classes\.html\OpenWithProgids" "ZenithHTML"
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
 !macroend
