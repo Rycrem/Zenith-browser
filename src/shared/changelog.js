@@ -4,6 +4,15 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.29',
+    notes: [
+      'Si l\'interface (onglets, terminal) se bloque ou s\'arrête, elle se relance toute seule au bout de quelques secondes, sans fermer tes pages. Ses erreurs, ses blocages et les arrêts anormaux de Zenith sont notés dans zenith.log, avec un rapport de plantage local (jamais envoyé) dans le dossier Crashpad.',
+    ],
+    en: [
+      'If the interface (tabs, terminal) freezes or stops, it restarts by itself after a few seconds without closing your pages. Its errors, freezes and abnormal Zenith shutdowns are written to zenith.log, with a local crash report (never sent) in the Crashpad folder.',
+    ],
+  },
+  {
     version: '0.1.28',
     notes: [
       'Les dossiers de Zenith ne s\'appellent plus dev-brows : tes données passent dans AppData\\Roaming\\Zenith au premier lancement, et l\'appli s\'installe dans AppData\\Local\\Programs\\Zenith (l\'ancien dossier est retiré).',
