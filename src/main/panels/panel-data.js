@@ -67,7 +67,7 @@ function dlRow(d, i) {
       if (d.total) parts.push(formatEta((d.total - d.received) / d.speed));
     }
     label = parts.join(' · ');
-  } else label = t('interrompu');
+  } else label = d.state === 'cancelled' ? t('annulé') : t('interrompu');
   return { i, name: d.name, state: d.state, pct, label };
 }
 
@@ -81,6 +81,8 @@ function dlData() {
     folder: t('dossier'),
     folderTitle: t('Afficher dans le dossier'),
     openTitle: t('Ouvrir le fichier'),
+    cancelTitle: t('Annuler le téléchargement'),
+    removeTitle: t('Retirer de la liste (le fichier reste)'),
   };
 }
 

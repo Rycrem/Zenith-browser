@@ -71,6 +71,15 @@ window.panel.onData((d) => {
       window.panel.act('folder', r.i);
     },
   }, d.folder),
+  h('button', {
+    type: 'button',
+    class: 'remove',
+    title: r.state === 'progressing' ? d.cancelTitle : d.removeTitle,
+    onclick: (e) => {
+      e.stopPropagation();
+      window.panel.act(r.state === 'progressing' ? 'cancel' : 'remove', r.i);
+    },
+  }, '✕'),
   h('div', { class: `info ${r.state === 'completed' ? 'ok' : r.state === 'progressing' ? 'run' : 'err'}` }, r.label))) : [h('div', { class: 'empty' }, d.empty)]));
   window.panel.size(document.querySelector('#pop').offsetHeight);
 });

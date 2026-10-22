@@ -1,7 +1,7 @@
 'use strict';
 
 // Une barre d'onglets par écran : en split, elle se divise comme le terminal, chaque côté avec
-// ses onglets, son + et ses flèches (onglet précédent / suivant).
+// ses onglets, son + et ses flèches (page précédente / suivante de l'onglet affiché).
 const groups = [...document.querySelectorAll('.tab-group')].map((el) => ({ el, strip: $('.tab-strip', el), prev: $('.tab-prev', el), next: $('.tab-next', el), shownId: null }));
 groups.forEach((g, i) => {
   const plus = $('.new-tab', g.el);
@@ -11,14 +11,21 @@ groups.forEach((g, i) => {
     e.preventDefault();
     api.recentMenu();
   });
-  g.prev.addEventListener('click', () => api.cycleTab(i, -1));
-  g.next.addEventListener('click', () => api.cycleTab(i, 1));
+  g.prev.addEventListener('click', () => api.navTab(i, -1));
+  g.next.addEventListener('click', () => api.navTab(i, 1));
   // La molette fait défiler les onglets de côté.
   g.strip.addEventListener('wheel', (e) => {
     if (!e.deltaY || e.deltaX) return;
     e.preventDefault();
     g.strip.scrollBy({ left: e.deltaY });
   }, { passive: false });
+});
+
+// Boutons précédent / suivant de la souris sur l'interface (terminal, barres) : comme dans une page.
+document.addEventListener('mouseup', (e) => {
+  if (e.button !== 3 && e.button !== 4) return;
+  e.preventDefault();
+  api.mouseNav(e.button === 3 ? -1 : 1);
 });
 
 // La séparation des deux barres tombe sur celle des écrans.
@@ -45,9 +52,9 @@ function fitTabs() {
 
 // Glisser un onglet : il suit la souris de gauche à droite, et ses voisins s'écartent doucement
 // pour ouvrir la place où il sera posé ; un contour glisse vers les bords de cette place.
-// Lâché, l'onglet glisse dans la place.
+// Lâché, l'onglet glisse dans la place. En split, il peut aussi passer dans l'autre écran.
 const TAB_SLIDE_MS = 400;
-let tabDrag = null; // { id, side, el, strip, startX, moved, from, pos, w, others, center, min, max, dropping }
+let tabDrag = null; // { id, side, el, strip, startX, moved, from, pos, w, others, center, min, max, into, dropping }
 
 function slotShift(d, i) {
   if (d.from < i && i <= d.pos) return -d.w;
@@ -90,11 +97,18 @@ function startTabDrag(e, tb) {
       el.classList.add('dragging');
       strip.classList.add('sorting');
     }
-    el.style.transform = `translateX(${Math.min(Math.max(raw, d.min), d.max)}px)`;
+    // En split, au-dessus de la barre de l'autre écran : l'onglet passera dans cet écran, à la
+    // place sous la souris ; sa barre s'entoure de la couleur d'accent.
+    const other = state.panes.length > 1 ? groups[1 - d.side] : null;
+    const gr = other && other.el.getBoundingClientRect();
+    const into = !!gr && ev.clientX >= gr.left && ev.clientX <= gr.right && ev.clientY >= gr.top - 20 && ev.clientY <= gr.bottom + 20;
+    if (other) other.strip.classList.toggle('drop-into', into);
+    d.into = into ? { idx: 1 - d.side, pos: [...other.strip.querySelectorAll('.tab')].filter((x) => { const b = x.getBoundingClientRect(); return b.left + b.width / 2 < ev.clientX; }).length } : null;
+    el.style.transform = `translateX(${into ? raw : Math.min(Math.max(raw, d.min), d.max)}px)`;
     // Sa place : après chaque voisin dont la souris a dépassé le milieu (même hors de la barre,
     // pour pouvoir le poser tout au bout).
     const c = d.center + raw;
-    const pos = d.others.filter((o, i) => i !== d.from && o.center < c).length;
+    const pos = into ? d.from : d.others.filter((o, i) => i !== d.from && o.center < c).length;
     if (pos === d.pos) return;
     d.pos = pos;
     const rest = d.others.filter((o, i) => i !== d.from);
@@ -116,6 +130,16 @@ function startTabDrag(e, tb) {
     }
     // Le clic qui suit le glissement ne doit pas changer d'onglet.
     window.addEventListener('click', (ev) => ev.stopPropagation(), { capture: true, once: true });
+    if (d.into) {
+      tabDrag = null;
+      groups[d.into.idx].strip.classList.remove('drop-into');
+      strip.classList.remove('sorting');
+      el.classList.remove('dragging');
+      d.others.forEach((o) => { o.el.style.transform = ''; });
+      api.moveTabToPane(d.id, d.into.idx, d.into.pos);
+      renderTabs();
+      return;
+    }
     d.dropping = true;
     const lo = Math.min(d.from, d.pos);
     const hi = Math.max(d.from, d.pos);
@@ -176,8 +200,6 @@ function renderTabs() {
     const shownId = state.panes[i].tabId;
     const list = state.tabs.filter((tb) => tb.side === i);
     fill(g.strip, list.map((tb) => tabEl(tb, tb.id === shownId)));
-    g.prev.disabled = list.length < 2;
-    g.next.disabled = list.length < 2;
     // L'onglet affiché reste visible dans sa barre.
     if (shownId !== g.shownId) {
       g.shownId = shownId;

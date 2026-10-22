@@ -268,7 +268,15 @@ async function exec(raw, depth = 0) {
         break;
       case 'dl':
         if (!args.length) dl.showDl(tab);
-        else await select(tab, Number(args[0]), false, say, 'dl');
+        else if (/^(cancel|rm)$/i.test(args[0])) {
+          const d = state.downloads[Number(args[1]) - 1];
+          if (!d) throw new Error(t('pas de téléchargement numéro {n}', { n: args[1] || '' }));
+          if (args[0].toLowerCase() === 'cancel') dl.cancelDownload(d);
+          else {
+            dl.removeDownload(d);
+            say(t('  ✓ {name} retiré de la liste', { name: d.name }), 'ok');
+          }
+        } else await select(tab, Number(args[0]), false, say, 'dl');
         break;
       case 'alias':
         alias.aliasCommand(tab, line.slice(5).trim(), say);

@@ -70,7 +70,7 @@ const COMMANDS = [
   ['clean', '[all]', 'vider l\'historique ; « all » vide aussi les cookies et le cache'],
   ['find', '[texte]', 'chercher dans la page ; « find » seul ouvre la barre de recherche (Ctrl+F)'],
   ['ext', '[add | on | off | pin | rm | alias | log | n]', 'gérer les extensions ; « ext pin n » l\'épingle dans la barre du bas, « ext log n » montre ses erreurs'],
-  ['dl', '[n]', 'téléchargements ; n ouvre le fichier'],
+  ['dl', '[n | cancel n | rm n]', 'téléchargements ; n ouvre le fichier, cancel arrête, rm retire de la liste'],
   ['alias', '[nom = commande]', 'créer un raccourci ; « unalias nom » le supprime'],
   ['engine', '[ddg | google | bing | qwant]', 'moteur de recherche'],
   ['theme', '[ambre | vert | cyan | rose | violet]', 'couleur d\'accent'],
@@ -99,6 +99,7 @@ const COMMAND_NAMES = [
 const SUBCOMMANDS = {
   fav: ['rm', 'mv', 'rename', 'import'],
   ext: ['add', 'on', 'off', 'pin', 'rm', 'alias', 'log'],
+  dl: ['cancel', 'rm'],
   tab: ['new', 'save'],
   split: ['off'],
   clean: ['all'],
@@ -121,7 +122,7 @@ const ARG_SHAPES = {
   help: null, '?': null, clear: null, home: null, accueil: null, back: null, b: null, fwd: null, f: null,
   reload: /^hard$/i, r: /^hard$/i, n: null, next: null, p: null, prev: null, clicks: null, links: null, l: null, term: null, quit: null, exit: null, q: null, fullscreen: /^(on|off)$/i, fs: /^(on|off)$/i, tty: /^(on|off)$/i,
   undo: null, focus: null, popback: null, default: null, config: /^(export|import)$/i, lang: /^(fr|en)$/i, langue: /^(fr|en)$/i, update: /^(install|electron|auto|-v|versions)$/i,
-  tab: /^(\d+|new|save)$/i, tabs: /^(\d+|new|save)$/i, close: /^\d+$/, dl: /^\d+$/, split: /^(off|close)$/i,
+  tab: /^(\d+|new|save)$/i, tabs: /^(\d+|new|save)$/i, close: /^\d+$/, dl: /^(\d+|cancel|rm)$/i, split: /^(off|close)$/i,
   devtools: /^(detach|detacher|attach|rattacher|close|off)$/i, dev: /^(detach|detacher|attach|rattacher|close|off)$/i,
 };
 

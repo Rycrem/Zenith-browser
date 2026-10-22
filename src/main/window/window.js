@@ -81,10 +81,8 @@ function createWindow() {
   });
   // Boutons précédent / suivant de la souris (Windows).
   state.win.on('app-command', (e, cmd) => {
-    try {
-      if (cmd === 'browser-backward') navigation.goBack(tabList.activeTab());
-      else if (cmd === 'browser-forward') navigation.goForward(tabList.activeTab());
-    } catch {}
+    if (cmd === 'browser-backward') navigation.mouseNav(-1);
+    else if (cmd === 'browser-forward') navigation.mouseNav(1);
   });
   // Ctrl+Tab passe avant le terminal, qui garderait sinon Tab pour l'autocomplétion.
   state.win.webContents.on('before-input-event', (e, input) => {
