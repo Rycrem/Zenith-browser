@@ -32,7 +32,7 @@ jobs:
         env:
           CERTUM_TOTP_SECRET: ${{ secrets.CERTUM_TOTP_SECRET }}
       - name: Construire sans publier
-        run: npx electron-builder --win --publish never -c.win.signtoolOptions.certificateSha1=${{ steps.certum.outputs.thumbprint }}
+        run: npx electron-builder --win --publish never "--config.win.signtoolOptions.certificateSha1=${{ steps.certum.outputs.thumbprint }}"
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - name: Vérifier les signatures

@@ -49,7 +49,7 @@ jobs:
         env:
           CERTUM_TOTP_SECRET: ${{ secrets.CERTUM_TOTP_SECRET }}
       - name: Construire et envoyer l'installateur
-        run: npx electron-builder --win --publish always ${{ steps.certum.outputs.thumbprint && format('-c.win.signtoolOptions.certificateSha1={0}', steps.certum.outputs.thumbprint) || '' }}
+        run: npx electron-builder --win --publish always ${{ steps.certum.outputs.thumbprint && format('"--config.win.signtoolOptions.certificateSha1={0}"', steps.certum.outputs.thumbprint) || '' }}
         env:
           GH_TOKEN: ${{ github.token }}
           # Signé avec le certificat Certum si les secrets CERTUM_* existent, sinon non signé.
