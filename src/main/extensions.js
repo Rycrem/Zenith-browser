@@ -31,6 +31,14 @@ class Extensions {
     this.settings = settings;
     this.dir = dir;
     if (!Array.isArray(settings.data.extensions)) settings.data.extensions = [];
+    // Dossier de données renommé (dev-brows → Zenith) : les chemins gardés pointent encore vers l'ancien.
+    for (const e of this.list) {
+      const moved = path.join(dir, path.basename(e.path || ''));
+      if (e.path && !fs.existsSync(e.path) && fs.existsSync(moved)) {
+        e.path = moved;
+        settings.save();
+      }
+    }
   }
 
   get list() {

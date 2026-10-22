@@ -7,9 +7,11 @@ const CHANGELOG = [
     version: '0.1.29',
     notes: [
       'Si l\'interface (onglets, terminal) se bloque ou s\'arrête, elle se relance toute seule au bout de quelques secondes, sans fermer tes pages. Ses erreurs, ses blocages et les arrêts anormaux de Zenith sont notés dans zenith.log, avec un rapport de plantage local (jamais envoyé) dans le dossier Crashpad.',
+      'Les extensions installées avant le renommage du dossier (« Extension directory not found » avec dev-brows dans le chemin) se rechargent depuis le dossier Zenith.',
     ],
     en: [
       'If the interface (tabs, terminal) freezes or stops, it restarts by itself after a few seconds without closing your pages. Its errors, freezes and abnormal Zenith shutdowns are written to zenith.log, with a local crash report (never sent) in the Crashpad folder.',
+      'Extensions installed before the folder rename ("Extension directory not found" with dev-brows in the path) load again from the Zenith folder.',
     ],
   },
   {
