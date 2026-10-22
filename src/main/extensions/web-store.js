@@ -1,6 +1,5 @@
 'use strict';
 
-const { dialog } = require('electron');
 const { t } = require('../../shared/i18n');
 const { storeExtensionId } = require('../../shared/crx');
 const state = require('../state');
@@ -8,6 +7,7 @@ const theme = require('../window/theme');
 const ui = require('../window/ui');
 const output = require('../terminal/output');
 const commands = require('../terminal/commands');
+const modal = require('../panels/modal');
 
 // Le Chrome Web Store grise « Ajouter à Chrome » hors de Chrome : on ajoute dans la page
 // un bouton « Ajouter à dev-brows ». Il vit dans un monde isolé (le site ne voit ni son code
@@ -114,15 +114,15 @@ async function storeCall(tab, name, args) {
       const perms = [...(manifest.permissions || []), ...(manifest.host_permissions || [])].filter((p) => typeof p === 'string');
       storeInstalling = true;
       try {
-        const { response } = await dialog.showMessageBox(state.win, {
-          type: 'question',
-          buttons: [t('Ajouter l\'extension'), t('Annuler')],
-          defaultId: 0,
-          cancelId: 1,
+        const yes = await modal.confirmModal({
+          title: t('Ajouter une extension'),
           message: t('Ajouter « {name} » à Zenith ?', { name: label }),
-          detail: perms.length ? t('Elle pourra : {perms}', { perms: perms.join(', ') }) : '',
+          detailLabel: perms.length ? t('Elle pourra :') : '',
+          details: perms,
+          ok: t('Ajouter l\'extension'),
+          cancel: t('Annuler'),
         });
-        if (response !== 0) return { result: STORE.USER_CANCELLED, error: 'User cancelled install' };
+        if (!yes) return { result: STORE.USER_CANCELLED, error: 'User cancelled install' };
         const result = await commands.exec(`ext add ${id}`);
         if (result && result.lines && result.lines.length) output.print(result.lines);
         const n = indexOf(id);
@@ -151,14 +151,13 @@ async function storeCall(tab, name, args) {
       const n = indexOf(args[0]);
       if (!n || !args[1]) return { error: n ? 'User gesture required' : 'No such extension', result: undefined };
       const ext = state.exts.get(n);
-      const { response } = await dialog.showMessageBox(state.win, {
-        type: 'question',
-        buttons: [t('Désinstaller'), t('Annuler')],
-        defaultId: 0,
-        cancelId: 1,
-        message: t('désinstaller {name} ?', { name: ext.name }),
+      const yes = await modal.confirmModal({
+        title: t('Désinstaller une extension'),
+        message: t('Désinstaller « {name} » ?', { name: ext.name }),
+        ok: t('Désinstaller'),
+        cancel: t('Annuler'),
       });
-      if (response !== 0) return { error: 'User cancelled uninstall', result: undefined };
+      if (!yes) return { error: 'User cancelled uninstall', result: undefined };
       state.exts.remove(n);
       output.print([{ t: t('  ✓ extension désinstallée'), c: 'ok' }]);
       sendStoreEvent('onUninstalled', ext.id);

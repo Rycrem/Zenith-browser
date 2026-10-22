@@ -34,4 +34,5 @@ module.exports = {
   suggest: null, // fenêtre des suggestions de l'adresse : { win, key, ready, data }
   suggestList: [],
   findWin: null, // Ctrl+F : { win, tabId, screen }
+  modal: null, // question au milieu de la fenêtre : { win, place, answer }
 };
