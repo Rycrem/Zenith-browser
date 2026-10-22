@@ -61,6 +61,10 @@
 !endif
 
 !macro customInstall
+  ; electron-builder coupe le détail (SetDetailsPrint none) au début de l'installation : on le rallume.
+  ${IfNot} ${Silent}
+    SetDetailsPrint both
+  ${EndIf}
   ${If} $LANGUAGE == 1036
     DetailPrint "Fichiers de Zenith copiés dans $INSTDIR"
     DetailPrint "Langue de l'interface : français"
