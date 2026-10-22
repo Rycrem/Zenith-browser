@@ -3,7 +3,7 @@
 const { app, net } = require('electron');
 const { execFile, spawn } = require('child_process');
 const fs = require('fs');
-const { t } = require('../shared/i18n');
+const { t } = require('../../shared/i18n');
 const path = require('path');
 
 // Deux façons de se mettre à jour :

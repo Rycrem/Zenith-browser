@@ -4,6 +4,15 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.33',
+    notes: [
+      'Le code de Zenith est rangé en dossiers par fonctionnalité (onglets, split, terminal, extensions, mises à jour…). Rien ne change à l\'usage.',
+    ],
+    en: [
+      'Zenith\'s code is now organized in folders by feature (tabs, split, terminal, extensions, updates…). Nothing changes in use.',
+    ],
+  },
+  {
     version: '0.1.32',
     notes: [
       'Les captures d\'écran du README montrent le nouveau visuel de Zenith (logo, barre d\'adresse, barre d\'état).',

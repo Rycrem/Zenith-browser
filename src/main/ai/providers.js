@@ -2,7 +2,7 @@
 
 const { safeStorage } = require('electron');
 const Anthropic = require('@anthropic-ai/sdk').default;
-const { t, getLang } = require('../shared/i18n');
+const { t, getLang } = require('../../shared/i18n');
 
 // Les IA proposées par « ia ». Claude passe par le SDK d'Anthropic (avec recherche web) ;
 // les autres par leur API compatible OpenAI (chat/completions en streaming).
