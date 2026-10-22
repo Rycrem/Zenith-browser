@@ -60,7 +60,16 @@
     "win": {
       "target": [
         "nsis"
-      ]
+      ],
+      "signExts": [
+        ".dll"
+      ],
+      "signtoolOptions": {
+        "rfc3161TimeStampServer": "http://time.certum.pl",
+        "signingHashAlgorithms": [
+          "sha256"
+        ]
+      }
     },
     "nsis": {
       "oneClick": false,

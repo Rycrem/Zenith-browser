@@ -47,6 +47,8 @@ jobs:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      CERTUM_USERNAME: ${{ secrets.CERTUM_USERNAME }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -59,11 +61,17 @@ jobs:
         run: node scripts/fetch-ublock.js
         env:
           GH_TOKEN: ${{ github.token }}
+      - name: Se connecter à SimplySign (certificat Certum)
+        id: certum
+        if: runner.os == 'Windows' && env.CERTUM_USERNAME != ''
+        run: node scripts/certum-login.js
+        env:
+          CERTUM_TOTP_SECRET: ${{ secrets.CERTUM_TOTP_SECRET }}
       - name: Construire et envoyer les installateurs
-        run: npx electron-builder --publish always
+        run: npx electron-builder --publish always ${{ steps.certum.outputs.thumbprint && format('-c.win.signtoolOptions.certificateSha1={0}', steps.certum.outputs.thumbprint) || '' }}
         env:
           GH_TOKEN: ${{ github.token }}
-          # Pas de certificat de signature : installateurs non signés.
+          # Windows : signés avec le certificat Certum si les secrets CERTUM_* existent. macOS : non signés.
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
   publish:
