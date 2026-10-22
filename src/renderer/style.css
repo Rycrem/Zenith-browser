@@ -152,8 +152,8 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
 
 .new-tab { flex: none; width: 26px; height: 26px; border-radius: 4px; color: var(--dim); font-size: 16px; }
 .new-tab:hover { background: var(--bg-raised); color: var(--text); }
-/* Onglet précédent / suivant, dans un petit cadre à droite du +. */
-.tab-nav { flex: none; display: flex; height: 24px; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+/* Onglet précédent / suivant, dans un petit cadre au bout de la barre, à côté de l'adresse. */
+.tab-nav { flex: none; margin-left: auto; display: flex; height: 24px; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
 .tab-nav button { width: 20px; color: var(--dim); font-size: 15px; line-height: 1; }
 .tab-nav button + button { border-left: 1px solid var(--line); }
 .tab-nav button:hover:not(:disabled) { background: var(--bg-raised); color: var(--text); }
