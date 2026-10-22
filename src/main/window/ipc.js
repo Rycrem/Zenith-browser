@@ -8,6 +8,7 @@ const ui = require('./ui');
 const tabList = require('../tabs/tabs');
 const extPopup = require('../extensions/popup');
 const panels = require('../panels/panels');
+const modal = require('../panels/modal');
 const pageView = require('../tabs/page-view');
 const webStore = require('../extensions/web-store');
 const navigation = require('../tabs/navigation');
@@ -138,6 +139,7 @@ function setupIpc() {
   onUi('ui:media-toggle', () => audio.togglePlayAll().catch(() => {}));
   onUi('ui:mute-all', () => audio.setMuteAll(!state.settings.data.muteAll));
   onUi('ui:panel', (e, kind, x) => panelData.PANELS[kind] && panels.togglePanel(kind, Number.isFinite(x) ? x : undefined));
+  const fromModal = (e) => !!state.modal && !state.modal.win.isDestroyed() && e.sender === state.modal.win.webContents;
   const fromPanel = (e) => (state.panel && !state.panel.win.isDestroyed() && e.sender === state.panel.win.webContents ? state.panel : null);
   handleUi('ui:suggest', (e, text, rect) => {
     state.suggestList = suggestions.historySuggestions(text);
@@ -158,10 +160,12 @@ function setupIpc() {
   ipcMain.on('panel:act', (e, action, arg) => {
     if (state.findWin && !state.findWin.win.isDestroyed() && e.sender === state.findWin.win.webContents) return findInPage.findAction(action, arg);
     if (state.suggest && !state.suggest.win.isDestroyed() && e.sender === state.suggest.win.webContents) return suggestions.suggestAction(action, arg);
+    if (fromModal(e)) return modal.modalAction(action);
     const p = fromPanel(e);
     if (p) panels.panelAction(p.kind, action, arg).catch((err) => output.print([{ t: `  ${err.message}`, c: 'err' }]));
   });
   ipcMain.on('panel:size', (e, height) => {
+    if (fromModal(e) && Number.isFinite(height)) return modal.modalSize(height);
     const p = fromPanel(e);
     if (p && Number.isFinite(height)) p.win.setBounds(p.place(Math.min(Math.max(Math.ceil(height), 60), 520)));
   });

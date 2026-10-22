@@ -4,6 +4,15 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.34',
+    notes: [
+      'Installer ou désinstaller une extension depuis le Chrome Web Store ouvre une fenêtre aux couleurs de Zenith (accent, mode nuit ou jour, navigation privée), avec la liste de ce que l\'extension pourra faire.',
+    ],
+    en: [
+      'Installing or uninstalling an extension from the Chrome Web Store opens a window in Zenith\'s colors (accent, night or day mode, private browsing), listing what the extension will be able to do.',
+    ],
+  },
+  {
     version: '0.1.33',
     notes: [
       'Le code de Zenith est rangé en dossiers par fonctionnalité (onglets, split, terminal, extensions, mises à jour…). Rien ne change à l\'usage.',
