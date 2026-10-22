@@ -4,6 +4,15 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.27',
+    notes: [
+      'La barre d\'adresse a une largeur fixe, deux fois celle qu\'elle avait sur l\'accueil ; elle n\'affiche toujours que le site, l\'adresse complète au clic.',
+    ],
+    en: [
+      'The address box has a fixed width, twice what it had on the home screen; it still only shows the site, with the full address on click.',
+    ],
+  },
+  {
     version: '0.1.26',
     notes: [
       'Les flèches ‹ › qui changent d\'onglet sont au bout de la barre, à côté du bouton recharger de l\'adresse.',
