@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, WebContentsView, Menu, ipcMain, session, shell, clipboard, net, dialog, nativeTheme, screen } = require('electron');
+const { app, BrowserWindow, WebContentsView, Menu, ipcMain, session, shell, clipboard, net, dialog, nativeTheme, screen, crashReporter } = require('electron');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -22,13 +22,29 @@ const tr = t; // là où une variable locale « t » (un onglet) cache t()
 const { storeExtensionId } = require('../shared/crx');
 const { parseDuckDuckGoHtml, parseNextPage, shortUrl } = require('../shared/search');
 
+// Les données de l'ancien nom (dev-brows) passent dans le dossier Zenith au premier lancement.
+// Un dossier Zenith sans réglages (créé vide par Electron) ne compte pas. Si le déplacement
+// échoue (fichier encore ouvert), l'appli reste sur l'ancien dossier cette fois-ci.
+function dataDir(name, old) {
+  const dir = path.join(app.getPath('appData'), name);
+  const prev = path.join(app.getPath('appData'), old);
+  const ours = (d) => fs.existsSync(path.join(d, 'reglages.json'));
+  if (ours(dir) || !ours(prev)) return dir;
+  try {
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.renameSync(prev, dir);
+    return dir;
+  } catch {
+    return prev;
+  }
+}
+
 // Lancée depuis le code, l'appli garde ses données à part : la version installée chiffre
 // ses cookies (fuse Electron), et un Electron sans ce réglage ne saurait plus les lire.
-// L'appli s'appelle Zenith, mais ses données restent dans le dossier de dev-brows (son ancien nom).
-app.setPath('userData', path.join(app.getPath('appData'), 'dev-brows'));
+app.setPath('userData', dataDir('Zenith', 'dev-brows'));
 if (!app.isPackaged) {
   const shared = app.getPath('userData');
-  const dev = `${shared}-dev`;
+  const dev = dataDir('Zenith-dev', 'dev-brows-dev');
   // Les données créées avant cette séparation suivent la version lancée depuis le code.
   if (fs.existsSync(shared) && !fs.existsSync(dev)) fs.cpSync(shared, dev, { recursive: true });
   app.setPath('userData', dev);
@@ -841,7 +857,7 @@ function layout() {
   if (findWin && !findWin.win.isDestroyed()) {
     const tab = getTab(findWin.tabId);
     const b = findBounds();
-    if (!tab || paneOf(tab) !== activePane || tab.screen || !b) closeFind(false);
+    if (!tab || paneOf(tab) !== activePane || !!tab.screen !== findWin.screen || !b) closeFind(false);
     else findWin.win.setBounds(b);
   }
   if (fullTab && (!tabs.includes(fullTab) || !fullTab.view || paneOf(fullTab) < 0)) setHtmlFullscreen(fullTab, false);
@@ -1132,7 +1148,8 @@ function suggestAction(action, arg) {
 // ---------------------------------------------------------------- recherche dans la page
 
 // Ctrl+F : une petite fenêtre en haut à droite de l'écran actif (la page, vue native, couvrirait l'interface).
-let findWin = null; // { win, tabId }
+// Sur un écran du terminal (historique, favoris, aide…), c'est l'interface qui cherche et surligne.
+let findWin = null; // { win, tabId, screen }
 
 function findBounds() {
   const r = rects[activePane];
@@ -1144,11 +1161,11 @@ function findBounds() {
 
 function openFind() {
   const tab = activeTab();
-  if (!tab.view || tab.screen) return focusTerminal('find ');
+  const screen = !tab.view || !!tab.screen;
   const bounds = findBounds();
   if (!bounds) return undefined;
   if (findWin && !findWin.win.isDestroyed()) {
-    if (findWin.tabId !== tab.id) closeFind();
+    if (findWin.tabId !== tab.id || findWin.screen !== screen) closeFind(false);
     else {
       findWin.win.setBounds(bounds);
       findWin.win.focus();
@@ -1166,11 +1183,11 @@ function openFind() {
     backgroundColor: isLight() ? '#F6F7F9' : tab.private ? '#1A1024' : '#0E1116',
     webPreferences: { preload: path.join(__dirname, 'panel-preload.js'), sandbox: true, contextIsolation: true },
   });
-  findWin = { win: fw, tabId: tab.id };
+  findWin = { win: fw, tabId: tab.id, screen };
   fw.loadFile(path.join(__dirname, '../renderer/find.html'), { query: { accent: accentColor(), mode: isLight() ? 'jour' : 'nuit', private: tab.private ? '1' : '' } });
   fw.webContents.once('did-finish-load', () => fw.webContents.send('panel:data', {
     text: tab.findText || '',
-    labels: { placeholder: t('chercher dans la page'), next: t('Résultat suivant (Entrée)'), prev: t('Résultat précédent (Maj+Entrée)'), close: t('Fermer (Échap)') },
+    labels: { placeholder: screen ? t('chercher dans l\'écran') : t('chercher dans la page'), next: t('Résultat suivant (Entrée)'), prev: t('Résultat précédent (Maj+Entrée)'), close: t('Fermer (Échap)') },
   }));
   fw.once('ready-to-show', () => fw.show());
   fw.on('closed', () => {
@@ -1181,10 +1198,16 @@ function openFind() {
 
 function closeFind(focusPage = true) {
   if (!findWin) return;
-  const { win: fw, tabId } = findWin;
+  const { win: fw, tabId, screen } = findWin;
   findWin = null;
   if (!fw.isDestroyed()) fw.close();
   const tab = getTab(tabId);
+  if (tab) tab.findText = '';
+  if (screen) {
+    if (win && !win.isDestroyed()) win.webContents.send('ui:find', { text: '' });
+    if (focusPage) focusTerminal();
+    return;
+  }
   const wc = tab && tab.view && tab.view.webContents;
   if (!wc || wc.isDestroyed()) return;
   wc.stopFindInPage('clearSelection');
@@ -1197,8 +1220,12 @@ function closeFind(focusPage = true) {
 
 function findAction(action, arg) {
   const tab = getTab(findWin.tabId);
-  if (action === 'close' || !tab || !tab.view) return closeFind();
+  if (action === 'close' || !tab || (!findWin.screen && !tab.view)) return closeFind();
   if (action !== 'find' || !arg || typeof arg.text !== 'string' || !arg.text) return undefined;
+  if (findWin.screen) {
+    win.webContents.send('ui:find', { pane: paneOf(tab), text: arg.text, forward: arg.forward !== false });
+    return undefined;
+  }
   // Pour Electron, findNext: true ouvre une nouvelle recherche ; false passe au résultat suivant.
   tab.view.webContents.findInPage(arg.text, { findNext: tab.findText !== arg.text, forward: arg.forward !== false });
   tab.findText = arg.text;
@@ -2054,7 +2081,7 @@ function watchExtensionLogs() {
       const fromPage = EXT_URL.exec(wc.getURL());
       const m = fromScript || fromPage;
       if (!m) return;
-      const where = fromPage ? t('page') : wc.getURL().startsWith('file:') ? 'dev-brows' : hostOf(wc.getURL()) || t('page');
+      const where = fromPage ? t('page') : wc.getURL().startsWith('file:') ? 'Zenith' : hostOf(wc.getURL()) || t('page');
       logExt(m[1], where, `${message} (${source.replace(EXT_URL, '')}${line ? `:${line}` : ''})`);
     });
   });
@@ -2371,8 +2398,10 @@ async function exec(raw, depth = 0) {
         }
         break;
       case 'find':
-        if (!tab.view || tab.screen) throw new Error(t('aucune page ouverte'));
-        if (!rest) openFind();
+        if (!rest || !tab.view || tab.screen) {
+          if (rest) tab.findText = rest;
+          openFind();
+        }
         else {
           // Pour Electron, findNext: true ouvre une nouvelle recherche ; false passe au résultat suivant.
           tab.view.webContents.findInPage(rest, { findNext: tab.findText !== rest });
@@ -2811,6 +2840,7 @@ async function registerWindowsBrowser() {
   await reg(`${base}\\Capabilities`, 'ApplicationName', 'Zenith');
   await reg(`${base}\\Capabilities`, 'ApplicationDescription', t('Navigateur qui se pilote comme un terminal'));
   await reg(`${base}\\Capabilities`, 'ApplicationIcon', `"${exe}",0`);
+  await reg(`${base}\\Capabilities\\StartMenu`, 'StartMenuInternet', 'Zenith');
   for (const p of ['http', 'https']) await reg(`${base}\\Capabilities\\URLAssociations`, p, 'ZenithURL');
   for (const ext of ['.htm', '.html']) await reg(`${base}\\Capabilities\\FileAssociations`, ext, 'ZenithHTML');
   await reg('RegisteredApplications', 'Zenith', `Software\\${base}\\Capabilities`);
@@ -2819,7 +2849,10 @@ async function registerWindowsBrowser() {
     if (cls === 'ZenithURL') await reg(`Classes\\${cls}`, 'URL Protocol', '');
     await reg(`Classes\\${cls}\\DefaultIcon`, null, `"${exe}",0`);
     await reg(`Classes\\${cls}\\shell\\open\\command`, null, `"${exe}" "%1"`);
+    await reg(`Classes\\${cls}\\Application`, 'ApplicationName', 'Zenith');
+    await reg(`Classes\\${cls}\\Application`, 'ApplicationIcon', `"${exe}",0`);
   }
+  for (const ext of ['.htm', '.html']) await reg(`Classes\\${ext}\\OpenWithProgids`, 'ZenithHTML', '');
 }
 
 async function defaultCommand(say) {
@@ -3589,6 +3622,9 @@ function setupIpc() {
     aiAsk(tab, q, tab.screen, (l, c) => print([{ t: l, c }]));
   });
   onUi('ui:recent-menu', () => recentMenu());
+  onUi('ui:find-result', (e, r) => {
+    if (findWin && findWin.screen && !findWin.win.isDestroyed() && r) findWin.win.webContents.send('panel:data', { ordinal: Number(r.ordinal) || 0, matches: Number(r.matches) || 0 });
+  });
   onUi('ui:lang', (e) => {
     e.returnValue = getLang();
   });
@@ -3724,6 +3760,22 @@ function createWindow() {
   win.setMenuBarVisibility(false);
   if (settings.data.window && settings.data.window.maximized) win.maximize();
   win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
+  // Les erreurs et les blocages de l'interface vont dans le journal ; bloquée, elle est relancée.
+  win.webContents.on('console-message', (e) => {
+    if (e.level === 'error') journal.log(`interface : ${e.message} (${path.basename(e.sourceId || '')}:${e.lineNumber})`);
+  });
+  let hung = null;
+  win.webContents.on('unresponsive', () => {
+    journal.log('interface bloquée');
+    hung = setTimeout(() => {
+      journal.log('interface toujours bloquée : relancée');
+      if (!win.isDestroyed()) win.webContents.forcefullyCrashRenderer();
+    }, 5000);
+  });
+  win.webContents.on('responsive', () => {
+    clearTimeout(hung);
+    journal.log('interface débloquée');
+  });
   // Réduite puis rouverte, la fenêtre revient sur l'écran où elle était, pas sur l'écran principal.
   let beforeMinimize = null;
   win.on('minimize', () => {
@@ -3780,9 +3832,22 @@ function createWindow() {
 // Journal (zenith.log dans le dossier de données) : lancement, extensions, plantages.
 journal.open(app.getPath('userData'));
 journal.log(`lancement de Zenith ${app.getVersion()} (Electron ${process.versions.electron}, ${process.platform} ${os.release()})`);
+// Un plantage du processus principal ne passe par aucun code JavaScript : seul un rapport de
+// plantage (gardé sur le disque, jamais envoyé) et le témoin de session en laissent une trace.
+app.setPath('crashDumps', path.join(app.getPath('userData'), 'Crashpad'));
+crashReporter.start({ uploadToServer: false });
+const session_ = journal.sessionGuard(app.getPath('userData'));
+if (session_.previous) {
+  const dumps = journal.dumpsSince(app.getPath('crashDumps'), session_.previous);
+  journal.log(`la session commencée à ${session_.previous} s'est arrêtée sans fermeture normale${dumps.length ? ` ; rapport de plantage : ${dumps[0]}` : ' (pas de rapport de plantage : fin de tâche, coupure ou blocage)'}`);
+}
 process.on('uncaughtException', (err) => journal.log('erreur non rattrapée :', err));
 process.on('unhandledRejection', (err) => journal.log('promesse rejetée non rattrapée :', err instanceof Error ? err : String(err)));
-app.on('render-process-gone', (e, wc, d) => journal.log(`page arrêtée (${d.reason}, code ${d.exitCode}) : ${wc && !wc.isDestroyed() ? wc.getURL() : '?'}`));
+app.on('render-process-gone', (e, wc, d) => {
+  journal.log(`page arrêtée (${d.reason}, code ${d.exitCode}) : ${wc && !wc.isDestroyed() ? wc.getURL() : '?'}`);
+  // L'interface (onglets, terminal) s'est arrêtée : on la recharge plutôt que de laisser une fenêtre vide.
+  if (win && !win.isDestroyed() && wc === win.webContents && d.reason !== 'clean-exit') setTimeout(() => !win.isDestroyed() && win.webContents.reload(), 500);
+});
 app.on('child-process-gone', (e, d) => journal.log(`processus ${d.type}${d.name ? ` (${d.name})` : ''} arrêté : ${d.reason}, code ${d.exitCode}`));
 // Une seule fenêtre Zenith : un second lancement (lien ouvert depuis une autre appli) passe ses adresses à la première.
 if (!app.requestSingleInstanceLock()) {
@@ -3858,6 +3923,7 @@ app.whenReady().then(async () => {
 
 app.on('before-quit', () => {
   guard.done(); // fermeture normale, même avant la fin du démarrage
+  session_.done();
   for (const s of [favorites, history, settings, sessionStore]) if (s) s.flush();
 });
 

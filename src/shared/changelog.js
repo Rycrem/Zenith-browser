@@ -4,12 +4,49 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
-    version: '0.1.28',
+    version: '0.1.31',
     notes: [
       'L\'installateur Windows peut être signé avec un certificat de signature de code, une étape vers la publication sur le Microsoft Store.',
     ],
     en: [
       'The Windows installer can be signed with a code signing certificate, a step towards publishing on the Microsoft Store.',
+    ],
+  },
+  {
+    version: '0.1.29',
+    notes: [
+      'Si l\'interface (onglets, terminal) se bloque ou s\'arrête, elle se relance toute seule au bout de quelques secondes, sans fermer tes pages. Ses erreurs, ses blocages et les arrêts anormaux de Zenith sont notés dans zenith.log, avec un rapport de plantage local (jamais envoyé) dans le dossier Crashpad.',
+      'Les extensions installées avant le renommage du dossier (« Extension directory not found » avec dev-brows dans le chemin) se rechargent depuis le dossier Zenith.',
+    ],
+    en: [
+      'If the interface (tabs, terminal) freezes or stops, it restarts by itself after a few seconds without closing your pages. Its errors, freezes and abnormal Zenith shutdowns are written to zenith.log, with a local crash report (never sent) in the Crashpad folder.',
+      'Extensions installed before the folder rename ("Extension directory not found" with dev-brows in the path) load again from the Zenith folder.',
+    ],
+  },
+  {
+    version: '0.1.28',
+    notes: [
+      'Les dossiers de Zenith ne s\'appellent plus dev-brows : tes données passent dans AppData\\Roaming\\Zenith au premier lancement, et l\'appli s\'installe dans AppData\\Local\\Programs\\Zenith (l\'ancien dossier est retiré).',
+    ],
+    en: [
+      'Zenith folders are no longer named dev-brows: your data moves to AppData\\Roaming\\Zenith on first launch, and the app installs to AppData\\Local\\Programs\\Zenith (the old folder is removed).',
+    ],
+  },
+  {
+    version: '0.1.27',
+    notes: [
+      'La barre d\'adresse a une largeur fixe, deux fois celle qu\'elle avait sur l\'accueil ; elle n\'affiche toujours que le site, l\'adresse complète au clic.',
+      'Ctrl+F marche partout : sur l\'historique, les favoris, l\'aide et les autres écrans, les résultats sont surlignés.',
+      'Glisser un onglet : le contour animé revient, plus lent, en plus de la place qui s\'ouvre ; on peut aussi le poser tout au bout à droite.',
+      'L\'installateur Windows affiche le détail de l\'installation dès le début (vérification, fichiers, réglages, raccourcis) et attend qu\'on clique sur Suivant.',
+      'L\'installateur inscrit Zenith comme navigateur : il apparaît dans les applications par défaut de Windows et dans « Ouvrir avec » quand une autre appli ouvre un lien, sans passer par « default ».',
+    ],
+    en: [
+      'The address box has a fixed width, twice what it had on the home screen; it still only shows the site, with the full address on click.',
+      'Ctrl+F works everywhere: on history, bookmarks, help and the other screens, matches are highlighted.',
+      'Dragging a tab: the animated outline is back, slower, along with the opening spot; a tab can also be dropped at the far right.',
+      'The Windows installer shows the installation details from the start (check, files, settings, shortcuts) and waits for a click on Next.',
+      'The installer registers Zenith as a browser: it shows up in Windows default apps and in “Open with” when another app opens a link, without running “default”.',
     ],
   },
   {

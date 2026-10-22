@@ -32,8 +32,9 @@ contextBridge.exposeInMainWorld('brows', {
   resetZoom: () => ipcRenderer.send('ui:zoom-reset'),
   aiReply: (text) => ipcRenderer.send('ui:ai-reply', text),
   recentMenu: () => ipcRenderer.send('ui:recent-menu'),
+  findResult: (r) => ipcRenderer.send('ui:find-result', r),
   on: (channel, fn) => {
-    if (!['state', 'term:print', 'term:focus', 'term:toggle', 'term:clear', 'ui:panel', 'suggest:done'].includes(channel)) return;
+    if (!['state', 'term:print', 'term:focus', 'term:toggle', 'term:clear', 'ui:panel', 'ui:find', 'suggest:done'].includes(channel)) return;
     ipcRenderer.on(channel, (e, ...args) => fn(...args));
   },
 });

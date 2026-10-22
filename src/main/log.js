@@ -45,4 +45,43 @@ function startupGuard(dir) {
   return { previous, step, done };
 }
 
-module.exports = { open, log, startupGuard };
+// Session en cours : un témoin écrit au lancement et effacé à la fermeture normale. S'il est encore
+// là au lancement suivant, l'appli s'est arrêtée sans se fermer (plantage, fin de tâche, coupure) :
+// renvoie alors l'heure où cette session avait commencé, sinon null.
+function sessionGuard(dir) {
+  const marker = path.join(dir, 'running');
+  let previous = null;
+  try {
+    previous = fs.readFileSync(marker, 'utf8') || '?';
+  } catch {}
+  try {
+    fs.writeFileSync(marker, new Date().toISOString());
+  } catch {}
+  return { previous, done: () => fs.rmSync(marker, { force: true }) };
+}
+
+// Rapports de plantage (minidumps) écrits depuis `since` (ISO) dans `dir`, le plus récent d'abord.
+function dumpsSince(dir, since) {
+  const t0 = Date.parse(since) || 0;
+  const found = [];
+  const walk = (d) => {
+    let entries = [];
+    try {
+      entries = fs.readdirSync(d, { withFileTypes: true });
+    } catch {}
+    for (const e of entries) {
+      const f = path.join(d, e.name);
+      if (e.isDirectory()) walk(f);
+      else if (e.name.endsWith('.dmp')) {
+        try {
+          const m = fs.statSync(f).mtimeMs;
+          if (m >= t0) found.push({ f, m });
+        } catch {}
+      }
+    }
+  };
+  walk(dir);
+  return found.sort((a, b) => b.m - a.m).map((x) => x.f);
+}
+
+module.exports = { open, log, startupGuard, sessionGuard, dumpsSince };
