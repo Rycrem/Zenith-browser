@@ -110,6 +110,12 @@ function closeTab(tab) {
     if (closedTabs.length > 25) closedTabs.pop();
   }
   destroyTab(tab);
+  // Dernier onglet d'un écran du split : l'autre écran reprend toute la place.
+  if (state.panes.length > 1 && !sideTabs(side).length) {
+    split.closePane(side);
+    output.focusTerminal();
+    return;
+  }
   state.panes.forEach((p, pi) => {
     if (p.tabId !== tab.id) return;
     const same = sideTabs(side);

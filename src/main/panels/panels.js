@@ -76,6 +76,8 @@ async function panelAction(kind, action, arg) {
       if (state.panel && !state.panel.win.isDestroyed()) state.panel.win.close();
       dl.showInFolder(d.path);
     }
+    else if (action === 'cancel' && d.state === 'progressing') dl.cancelDownload(d);
+    else if (action === 'remove' && d.state !== 'progressing') dl.removeDownload(d);
     else if (action === 'open' && d.state === 'completed') {
       const err = await shell.openPath(d.path);
       if (err) output.print([{ t: `  ${err}`, c: 'err' }]);

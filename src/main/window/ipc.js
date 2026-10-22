@@ -12,6 +12,7 @@ const modal = require('../panels/modal');
 const pageView = require('../tabs/page-view');
 const webStore = require('../extensions/web-store');
 const navigation = require('../tabs/navigation');
+const split = require('../split/split');
 const output = require('../terminal/output');
 const suggestions = require('../history/suggest');
 const findInPage = require('../search/find-in-page');
@@ -104,11 +105,32 @@ function setupIpc() {
     tabList.sortSides();
     ui.sendState();
   });
-  // Flèches de la barre d'onglets : onglet précédent ou suivant de cet écran.
-  onUi('ui:tab-cycle', (e, idx, dir) => {
+  // Onglet glissé dans la barre de l'autre écran, à la place pos parmi ses onglets. S'il était le
+  // dernier de son écran, le split se termine.
+  onUi('ui:tab-to-pane', (e, id, idx, pos) => {
+    const tab = tabList.getTab(id);
+    if (!tab || state.panes.length < 2 || (idx !== 0 && idx !== 1) || tabList.sideOf(tab) === idx || !Number.isInteger(pos) || pos < 0) return;
+    const from = tabList.sideOf(tab);
+    const targets = state.tabs.filter((tb) => tabList.sideOf(tb) === idx);
+    if (state.tabs.some((tb) => tb !== tab && tabList.sideOf(tb) === from)) split.showInPane(tab, idx);
+    else {
+      state.panes[idx].tabId = tab.id;
+      split.closePane(from);
+    }
+    state.tabs.splice(state.tabs.indexOf(tab), 1);
+    const anchor = targets[pos];
+    state.tabs.splice(anchor ? state.tabs.indexOf(anchor) : state.tabs.indexOf(targets[targets.length - 1]) + 1, 0, tab);
+    tabList.sortSides();
+    ui.sendState();
+  });
+  // Flèches de la barre d'onglets : page précédente ou suivante de l'onglet de cet écran, comme back / fwd.
+  onUi('ui:tab-nav', (e, idx, dir) => {
     if (!state.panes[idx] || (dir !== 1 && dir !== -1)) return;
     state.activePane = idx;
-    tabList.cycleTab(dir);
+    navigation.navActive(dir);
+  });
+  onUi('ui:mouse-nav', (e, dir) => {
+    if (dir === 1 || dir === -1) navigation.mouseNav(dir);
   });
   onUi('ui:devtools', (e, action) => {
     const tab = tabList.activeTab();

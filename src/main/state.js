@@ -11,7 +11,7 @@ module.exports = {
   history: null, // JsonStore { entries }
   sessionStore: null, // JsonStore { tabs } : adresses des onglets ouverts, pour « popback »
   previousSession: [], // celles de la dernière fois, lues au lancement
-  lastCommandAt: 0, // heure de la dernière commande tapée, pour garder le focus dans le terminal
+  lastCommandAt: 0, // heure de la dernière commande tapée (0 : la page a repris le focus), pour garder le focus dans le terminal
   settings: null, // JsonStore { engine, theme, aliases, extensions }
   exts: null,
 

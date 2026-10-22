@@ -294,5 +294,5 @@ function dayLabel(time) {
 function dlState(r) {
   if (r.state === 'completed') return t('terminé');
   if (r.state === 'progressing') return r.total ? `${Math.round((r.received / r.total) * 100)} %` : t('{size} Ko', { size: Math.round(r.received / 1024) });
-  return t('interrompu');
+  return r.state === 'cancelled' ? t('annulé') : t('interrompu');
 }

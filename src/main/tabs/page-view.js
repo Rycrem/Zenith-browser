@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('crypto');
 const { WebContentsView } = require('electron');
 const { t } = require('../../shared/i18n');
 const state = require('../state');
@@ -40,6 +41,21 @@ function ensureView(tab) {
 }
 
 const tabOfContents = (wc) => state.tabs.find((t) => t.view && t.view.webContents === wc);
+
+// Boutons précédent / suivant de la souris dans une page : Chromium y remonterait l'historique
+// de la page tout seul, sans passer par back (écrans de résultats, de l'IA…). Le script les
+// intercepte dans un monde isolé et les signale par un message de console marqué.
+const NAV_MARK = `__zenith_nav_${crypto.randomBytes(8).toString('hex')}:`;
+const NAV_SCRIPT = `if (!window.__zenithNav) {
+  window.__zenithNav = true;
+  const stop = (e) => { if (e.button === 3 || e.button === 4) e.preventDefault(); };
+  addEventListener('mousedown', stop, true);
+  addEventListener('mouseup', (e) => {
+    if (e.button !== 3 && e.button !== 4) return;
+    e.preventDefault();
+    console.debug('${NAV_MARK}' + (e.button === 3 ? -1 : 1));
+  }, true);
+}`;
 
 function wireWebContents(tab, wc) {
   wc.on('did-start-navigation', (details) => {
@@ -153,10 +169,18 @@ function wireWebContents(tab, wc) {
     wc.setZoomLevel(wc.getZoomLevel() + (dir === 'in' ? 0.5 : -0.5));
     ui.sendState();
   });
-  // Une page qui prend le focus juste après une commande (chargement, nouvel onglet) le rend au terminal ;
-  // un clic dans la page, lui, le garde.
+  // Après une commande, le focus reste au terminal même si la page le prend (chargement lent,
+  // nouvel onglet) ; il passe à la page seulement par un clic dedans, Échap ou un numéro de « clicks ».
   wc.on('focus', () => {
-    if (Date.now() - state.lastCommandAt < 5000) output.focusTerminal();
+    if (state.lastCommandAt) output.focusTerminal();
+  });
+  wc.on('dom-ready', () => wc.executeJavaScriptInIsolatedWorld(1003, [{ code: NAV_SCRIPT }]).catch(() => {}));
+  wc.on('console-message', (e) => {
+    if (!e.message || !e.message.startsWith(NAV_MARK)) return;
+    const p = tabList.paneOf(tab);
+    if (p < 0) return;
+    state.activePane = p;
+    navigation.mouseNav(Number(e.message.slice(NAV_MARK.length)) < 0 ? -1 : 1);
   });
   wc.on('input-event', (e, input) => {
     if (input.type === 'mouseDown') state.lastCommandAt = 0;

@@ -31,7 +31,7 @@ function setupDownloads(s = state.ses) {
     let file = path.join(dir, parsed.base);
     for (let i = 1; fs.existsSync(file); i++) file = path.join(dir, `${parsed.name} (${i})${parsed.ext}`);
     item.setSavePath(file);
-    const d = { name: path.basename(file), path: file, url: item.getURL(), state: 'progressing', received: 0, total: item.getTotalBytes() };
+    const d = { name: path.basename(file), path: file, url: item.getURL(), state: 'progressing', received: 0, total: item.getTotalBytes(), item };
     state.downloads.unshift(d);
     output.print([{ t: t('  ↓ téléchargement de {name} (dl ou Ctrl+Maj+J pour suivre)', { name: d.name }), c: 'dim' }]);
     ui.sendState();
@@ -57,7 +57,9 @@ function setupDownloads(s = state.ses) {
     item.once('done', (ev, done) => {
       d.state = done;
       d.received = item.getReceivedBytes();
-      output.print([{ t: done === 'completed' ? t('  ✓ {name} téléchargé', { name: d.name }) : t('  ✗ {name} interrompu', { name: d.name }), c: done === 'completed' ? 'ok' : 'err' }]);
+      d.item = null;
+      const msg = { completed: t('  ✓ {name} téléchargé', { name: d.name }), cancelled: t('  ✗ {name} annulé', { name: d.name }) }[done] || t('  ✗ {name} interrompu', { name: d.name });
+      output.print([{ t: msg, c: done === 'completed' ? 'ok' : 'err' }]);
       const tab = tabList.activeTab();
       if (tab.screen && tab.screen.kind === 'dl') showDl(tab);
       ui.sendState();
@@ -66,4 +68,24 @@ function setupDownloads(s = state.ses) {
   });
 }
 
-Object.assign(module.exports, { showDl, showInFolder, setupDownloads });
+function refresh() {
+  const tab = tabList.activeTab();
+  if (tab.screen && tab.screen.kind === 'dl') showDl(tab);
+  ui.sendState();
+  panels.sendDl();
+}
+
+// Arrête le téléchargement : Chromium supprime alors le fichier partiel (.crdownload).
+function cancelDownload(d) {
+  if (d.state !== 'progressing' || !d.item) throw new Error(t('ce téléchargement est déjà fini'));
+  d.item.cancel();
+}
+
+// Retire un téléchargement fini de la liste ; le fichier reste dans Téléchargements.
+function removeDownload(d) {
+  if (d.state === 'progressing') throw new Error(t('téléchargement en cours : « dl cancel n » l\'arrête d\'abord'));
+  state.downloads.splice(state.downloads.indexOf(d), 1);
+  refresh();
+}
+
+Object.assign(module.exports, { showDl, showInFolder, setupDownloads, cancelDownload, removeDownload });

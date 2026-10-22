@@ -9,12 +9,12 @@ function applyStaticLabels() {
     b.title = t('Nouvel onglet (Ctrl+T)');
   }
   for (const b of document.querySelectorAll('.tab-prev')) {
-    b.setAttribute('aria-label', t('Onglet précédent'));
-    b.title = t('Onglet précédent (Ctrl+Maj+Tab)');
+    b.setAttribute('aria-label', t('Page précédente'));
+    b.title = t('Page précédente (Alt+←)');
   }
   for (const b of document.querySelectorAll('.tab-next')) {
-    b.setAttribute('aria-label', t('Onglet suivant'));
-    b.title = t('Onglet suivant (Ctrl+Tab)');
+    b.setAttribute('aria-label', t('Page suivante'));
+    b.title = t('Page suivante (Alt+→)');
   }
   $('#url').title = t('Modifier l\'adresse (Entrée pour y aller)');
   $('#url').placeholder = t('adresse ou recherche');

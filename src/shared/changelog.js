@@ -4,6 +4,23 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.38',
+    notes: [
+      'Les boutons précédent / suivant de la souris font comme `back` et `fwd`, y compris pour revenir à un écran de résultats ou de l\'IA.',
+      'Les flèches de la barre d\'onglets reviennent à la page précédente ou suivante au lieu de changer d\'onglet.',
+      'Après une commande, le focus reste dans le terminal même si la page met du temps à charger (sauf la discussion avec l\'IA).',
+      'Un téléchargement en cours peut être annulé (✕ ou `dl cancel n`), et un téléchargement fini retiré de la liste sans supprimer le fichier (✕ ou `dl rm n`).',
+      'En split, un onglet se glisse dans la barre de l\'autre écran, et fermer ou déplacer le dernier onglet d\'un écran termine le split.',
+    ],
+    en: [
+      'The mouse back / forward buttons work like `back` and `fwd`, including going back to a results or AI screen.',
+      'The tab bar arrows go to the previous or next page instead of switching tabs.',
+      'After a command, focus stays in the terminal even if the page is slow to load (except in the AI conversation).',
+      'A download in progress can be cancelled (✕ or `dl cancel n`), and a finished download removed from the list without deleting the file (✕ or `dl rm n`).',
+      'In split, a tab can be dragged onto the other pane\'s bar, and closing or moving the last tab of a pane ends the split.',
+    ],
+  },
+  {
     version: '0.1.37',
     notes: [
       'L\'installateur Windows peut être signé avec un certificat de signature de code, une étape vers la publication sur le Microsoft Store.',

@@ -127,4 +127,20 @@ function zoom(delta) {
   ui.sendState();
 }
 
-Object.assign(module.exports, { navigate, unblank, recordNavigation, goBack, goForward, reloadTab, zoom });
+// Flèches de la barre d'onglets et boutons de la souris : comme back / fwd, sans message d'erreur.
+function navActive(dir) {
+  try {
+    if (dir < 0) goBack(tabList.activeTab());
+    else goForward(tabList.activeTab());
+  } catch {}
+}
+
+// Un même clic des boutons de la souris peut arriver deux fois (Windows et la page).
+let lastMouseNav = 0;
+function mouseNav(dir) {
+  if (Date.now() - lastMouseNav < 300) return;
+  lastMouseNav = Date.now();
+  navActive(dir);
+}
+
+Object.assign(module.exports, { navigate, unblank, recordNavigation, goBack, goForward, navActive, mouseNav, reloadTab, zoom });
