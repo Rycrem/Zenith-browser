@@ -4,6 +4,19 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.36',
+    notes: [
+      'L\'icône du site passe à droite du numéro de l\'onglet.',
+      'L\'onglet affiché garde toujours sa taille normale ; seuls les autres rétrécissent.',
+      'Un onglet rétréci au plus petit n\'affiche plus que l\'icône de son site, sans le titre.',
+    ],
+    en: [
+      'The site icon moves to the right of the tab number.',
+      'The tab shown always keeps its normal size; only the others shrink.',
+      'A tab shrunk to its smallest shows only its site icon, without the title.',
+    ],
+  },
+  {
     version: '0.1.35',
     notes: [
       'Les onglets affichent l\'icône de leur site, et celui affiché est souligné en orange (la couleur d\'accent).',

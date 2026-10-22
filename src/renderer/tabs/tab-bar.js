@@ -23,6 +23,7 @@ groups.forEach((g, i) => {
 
 // La séparation des deux barres tombe sur celle des écrans.
 function alignTabGroups() {
+  fitTabs();
   const g = groups[0].el;
   if (!state || state.panes.length < 2) {
     g.style.flex = '';
@@ -30,6 +31,16 @@ function alignTabGroups() {
   }
   const edge = $('.pane-resizer').getBoundingClientRect().left;
   g.style.flex = `0 0 ${Math.max(80, Math.round(edge - g.getBoundingClientRect().left))}px`;
+}
+
+// Un onglet rétréci au plus petit (min-width) n'affiche que l'icône de son site.
+// On mesure sans la classe, puisque cacher le titre change la largeur voulue.
+function fitTabs() {
+  if (tabDrag) return;
+  const els = [...document.querySelectorAll('#tabbar .tab')];
+  els.forEach((el) => el.classList.remove('mini'));
+  const mini = els.filter((el) => !el.classList.contains('active') && el.getBoundingClientRect().width <= parseFloat(getComputedStyle(el).minWidth) + 0.5);
+  mini.forEach((el) => el.classList.add('mini'));
 }
 
 // Glisser un onglet : il suit la souris de gauche à droite, et ses voisins s'écartent doucement
@@ -135,7 +146,10 @@ function tabEl(tb, shown) {
       onauxclick: (e) => { if (e.button === 1) api.closeTab(tb.id); },
       onpointerdown: (e) => startTabDrag(e, tb),
     },
-    h('button', { type: 'button', class: 'label', title: tb.title, onclick: () => api.tab(tb.id) }, tb.loading ? h('span', { class: 'spin', 'aria-label': t('chargement…') }) : tb.favicon ? h('img', { class: 'favicon', src: tb.favicon, alt: '' }) : null, h('span', { class: 'text' }, `[${tb.n}] `, tb.title)),
+    h('button', { type: 'button', class: 'label', title: tb.title, onclick: () => api.tab(tb.id) },
+      h('span', { class: 'n' }, `[${tb.n}]`),
+      tb.loading ? h('span', { class: 'spin', 'aria-label': t('chargement…') }) : tb.favicon ? h('img', { class: 'favicon', src: tb.favicon, alt: '' }) : null,
+      h('span', { class: 'text' }, tb.title)),
     tb.audible || tb.muted ? h('button', {
       type: 'button',
       class: `speaker${tb.muted ? ' muted' : ''}`,
@@ -171,6 +185,7 @@ function renderTabs() {
       if (el) el.scrollIntoView({ inline: 'nearest', block: 'nearest' });
     }
   });
+  fitTabs();
   // Pas pendant qu'on la modifie.
   if (document.activeElement !== urlInput) urlInput.value = siteOf(state.status.url);
 }
