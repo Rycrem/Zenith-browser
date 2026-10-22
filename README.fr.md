@@ -154,6 +154,6 @@ Le reste ne se fait que quand tu le demandes, vers un service que tu as choisi e
 
 ## Licence
 
-Copyright (C) 2026 Emeric Krikor Keskin ([Rycrem](https://github.com/Rycrem)).
+Emeric Krikor Keskin ([Rycrem](https://github.com/Rycrem)).
 
 GPL-3.0 ou ultérieure (voir [LICENSE](LICENSE)), à cause de la bibliothèque electron-chrome-extensions, distribuée sous GPL-3.0.
