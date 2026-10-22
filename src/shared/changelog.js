@@ -4,12 +4,65 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
-    version: '0.1.31',
+    version: '0.1.37',
     notes: [
       'L\'installateur Windows peut être signé avec un certificat de signature de code, une étape vers la publication sur le Microsoft Store.',
     ],
     en: [
       'The Windows installer can be signed with a code signing certificate, a step towards publishing on the Microsoft Store.',
+    ],
+  },
+  {
+    version: '0.1.36',
+    notes: [
+      'L\'icône du site passe à droite du numéro de l\'onglet.',
+      'L\'onglet affiché garde toujours sa taille normale ; seuls les autres rétrécissent.',
+      'Un onglet rétréci au plus petit n\'affiche plus que l\'icône de son site, sans le titre.',
+    ],
+    en: [
+      'The site icon moves to the right of the tab number.',
+      'The tab shown always keeps its normal size; only the others shrink.',
+      'A tab shrunk to its smallest shows only its site icon, without the title.',
+    ],
+  },
+  {
+    version: '0.1.35',
+    notes: [
+      'Les onglets affichent l\'icône de leur site, et celui affiché est souligné en orange (la couleur d\'accent).',
+      'Quand il y a trop d\'onglets, ils rétrécissent jusqu\'au tiers de leur largeur avant que la barre défile.',
+      'Un lien ouvert en Ctrl+clic s\'ouvre juste à côté de l\'onglet d\'où il vient, dans l\'ordre des clics.',
+    ],
+    en: [
+      'Tabs show their site\'s icon, and the one shown is underlined in orange (the accent color).',
+      'When there are too many tabs, they shrink down to a third of their width before the bar scrolls.',
+      'A link opened with Ctrl+click opens right next to the tab it came from, in click order.',
+    ],
+  },
+  {
+    version: '0.1.34',
+    notes: [
+      'Installer ou désinstaller une extension depuis le Chrome Web Store ouvre une fenêtre aux couleurs de Zenith (accent, mode nuit ou jour, navigation privée), avec la liste de ce que l\'extension pourra faire.',
+    ],
+    en: [
+      'Installing or uninstalling an extension from the Chrome Web Store opens a window in Zenith\'s colors (accent, night or day mode, private browsing), listing what the extension will be able to do.',
+    ],
+  },
+  {
+    version: '0.1.33',
+    notes: [
+      'Le code de Zenith est rangé en dossiers par fonctionnalité (onglets, split, terminal, extensions, mises à jour…). Rien ne change à l\'usage.',
+    ],
+    en: [
+      'Zenith\'s code is now organized in folders by feature (tabs, split, terminal, extensions, updates…). Nothing changes in use.',
+    ],
+  },
+  {
+    version: '0.1.32',
+    notes: [
+      'Les captures d\'écran du README montrent le nouveau visuel de Zenith (logo, barre d\'adresse, barre d\'état).',
+    ],
+    en: [
+      'The README screenshots show Zenith\'s new look (logo, address bar, status bar).',
     ],
   },
   {

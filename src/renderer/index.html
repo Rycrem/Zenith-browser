@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:">
   <title>Zenith</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -68,6 +68,21 @@
     <footer id="status"></footer>
   </div>
   <script src="../shared/i18n.js"></script>
-  <script src="renderer.js"></script>
+  <!-- Scripts classiques qui partagent leurs déclarations. L'ordre compte : les fonctions d'abord,
+       puis ce qui réagit au processus principal et à la taille de la fenêtre, et start.js en dernier. -->
+  <script src="core/base.js"></script>
+  <script src="core/icons.js"></script>
+  <script src="terminal/output.js"></script>
+  <script src="tabs/tab-bar.js"></script>
+  <script src="status-bar/player.js"></script>
+  <script src="status-bar/status-bar.js"></script>
+  <script src="screens/screens.js"></script>
+  <script src="search/find-in-screen.js"></script>
+  <script src="core/labels.js"></script>
+  <script src="layout/resizers.js"></script>
+  <script src="address-bar/address-bar.js"></script>
+  <script src="terminal/input.js"></script>
+  <script src="core/on-state.js"></script>
+  <script src="core/start.js"></script>
 </body>
 </html>

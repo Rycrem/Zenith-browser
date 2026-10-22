@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const { bookmarkTree } = require('../src/main/ext-api');
+const { bookmarkTree } = require('../src/main/extensions/ext-api');
 
 test('les favoris deviennent un arbre chrome.bookmarks', () => {
   const tree = {
