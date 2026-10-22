@@ -16,8 +16,14 @@ const APP = 'C:\\Program Files\\Certum\\SimplySign Desktop\\SimplySignDesktop.ex
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Le PSModulePath hérité de pwsh 7 (shell des runners) empêche Windows PowerShell 5 de charger
+// ses propres modules, dont celui du lecteur Cert:.
+const psEnv = { ...process.env };
+delete psEnv.PSModulePath;
+
 function ps(code) {
-  return execFileSync('powershell', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(code, 'utf16le').toString('base64')], { encoding: 'utf8' });
+  const script = `$ProgressPreference = 'SilentlyContinue'\n${code}`;
+  return execFileSync('powershell', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], { encoding: 'utf8', env: psEnv });
 }
 
 // Le secret peut être collé seul ou avec tout le lien otpauth:// du QR code d'activation.
