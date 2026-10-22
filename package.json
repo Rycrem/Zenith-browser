@@ -1,7 +1,7 @@
 {
   "name": "zenith",
   "productName": "Zenith",
-  "version": "0.1.36",
+  "version": "0.1.37",
   "description": "Zenith, navigateur basé sur Chromium qui se pilote comme un terminal",
   "main": "src/main/main.js",
   "scripts": {
@@ -60,7 +60,16 @@
     "win": {
       "target": [
         "nsis"
-      ]
+      ],
+      "signExts": [
+        ".dll"
+      ],
+      "signtoolOptions": {
+        "rfc3161TimeStampServer": "http://time.certum.pl",
+        "signingHashAlgorithms": [
+          "sha256"
+        ]
+      }
     },
     "nsis": {
       "oneClick": false,

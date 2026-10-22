@@ -4,6 +4,15 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.37',
+    notes: [
+      'L\'installateur Windows peut être signé avec un certificat de signature de code, une étape vers la publication sur le Microsoft Store.',
+    ],
+    en: [
+      'The Windows installer can be signed with a code signing certificate, a step towards publishing on the Microsoft Store.',
+    ],
+  },
+  {
     version: '0.1.36',
     notes: [
       'L\'icône du site passe à droite du numéro de l\'onglet.',

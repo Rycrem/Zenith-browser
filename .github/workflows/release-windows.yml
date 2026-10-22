@@ -12,6 +12,8 @@ permissions:
 jobs:
   release:
     runs-on: windows-latest
+    env:
+      CERTUM_USERNAME: ${{ secrets.CERTUM_USERNAME }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -40,11 +42,17 @@ jobs:
         run: node scripts/fetch-ublock.js
         env:
           GH_TOKEN: ${{ github.token }}
+      - name: Se connecter à SimplySign (certificat Certum)
+        id: certum
+        if: env.CERTUM_USERNAME != ''
+        run: node scripts/certum-login.js
+        env:
+          CERTUM_TOTP_SECRET: ${{ secrets.CERTUM_TOTP_SECRET }}
       - name: Construire et envoyer l'installateur
-        run: npx electron-builder --win --publish always
+        run: npx electron-builder --win --publish always ${{ steps.certum.outputs.thumbprint && format('"--config.win.signtoolOptions.certificateSha1={0}"', steps.certum.outputs.thumbprint) || '' }}
         env:
           GH_TOKEN: ${{ github.token }}
-          # Pas de certificat de signature : installateur non signé.
+          # Signé avec le certificat Certum si les secrets CERTUM_* existent, sinon non signé.
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - name: Publier la Release
         shell: bash
