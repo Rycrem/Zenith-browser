@@ -17,4 +17,4 @@ jobs:
       - run: npm ci
       - run: npm test
       - name: Vérifier la syntaxe
-        run: for f in src/main/*.js src/shared/*.js src/renderer/*.js scripts/*.js; do node --check "$f"; done
+        run: for f in $(find src scripts -name '*.js'); do node --check "$f"; done

@@ -4,9 +4,9 @@ const fs = require('fs');
 const path = require('path');
 const { net } = require('electron');
 const AdmZip = require('adm-zip');
-const { crxToZip, extensionIdFrom } = require('../shared/crx');
+const { crxToZip, extensionIdFrom } = require('../../shared/crx');
 const { patchExtension } = require('./storage-sync');
-const { t } = require('../shared/i18n');
+const { t } = require('../../shared/i18n');
 
 // uBlock Origin complet (MV2) n'est plus sur le Chrome Web Store : on le prend dans ses Releases GitHub.
 // uBlock Origin Lite (MV3) bloque avec declarativeNetRequest, qu'Electron ne gère pas.
