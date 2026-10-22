@@ -40,6 +40,17 @@ Var pid
   !endif
 !macroend
 
+; Ancien nom : une installation dans ...\dev-brows passe dans ...\Zenith. L'ancienne version est
+; désinstallée de son dossier comme d'habitude (chemin lu dans le registre), puis Zenith s'installe
+; dans le nouveau.
+!macro customInit
+  StrCpy $0 $INSTDIR "" -10
+  ${If} $0 == "\dev-brows"
+    StrCpy $0 $INSTDIR -10
+    StrCpy $INSTDIR "$0\Zenith"
+  ${EndIf}
+!macroend
+
 !ifndef BUILD_UNINSTALLER
   !include MUI2.nsh
   !include nsDialogs.nsh
@@ -136,6 +147,8 @@ Var pid
     DetailPrint "Creating Start menu and desktop shortcuts…"
   ${EndIf}
   !insertmacro zenithRegisterBrowser
+  ; Cache des mises à jour de l'ancien nom.
+  RMDir /r "$LOCALAPPDATA\dev-brows-updater"
 !macroend
 
 ; Inscription comme navigateur, à chaque installation (chemin à jour) : Zenith apparaît dans les

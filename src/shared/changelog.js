@@ -4,6 +4,15 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.28',
+    notes: [
+      'Les dossiers de Zenith ne s\'appellent plus dev-brows : tes données passent dans AppData\\Roaming\\Zenith au premier lancement, et l\'appli s\'installe dans AppData\\Local\\Programs\\Zenith (l\'ancien dossier est retiré).',
+    ],
+    en: [
+      'Zenith folders are no longer named dev-brows: your data moves to AppData\\Roaming\\Zenith on first launch, and the app installs to AppData\\Local\\Programs\\Zenith (the old folder is removed).',
+    ],
+  },
+  {
     version: '0.1.27',
     notes: [
       'La barre d\'adresse a une largeur fixe, deux fois celle qu\'elle avait sur l\'accueil ; elle n\'affiche toujours que le site, l\'adresse complète au clic.',
