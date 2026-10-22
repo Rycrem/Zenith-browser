@@ -17,7 +17,7 @@ const CHANGELOG = [
       'The ‹ › arrows sit in a small box right of + and go to the previous or next tab.',
       'Dragging a tab gently slides its neighbours apart to show where it will land, then it slides into place.',
       'Ctrl+Tab, Ctrl+Shift+Tab and the other shortcuts also work while the cursor is in the terminal.',
-      'The address box only shows the site (easyrea.atlassian.net); it takes the site's width, at most twice its width on the home screen. Click it to see the full address, and the copy button still copies the whole link.',
+      'The address box only shows the site (easyrea.atlassian.net); it takes the site\'s width, at most twice its width on the home screen. Click it to see the full address, and the copy button still copies the whole link.',
     ],
   },
   {
