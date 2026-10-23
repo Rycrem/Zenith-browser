@@ -8,6 +8,7 @@ const theme = require('./theme');
 const tabList = require('../tabs/tabs');
 const findInPage = require('../search/find-in-page');
 const audio = require('../audio/audio');
+const mobile = require('../page/mobile');
 
 const tr = t; // là où une variable locale « t » (un onglet) cache t()
 
@@ -52,25 +53,39 @@ function layout() {
     if (tab.view) tab.view.setVisible(!!visible);
     if (tab.dev && !tab.devWin) tab.dev.setVisible(!!devOpen);
     if (!visible) return;
-    if (devOpen) {
-      const devW = Math.round(r.width * DEVTOOLS_RATIO);
-      tab.view.setBounds({ x: r.x, y: r.y, width: r.width - devW, height: r.height });
-      tab.dev.setBounds({ x: r.x + r.width - devW, y: r.y + DEVBAR_H, width: devW, height: Math.max(0, r.height - DEVBAR_H) });
+    const devW = devOpen ? Math.round(r.width * DEVTOOLS_RATIO) : 0;
+    if (devOpen) tab.dev.setBounds({ x: r.x + r.width - devW, y: r.y + DEVBAR_H, width: devW, height: Math.max(0, r.height - DEVBAR_H) });
+    const page = { x: r.x, y: r.y, width: r.width - devW, height: r.height };
+    // Mode mobile : la page à la taille de l'appareil, au milieu de son écran.
+    if (state.mobile) {
+      const m = mobile.fit(page);
+      tab.view.setBounds(m.bounds);
+      mobile.applyMobile(tab, m.scale);
     } else {
-      tab.view.setBounds(r);
+      tab.view.setBounds(page);
+      mobile.applyMobile(tab);
     }
   });
 }
 
-// Les événements des pages arrivent par rafales (chargement, titre, son…) : un seul envoi par tour.
-let stateQueued = false;
+// Les événements des pages arrivent par rafales (chargement, titre, son…) : un seul envoi par
+// tour et par fenêtre.
 function sendState() {
-  if (stateQueued) return;
-  stateQueued = true;
+  if (state.stateQueued) return;
+  state.stateQueued = true;
   setImmediate(() => {
-    stateQueued = false;
+    state.stateQueued = false;
     sendStateNow();
   });
+}
+
+// Pour un réglage qui touche toutes les fenêtres (mode mobile…).
+function layoutAll() {
+  for (const w of state.allWindows()) state.inWindow(w, layout);
+}
+
+function sendStateAll() {
+  for (const w of state.allWindows()) state.inWindow(w, sendState);
 }
 
 function sendStateNow() {
@@ -130,4 +145,4 @@ function hostOf(url) {
   }
 }
 
-Object.assign(module.exports, { setHtmlFullscreen, layout, sendState, hostOf });
+Object.assign(module.exports, { setHtmlFullscreen, layout, layoutAll, sendState, sendStateAll, hostOf });

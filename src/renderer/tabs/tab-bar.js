@@ -52,9 +52,10 @@ function fitTabs() {
 
 // Glisser un onglet : il suit la souris de gauche à droite, et ses voisins s'écartent doucement
 // pour ouvrir la place où il sera posé ; un contour glisse vers les bords de cette place.
-// Lâché, l'onglet glisse dans la place. En split, il peut aussi passer dans l'autre écran.
+// Lâché, l'onglet glisse dans la place. En split, il peut aussi passer dans l'autre écran ;
+// tiré vers le bas, il part dans sa propre fenêtre, et lâché sur la barre d'une autre fenêtre, il y entre.
 const TAB_SLIDE_MS = 400;
-let tabDrag = null; // { id, side, el, strip, startX, moved, from, pos, w, others, center, min, max, into, dropping }
+let tabDrag = null; // { id, side, el, strip, startX, startY, moved, from, pos, w, others, center, min, max, into, detached, dropping }
 
 function slotShift(d, i) {
   if (d.from < i && i <= d.pos) return -d.w;
@@ -76,6 +77,7 @@ function startTabDrag(e, tb) {
     el,
     strip,
     startX: e.clientX,
+    startY: e.clientY,
     moved: false,
     from,
     pos: from,
@@ -89,11 +91,42 @@ function startTabDrag(e, tb) {
     max: sr.right - r.right,
   };
   tabDrag = d;
+  // Une fois le glissement commencé, la souris reste à cette fenêtre même au-dessus d'une autre
+  // (onglet détaché) ; sur le body, qui reste quand la barre se redessine.
+  const capture = (ev) => {
+    try {
+      document.body.setPointerCapture(ev.pointerId);
+    } catch {}
+  };
+  const cleanup = () => {
+    for (const g of groups) g.strip.classList.remove('drop-into');
+    strip.classList.remove('sorting');
+    el.classList.remove('dragging');
+    el.style.transform = '';
+    d.others.forEach((o) => {
+      o.el.style.transform = '';
+      o.el.classList.remove('drop-l', 'drop-r');
+    });
+  };
   const move = (ev) => {
+    // Détaché : sa fenêtre suit la souris.
+    if (d.detached) return void api.dragTabWindow(ev.screenX, ev.screenY);
     const raw = ev.clientX - d.startX;
+    // Tiré vers le bas de plus de 5 % de la hauteur de l'écran : l'onglet part dans sa propre
+    // fenêtre, placée sous la souris (seul dans la sienne, c'est elle qui bouge).
+    if (ev.clientY - d.startY > screen.availHeight * 0.05) {
+      d.detached = true;
+      capture(ev);
+      cleanup();
+      tabDrag = null; // la barre se redessine sans lui
+      const alone = state.tabs.length === 1;
+      api.detachTab(d.id, ev.screenX, ev.screenY, alone ? ev.clientX : groups[0].strip.getBoundingClientRect().left + 40, alone ? ev.clientY : 18);
+      return;
+    }
     if (!d.moved && Math.abs(raw) < 5) return;
     if (!d.moved) {
       d.moved = true;
+      capture(ev);
       el.classList.add('dragging');
       strip.classList.add('sorting');
     }
@@ -120,22 +153,29 @@ function startTabDrag(e, tb) {
       o.el.classList.toggle('drop-l', pos !== d.from && o === rest[pos]);
     });
   };
-  const up = () => {
+  const up = (ev) => {
+    if (d.detached && ev.type === 'blur') return; // la fenêtre détachée peut prendre le focus
     window.removeEventListener('pointermove', move);
     window.removeEventListener('pointerup', up);
     window.removeEventListener('blur', up);
+    if (d.detached) return void api.dropTab(d.id, ev.screenX, ev.screenY);
     if (!d.moved) {
       tabDrag = null;
       return;
     }
     // Le clic qui suit le glissement ne doit pas changer d'onglet.
-    window.addEventListener('click', (ev) => ev.stopPropagation(), { capture: true, once: true });
+    window.addEventListener('click', (x) => x.stopPropagation(), { capture: true, once: true });
+    // Lâché hors de la fenêtre : dans la barre d'une autre fenêtre, ou dans une nouvelle.
+    if (ev.type === 'pointerup' && (ev.clientX < 0 || ev.clientY < 0 || ev.clientX > innerWidth || ev.clientY > innerHeight)) {
+      tabDrag = null;
+      cleanup();
+      api.dropTab(d.id, ev.screenX, ev.screenY);
+      renderTabs();
+      return;
+    }
     if (d.into) {
       tabDrag = null;
-      groups[d.into.idx].strip.classList.remove('drop-into');
-      strip.classList.remove('sorting');
-      el.classList.remove('dragging');
-      d.others.forEach((o) => { o.el.style.transform = ''; });
+      cleanup();
       api.moveTabToPane(d.id, d.into.idx, d.into.pos);
       renderTabs();
       return;

@@ -68,6 +68,7 @@ function showSuggest(rect, selected) {
     });
     state.suggest = { win: sw, key, ready: false, data: null };
     const s = state.suggest;
+    state.bindToCurrent(sw);
     sw.webContents.on('did-finish-load', () => {
       s.ready = true;
       if (!s.data || sw.isDestroyed() || !state.suggestList.length) return;

@@ -11,6 +11,7 @@ const findInPage = require('../search/find-in-page');
 const devtools = require('../devtools/devtools');
 const privateBrowsing = require('../private/private');
 const commands = require('../terminal/commands');
+const panels = require('../panels/panels');
 
 const SHORTCUTS = [
   ['Ctrl+H', mark('aller au terminal')],
@@ -72,6 +73,7 @@ function buildMenu() {
         { label: t('Téléchargements'), accelerator: 'CmdOrCtrl+Shift+J', click: () => state.win.webContents.send('ui:panel', 'dl') },
         { label: t('Favoris'), accelerator: 'CmdOrCtrl+Shift+B', click: () => state.win.webContents.send('ui:panel', 'fav') },
         { label: 'Extensions', accelerator: 'CmdOrCtrl+Shift+E', click: () => state.win.webContents.send('ui:panel', 'ext') },
+        { label: t('Mode mobile'), accelerator: 'CmdOrCtrl+Alt+M', click: () => panels.togglePanel('mobile') },
         { label: t('Navigation privée'), accelerator: 'CmdOrCtrl+Shift+N', click: () => privateBrowsing.togglePrivate().catch((err) => output.print([{ t: `  ${err.message}`, c: 'err' }])) },
         ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({
           label: `Extension ${n}`, accelerator: `Alt+${n}`, visible: false, click: act(() => extPopup.openExtPopup(n)),

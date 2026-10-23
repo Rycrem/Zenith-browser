@@ -40,7 +40,7 @@ function openExtPopup(n, x) {
     skipTaskbar: true,
     webPreferences: { session: tabList.sesOf(tabList.activeTab()), enablePreferredSizeMode: true },
   });
-  const pw = state.popupWin;
+  const pw = state.bindToCurrent(state.popupWin);
   pw.extN = n;
   pw.on('closed', () => {
     extPopupClosed = { n, at: Date.now() };

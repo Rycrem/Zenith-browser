@@ -18,6 +18,7 @@ const tty = require('../page/tty');
 const contextMenu = require('./context-menu');
 const audio = require('../audio/audio');
 const favicon = require('./favicon');
+const mobile = require('../page/mobile');
 
 function ensureView(tab) {
   if (tab.view) return tab.view;
@@ -40,7 +41,7 @@ function ensureView(tab) {
   return view;
 }
 
-const tabOfContents = (wc) => state.tabs.find((t) => t.view && t.view.webContents === wc);
+const tabOfContents = (wc) => state.allTabs().find((t) => t.view && t.view.webContents === wc);
 
 // Boutons précédent / suivant de la souris dans une page : Chromium y remonterait l'historique
 // de la page tout seul, sans passer par back (écrans de résultats, de l'IA…). Le script les
@@ -58,8 +59,12 @@ const NAV_SCRIPT = `if (!window.__zenithNav) {
 }`;
 
 function wireWebContents(tab, wc) {
+  // Ses événements se traitent dans la fenêtre où se trouve l'onglet à ce moment-là.
+  state.bindEmitter(wc, () => state.windowOfTab(tab));
   wc.on('did-start-navigation', (details) => {
-    if (details.isMainFrame) googleLogin.matchUserAgent(wc, details.url);
+    if (!details.isMainFrame) return;
+    googleLogin.matchUserAgent(wc, details.url);
+    mobile.applyMobile(tab);
   });
   wc.on('did-start-loading', () => {
     tab.loading = true;
@@ -191,12 +196,12 @@ function wireWebContents(tab, wc) {
     else output.print([{ t: `  ${r.matches ? `${r.activeMatchOrdinal}/${r.matches}` : t('aucun résultat')}`, c: 'dim' }]);
   });
   wc.on('context-menu', (e, params) => contextMenu.showContextMenu(tab, params));
-  wc.setWindowOpenHandler(({ url, disposition }) => {
+  wc.setWindowOpenHandler(({ url, disposition }) => state.inWindow(state.windowOfTab(tab), () => {
     // Les vraies popups (connexion OAuth, etc.) restent des fenêtres ; le reste devient un onglet.
     if (disposition === 'new-window') return { action: 'allow' };
     tabList.createTab({ url, background: disposition === 'background-tab', priv: tab.private, opener: tab });
     return { action: 'deny' };
-  });
+  }));
 }
 
 Object.assign(module.exports, { ensureView, tabOfContents });

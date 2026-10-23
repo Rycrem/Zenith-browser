@@ -82,7 +82,7 @@ function audioChanged() {
   // Les événements arrivent par rafales (plusieurs frames) : un seul envoi.
   clearTimeout(audioTimer);
   audioTimer = setTimeout(() => {
-    ui.sendState();
+    ui.sendStateAll(); // le volume et « couper tout » valent pour toutes les fenêtres
     panels.sendPanel('audio');
   }, 50);
 }
@@ -96,7 +96,7 @@ function setMuted(tab, muted) {
 function setGlobalVolume(v) {
   state.settings.data.volume = Math.min(1, Math.max(0, Math.round(v * 100) / 100));
   state.settings.save();
-  for (const tab of state.tabs) applyVolume(tab);
+  for (const tab of state.allTabs()) applyVolume(tab);
   audioChanged();
 }
 
@@ -104,7 +104,7 @@ function setGlobalVolume(v) {
 function setMuteAll(on) {
   state.settings.data.muteAll = on;
   state.settings.save();
-  for (const tab of state.tabs) {
+  for (const tab of state.allTabs()) {
     if (!tab.view) continue;
     if (on && !isMuted(tab)) {
       tab.mutedByAll = true;

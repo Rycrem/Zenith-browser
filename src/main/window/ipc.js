@@ -25,16 +25,21 @@ const updates = require('../updates/update-command');
 const completion = require('../terminal/completion');
 
 function setupIpc() {
-  // Les canaux ui:* ne répondent qu'à l'interface de la fenêtre, jamais à une page ou une extension.
-  const fromUi = (e) => !!state.win && !state.win.isDestroyed() && e.sender === state.win.webContents;
+  // Les canaux ui:* ne répondent qu'à l'interface d'une fenêtre, jamais à une page ou une
+  // extension ; ils s'appliquent à cette fenêtre.
+  const uiWindow = (e) => state.allWindows().find((w) => w.win && !w.win.isDestroyed() && e.sender === w.win.webContents);
   const onUi = (channel, fn) => ipcMain.on(channel, (e, ...args) => {
-    if (fromUi(e)) fn(e, ...args);
+    const w = uiWindow(e);
+    if (w) state.inWindow(w, () => fn(e, ...args));
     else e.returnValue = null;
   });
   const handleUi = (channel, fn) => ipcMain.handle(channel, (e, ...args) => {
-    if (!fromUi(e)) throw new Error('refused');
-    return fn(e, ...args);
+    const w = uiWindow(e);
+    if (!w) throw new Error('refused');
+    return state.inWindow(w, () => fn(e, ...args));
   });
+  // Les popups (panneaux, recherche, suggestions…) parlent pour la fenêtre qui les a ouvertes.
+  const onPopup = (channel, fn) => ipcMain.on(channel, (e, ...args) => state.inWindow(state.windowOf(e.sender), () => fn(e, ...args)));
   onUi('ui:layout', (e, r) => {
     state.rects = r.map((x) => x && { x: Math.round(x.x), y: Math.round(x.y), width: Math.round(x.width), height: Math.round(x.height) });
     ui.layout();
@@ -123,6 +128,42 @@ function setupIpc() {
     tabList.sortSides();
     ui.sendState();
   });
+  // Onglet glissé hors de la barre : il part dans sa propre fenêtre, qui suit la souris jusqu'au
+  // relâchement (ox, oy : place de la souris dans cette fenêtre). Lâché sur la barre d'onglets
+  // d'une autre fenêtre, il y entre.
+  let tabDrag = null; // { tab, w, ox, oy }
+  const inTabBar = (win, x, y) => {
+    const b = win.getContentBounds();
+    return x >= b.x && x < b.x + b.width && y >= b.y && y < b.y + 44;
+  };
+  onUi('ui:tab-detach', (e, id, sx, sy, ox, oy) => {
+    const tab = tabList.getTab(id);
+    if (!tab || ![sx, sy, ox, oy].every(Number.isFinite)) return;
+    const b = state.win.getBounds();
+    const w = tabList.detachTab(tab, { x: Math.round(sx - ox), y: Math.round(sy - oy), width: b.width, height: b.height }, true);
+    if (w && w.win) {
+      if (w.win.isMaximized()) w.win.unmaximize();
+      tabDrag = { tab, w, ox, oy };
+    }
+  });
+  onUi('ui:tab-drag-move', (e, sx, sy) => {
+    const d = tabDrag;
+    if (d && d.w.win && !d.w.win.isDestroyed() && Number.isFinite(sx) && Number.isFinite(sy)) d.w.win.setPosition(Math.round(sx - d.ox), Math.round(sy - d.oy));
+  });
+  onUi('ui:tab-drop', (e, id, sx, sy) => {
+    const drag = tabDrag;
+    tabDrag = null;
+    const tab = state.allTabs().find((tb) => tb.id === id);
+    if (!tab || !Number.isFinite(sx) || !Number.isFinite(sy)) return;
+    const own = state.windowOfTab(tab);
+    const target = state.allWindows().find((w) => w !== own && w.win && !w.win.isDestroyed() && w.win.isVisible() && !w.win.isMinimized() && inTabBar(w.win, sx, sy));
+    if (target) return void tabList.moveTabToWindow(tab, target);
+    if (drag) return void (own && own.win && own.win.focus());
+    // Lâché hors de toute fenêtre sans avoir été détaché (glissé de côté) : sa propre fenêtre, là.
+    const b = state.win.getBounds();
+    const w = tabList.detachTab(tab, { x: Math.round(sx - 60), y: Math.round(sy - 18), width: b.width, height: b.height });
+    if (w && w.win) w.win.focus();
+  });
   // Flèches de la barre d'onglets : page précédente ou suivante de l'onglet de cet écran, comme back / fwd.
   onUi('ui:tab-nav', (e, idx, dir) => {
     if (!state.panes[idx] || (dir !== 1 && dir !== -1)) return;
@@ -175,18 +216,18 @@ function setupIpc() {
       origin = new URL(e.senderFrame.url).origin;
     } catch {}
     if (!tab || e.senderFrame !== e.sender.mainFrame || origin !== webStore.STORE_ORIGIN) throw new Error('refused');
-    return webStore.storeCall(tab, String(name), args);
+    return state.inWindow(state.windowOfTab(tab), () => webStore.storeCall(tab, String(name), args));
   });
   onUi('ui:suggest-select', (e, i, rect) => suggestions.showSuggest(rect, i));
   onUi('ui:suggest-hide', () => suggestions.hideSuggest());
-  ipcMain.on('panel:act', (e, action, arg) => {
+  onPopup('panel:act', (e, action, arg) => {
     if (state.findWin && !state.findWin.win.isDestroyed() && e.sender === state.findWin.win.webContents) return findInPage.findAction(action, arg);
     if (state.suggest && !state.suggest.win.isDestroyed() && e.sender === state.suggest.win.webContents) return suggestions.suggestAction(action, arg);
     if (fromModal(e)) return modal.modalAction(action);
     const p = fromPanel(e);
     if (p) panels.panelAction(p.kind, action, arg).catch((err) => output.print([{ t: `  ${err.message}`, c: 'err' }]));
   });
-  ipcMain.on('panel:size', (e, height) => {
+  onPopup('panel:size', (e, height) => {
     if (fromModal(e) && Number.isFinite(height)) return modal.modalSize(height);
     const p = fromPanel(e);
     if (p && Number.isFinite(height)) p.win.setBounds(p.place(Math.min(Math.max(Math.ceil(height), 60), 520)));

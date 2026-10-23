@@ -44,6 +44,7 @@ function openFind() {
   });
   state.findWin = { win: fw, tabId: tab.id, screen };
   fw.loadFile(path.join(__dirname, '../../renderer/panels/find.html'), { query: { accent: theme.accentColor(), mode: theme.isLight() ? 'jour' : 'nuit', private: tab.private ? '1' : '' } });
+  state.bindToCurrent(fw);
   fw.webContents.once('did-finish-load', () => fw.webContents.send('panel:data', {
     text: tab.findText || '',
     labels: { placeholder: screen ? t('chercher dans l\'écran') : t('chercher dans la page'), next: t('Résultat suivant (Entrée)'), prev: t('Résultat précédent (Maj+Entrée)'), close: t('Fermer (Échap)') },

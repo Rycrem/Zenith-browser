@@ -13,6 +13,7 @@ const output = require('../terminal/output');
 const findInPage = require('../search/find-in-page');
 const devtools = require('../devtools/devtools');
 const privateBrowsing = require('../private/private');
+const mainWindow = require('../window/window');
 
 const closedTabs = []; // onglets fermés, le plus récent d'abord : { url, title }
 
@@ -104,7 +105,7 @@ function closeTab(tab) {
   state.tabs.splice(i, 1);
   if (state.findWin && state.findWin.tabId === tab.id) findInPage.closeFind(false);
   // Dernier onglet privé d'un écran fermé : ses données s'effacent aussitôt.
-  if (tab.private && !state.privateMode && state.privSes && !state.tabs.some((tb) => tb.private)) privateBrowsing.wipePrivate();
+  if (tab.private && !state.privateMode && state.privSes && !state.allTabs().some((tb) => tb.private)) privateBrowsing.wipePrivate();
   if (!tab.private && /^(https?|file):/.test(tab.url)) {
     closedTabs.unshift({ url: tab.url, title: tab.title });
     if (closedTabs.length > 25) closedTabs.pop();
@@ -124,6 +125,66 @@ function closeTab(tab) {
   });
   ui.layout();
   ui.sendState();
+}
+
+// Plusieurs fenêtres. Un onglet passe d'une fenêtre à l'autre avec sa page (et ses DevTools
+// ancrés) : target est un état de state.allWindows(), gap sa place parmi les onglets de
+// target (à la fin sinon). Sa fenêtre d'origine se ferme s'il était son dernier onglet.
+// Pas pendant la navigation privée d'une fenêtre : ses onglets normaux y sont mis de côté.
+function moveTabToWindow(tab, target, gap, focus = true) {
+  const from = state.windowOfTab(tab);
+  if (!from || !target || from === target || !target.win || from.privateMode || target.privateMode) return false;
+  const last = from.tabs.length === 1;
+  state.inWindow(from, () => {
+    const side = sideOf(tab);
+    const si = sideTabs(side).indexOf(tab);
+    state.tabs.splice(state.tabs.indexOf(tab), 1);
+    if (state.findWin && state.findWin.tabId === tab.id) findInPage.closeFind(false);
+    if (state.fullTab === tab) ui.setHtmlFullscreen(tab, false);
+    if (tab.view) state.win.contentView.removeChildView(tab.view);
+    if (tab.dev && !tab.devWin) state.win.contentView.removeChildView(tab.dev);
+    if (last) return;
+    if (state.panes.length > 1 && !sideTabs(side).length) split.closePane(side);
+    else {
+      for (const p of state.panes) {
+        if (p.tabId !== tab.id) continue;
+        const same = sideTabs(side);
+        p.tabId = same[Math.min(si, same.length - 1)].id;
+      }
+    }
+    ui.layout();
+    ui.sendState();
+  });
+  state.inWindow(target, () => {
+    tab.side = state.panes.length > 1 ? state.activePane : 0;
+    state.tabs.splice(Number.isInteger(gap) && gap >= 0 && gap <= state.tabs.length ? gap : state.tabs.length, 0, tab);
+    sortSides();
+    if (tab.view) state.win.contentView.addChildView(tab.view);
+    if (tab.dev && !tab.devWin) state.win.contentView.addChildView(tab.dev);
+    // Pour les extensions, l'onglet change de fenêtre (sans le retirer, ce qui le fermerait).
+    try {
+      const store = apiOf(tab).ctx.store;
+      store.tabToWindow.set(tab.view.webContents, state.win);
+      store.addWindow(state.win);
+    } catch {}
+    split.showInPane(tab, sideOf(tab));
+    if (focus) state.win.focus();
+  });
+  if (last) from.win.close();
+  return true;
+}
+
+// Onglet sorti de sa fenêtre : une nouvelle fenêtre à bounds, rien que pour lui. Seul dans la
+// sienne, il la garde (c'est elle qui suit la souris). inactive : pendant le glissement, la
+// nouvelle fenêtre ne prend pas le focus (l'ancienne perdrait la souris).
+function detachTab(tab, bounds, inactive = false) {
+  const from = state.windowOfTab(tab);
+  if (!from || from.privateMode) return null;
+  if (from.tabs.length === 1) return from;
+  const w = state.addWindow();
+  state.inWindow(w, () => mainWindow.createWindow(bounds, inactive));
+  moveTabToWindow(tab, w, undefined, !inactive);
+  return w;
 }
 
 // Onglet suivant ou précédent, parmi ceux de l'écran actif.
@@ -147,4 +208,4 @@ function showTabs(tab) {
   );
 }
 
-Object.assign(module.exports, { sesOf, apiOf, getTab, activeTab, paneOf, sideOf, sortSides, selectTab, replacement, createTab, reopenClosed, recentMenu, destroyTab, closeTab, cycleTab, tabTitle, showTabs });
+Object.assign(module.exports, { moveTabToWindow, detachTab, sesOf, apiOf, getTab, activeTab, paneOf, sideOf, sortSides, selectTab, replacement, createTab, reopenClosed, recentMenu, destroyTab, closeTab, cycleTab, tabTitle, showTabs });

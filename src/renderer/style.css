@@ -128,10 +128,11 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
   display: flex;
   align-items: center;
   gap: 6px;
-  /* Trop d'onglets : ils rétrécissent jusqu'au tiers de leur largeur, puis la barre défile. */
+  /* Tous de la même largeur. Trop d'onglets : ils rétrécissent ensemble jusqu'au tiers de leur
+     largeur, puis la barre défile. */
   flex: 0 1 auto;
+  width: 220px;
   min-width: 74px;
-  max-width: 220px;
   padding: 4px 6px 4px 10px;
   border-radius: 4px;
   color: var(--dim);
