@@ -4,6 +4,21 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.39',
+    notes: [
+      'Plusieurs fenêtres : un onglet tiré vers le bas part dans sa propre fenêtre, qui suit la souris ; lâché sur la barre d\'onglets d\'une autre fenêtre, il y entre, et une fenêtre sans onglet se ferme.',
+      'Mode mobile (Ctrl+Alt+M) : les pages se croient sur un téléphone (iPhone, Pixel, Galaxy, iPad Mini ou une résolution à soi, qu\'on peut enregistrer) et s\'affichent à sa taille.',
+      'Les onglets ont tous la même largeur, et ne rétrécissent que quand il y en a trop.',
+      'Un clic n\'importe où dans le terminal place le curseur dans la ligne de commande.',
+    ],
+    en: [
+      'Several windows: a tab dragged down leaves for its own window, which follows the mouse; dropped on another window\'s tab bar, it joins it, and a window left without tabs closes.',
+      'Mobile mode (Ctrl+Alt+M): pages believe they run on a phone (iPhone, Pixel, Galaxy, iPad Mini or a resolution of your own, which can be saved) and show at its size.',
+      'Tabs all have the same width, and only shrink when there are too many.',
+      'A click anywhere in the terminal puts the cursor in the command line.',
+    ],
+  },
+  {
     version: '0.1.38',
     notes: [
       'Les boutons précédent / suivant de la souris font comme `back` et `fwd`, y compris pour revenir à un écran de résultats ou de l\'IA.',

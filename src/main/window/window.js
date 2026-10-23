@@ -18,13 +18,17 @@ function savedBounds() {
   return onScreen ? { x: w.x, y: w.y, width: w.width, height: w.height } : {};
 }
 
-function createWindow() {
+// La fenêtre de l'état en cours (state.inWindow). bounds : position voulue (onglet détaché),
+// sinon celle gardée du dernier lancement. inactive : montrée sans prendre le focus.
+function createWindow(bounds, inactive = false) {
   // Les onglets montent dans la barre de titre, noire, à côté des boutons de la fenêtre.
   const mac = process.platform === 'darwin';
+  const own = state.current();
   state.win = new BrowserWindow({
     width: 1280,
     height: 820,
-    ...savedBounds(),
+    ...(bounds || savedBounds()),
+    show: !inactive,
     minWidth: 640,
     minHeight: 420,
     backgroundColor: theme.isLight() ? '#F6F7F9' : '#0E1116',
@@ -33,8 +37,13 @@ function createWindow() {
     ...(mac ? { trafficLightPosition: { x: 12, y: 13 } } : { titleBarOverlay: { color: '#000000', symbolColor: '#D6DEE8', height: 40 } }),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), sandbox: true, contextIsolation: true },
   });
+  // Ses événements se traitent dans son propre état.
+  state.bindEmitter(state.win, () => own);
+  state.bindEmitter(state.win.webContents, () => own);
   state.win.setMenuBarVisibility(false);
-  if (state.settings.data.window && state.settings.data.window.maximized) state.win.maximize();
+  if (!bounds && state.settings.data.window && state.settings.data.window.maximized) state.win.maximize();
+  state.win.on('focus', () => state.setFocused(own));
+  if (inactive) state.win.showInactive();
   state.win.loadFile(path.join(__dirname, '..', '..', 'renderer', 'index.html'));
   // Les erreurs et les blocages de l'interface vont dans le journal ; bloquée, elle est relancée.
   state.win.webContents.on('console-message', (e) => {
@@ -67,6 +76,7 @@ function createWindow() {
     if (maximized) state.win.maximize();
   });
   state.win.on('close', () => {
+    if (state.allWindows()[0] !== own) return; // la position gardée est celle de la première fenêtre
     const b = state.win.getNormalBounds();
     state.settings.data.window = { x: b.x, y: b.y, width: b.width, height: b.height, maximized: state.win.isMaximized() };
     state.settings.save();
@@ -98,8 +108,14 @@ function createWindow() {
     ui.setHtmlFullscreen(state.fullTab, false);
     wc.executeJavaScript('document.fullscreenElement && document.exitFullscreen()', true).catch(() => {});
   });
+  // Fermée : ses onglets avec elle. La dernière fenêtre fermée quitte l'appli (window-all-closed).
   state.win.on('closed', () => {
     state.win = null;
+    for (const tb of state.tabsOf(own)) {
+      for (const v of [tb.view, tb.dev]) if (v && v.webContents && !v.webContents.isDestroyed()) v.webContents.close();
+      if (tb.devWin && !tb.devWin.isDestroyed()) tb.devWin.close();
+    }
+    state.removeWindow(own);
   });
 }
 

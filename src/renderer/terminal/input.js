@@ -17,6 +17,12 @@ cols.forEach((c, i) => {
     histIndex = cmdHistory.length;
     run(line, { newTab });
   });
+  // Un clic n'importe où dans le terminal place le curseur dans la ligne de commande, sauf sur
+  // un bouton ou un lien, ou pour sélectionner du texte.
+  c.el.addEventListener('click', (e) => {
+    if (e.button !== 0 || String(getSelection()) || e.target.closest('a, button, textarea, input')) return;
+    c.input.focus();
+  });
   // Écrire sous un écran le rend actif.
   c.input.addEventListener('focus', () => state && state.activePane !== i && state.panes[i] && api.pane(i));
   // Un collage sur plusieurs lignes reste une seule commande.

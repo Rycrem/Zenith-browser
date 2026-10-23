@@ -36,6 +36,7 @@ function confirmModal({ title, message, detailLabel, details, ok, cancel }) {
       },
     };
     mw.loadFile(path.join(__dirname, '../../renderer/panels/modal.html'), { query: { accent: theme.accentColor(), mode: theme.isLight() ? 'jour' : 'nuit', private: state.privateMode ? '1' : '' } });
+    state.bindToCurrent(mw);
     mw.webContents.once('did-finish-load', () => mw.webContents.send('panel:data', { title, message, detailLabel, details, ok, cancel }));
     mw.on('closed', () => {
       if (state.modal && state.modal.win === mw) state.modal = null;

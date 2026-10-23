@@ -76,7 +76,8 @@ process.on('unhandledRejection', (err) => journal.log('promesse rejetée non rat
 app.on('render-process-gone', (e, wc, d) => {
   journal.log(`page arrêtée (${d.reason}, code ${d.exitCode}) : ${wc && !wc.isDestroyed() ? wc.getURL() : '?'}`);
   // L'interface (onglets, terminal) s'est arrêtée : on la recharge plutôt que de laisser une fenêtre vide.
-  if (state.win && !state.win.isDestroyed() && wc === state.win.webContents && d.reason !== 'clean-exit') setTimeout(() => !state.win.isDestroyed() && state.win.webContents.reload(), 500);
+  const w = state.allWindows().find((x) => x.win && !x.win.isDestroyed() && x.win.webContents === wc);
+  if (w && d.reason !== 'clean-exit') setTimeout(() => w.win && !w.win.isDestroyed() && w.win.webContents.reload(), 500);
 });
 app.on('child-process-gone', (e, d) => journal.log(`processus ${d.type}${d.name ? ` (${d.name})` : ''} arrêté : ${d.reason}, code ${d.exitCode}`));
 // Une seule fenêtre Zenith : un second lancement (lien ouvert depuis une autre appli) passe ses adresses à la première.

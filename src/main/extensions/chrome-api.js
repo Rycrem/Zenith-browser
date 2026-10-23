@@ -41,11 +41,11 @@ function setupChromeApi(s) {
     selectTab(wc) {
       if (state.addingTab) return;
       const tab = pageView.tabOfContents(wc);
-      if (tab) tabList.selectTab(tab);
+      if (tab) state.inWindow(state.windowOfTab(tab), () => tabList.selectTab(tab));
     },
     removeTab(wc) {
       const tab = pageView.tabOfContents(wc);
-      if (tab) tabList.closeTab(tab);
+      if (tab) state.inWindow(state.windowOfTab(tab), () => tabList.closeTab(tab));
     },
     // Les extensions ouvrent parfois une petite fenêtre (connexion, déverrouillage…).
     createWindow(details) {

@@ -42,6 +42,7 @@ function detachDevtools(tab) {
   if (!tab.dev || !tab.devOpen || tab.devWin) return;
   const b = state.win.getBounds();
   const dw = new BrowserWindow({ width: Math.round(b.width * 0.45), height: b.height, x: b.x + b.width - Math.round(b.width * 0.45), y: b.y, title: `DevTools · ${tabList.tabTitle(tab)}`, autoHideMenuBar: true });
+  state.bindEmitter(dw, () => state.windowOfTab(tab));
   state.win.contentView.removeChildView(tab.dev);
   dw.contentView.addChildView(tab.dev);
   tab.dev.setVisible(true);

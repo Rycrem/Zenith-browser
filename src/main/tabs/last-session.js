@@ -8,7 +8,7 @@ const navigation = require('./navigation');
 // Les onglets ouverts (pages seulement, hors navigation privée) remplacent la sauvegarde précédente.
 function saveSession() {
   if (!state.sessionStore) return;
-  const urls = state.tabs.filter((tb) => !tb.private && /^(https?|file):/.test(tb.url)).map((tb) => tb.url);
+  const urls = state.allTabs().filter((tb) => !tb.private && /^(https?|file):/.test(tb.url)).map((tb) => tb.url);
   if (!urls.length || JSON.stringify(urls) === JSON.stringify(state.sessionStore.data.tabs)) return;
   state.sessionStore.data.tabs = urls;
   state.sessionStore.save();

@@ -14,6 +14,7 @@ const favs = require('../favorites/favorites');
 const dl = require('../downloads/downloads');
 const audio = require('../audio/audio');
 const panelData = require('./panel-data');
+const mobile = require('../page/mobile');
 
 let panelClosed = { kind: null, at: 0 };
 
@@ -37,6 +38,8 @@ function togglePanel(kind, x) {
   const { file, width } = panelData.PANELS[kind];
   const b = state.win.getContentBounds();
   const place = (height) => {
+    // Le mode mobile s'ouvre en haut à gauche de la fenêtre, sous les onglets.
+    if (kind === 'mobile') return { x: b.x + 8, y: b.y + 48, width, height };
     let left;
     if (kind === 'fav') left = b.x + (x !== undefined ? Math.round(x) : 0);
     else left = x !== undefined ? b.x + Math.round(x) - width : b.x + b.width - width - 16;
@@ -54,6 +57,7 @@ function togglePanel(kind, x) {
   });
   state.panel = { kind, win: pw, place };
   pw.loadFile(path.join(__dirname, '../../renderer/panels', file), { query: { accent: theme.accentColor(), mode: theme.isLight() ? 'jour' : 'nuit', private: state.privateMode ? '1' : '' } });
+  state.bindToCurrent(pw);
   pw.webContents.once('did-finish-load', () => sendPanel(kind));
   pw.once('ready-to-show', () => pw.show());
   pw.on('blur', () => !pw.isDestroyed() && pw.close());
@@ -109,6 +113,22 @@ async function panelAction(kind, action, arg) {
     }
     ui.sendState();
     sendPanel('ext');
+  } else if (kind === 'mobile') {
+    const list = mobile.allDevices();
+    if (action === 'set' && arg && list[arg.i]) mobile.setMobile(list[arg.i]);
+    else if (action === 'off') mobile.setMobile(null);
+    else if (action === 'custom' && arg) {
+      const width = Math.round(Number(arg.width));
+      const height = Math.round(Number(arg.height));
+      if (!(width >= 200 && width <= 4000 && height >= 200 && height <= 4000)) return;
+      const name = String(arg.name || '').trim().slice(0, 40) || `${width} × ${height}`;
+      if (arg.save) mobile.saveCustom(name, width, height);
+      mobile.setMobile(mobile.allDevices().find((d) => d.custom && d.name === name && d.width === width) || { name, width, height, dpr: 2, os: 'android', custom: true });
+    } else if (action === 'remove' && arg && typeof arg.name === 'string') {
+      mobile.removeCustom(arg.name);
+      if (state.mobile && state.mobile.custom && state.mobile.name === arg.name) mobile.setMobile(null);
+    }
+    sendPanel('mobile');
   } else if (kind === 'fav' && action === 'open' && arg && typeof arg.url === 'string') {
     // Seulement une adresse qui est bien dans les favoris.
     if (!fav.allLinks(state.favorites.data.tree).some((l) => l.url === arg.url)) return;

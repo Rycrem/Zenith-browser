@@ -5,6 +5,7 @@ const state = require('../state');
 const ui = require('../window/ui');
 const tabList = require('../tabs/tabs');
 const audio = require('../audio/audio');
+const mobile = require('../page/mobile');
 
 function audioData() {
   return {
@@ -100,11 +101,31 @@ function favData() {
   };
 }
 
+function mobileData() {
+  const cur = state.mobile;
+  return {
+    title: t('mobile'),
+    hint: t('Ctrl+Alt+M · les pages se rechargent'),
+    desktop: t('ordinateur'),
+    desktopTitle: t('Revenir à l\'affichage ordinateur'),
+    custom: t('résolution personnalisée'),
+    name: t('nom (pour l\'enregistrer)'),
+    width: t('largeur'),
+    height: t('hauteur'),
+    apply: t('essayer'),
+    save: t('enregistrer'),
+    removeTitle: t('Supprimer cette résolution'),
+    on: !!cur,
+    devices: mobile.allDevices().map((d, i) => ({ i, name: d.name, size: `${d.width} × ${d.height}`, custom: !!d.custom, active: !!cur && cur.name === d.name && cur.width === d.width && cur.height === d.height })),
+  };
+}
+
 const PANELS = {
   dl: { file: 'downloads.html', width: 420, data: dlData },
   fav: { file: 'favorites.html', width: 380, data: favData },
   audio: { file: 'audio.html', width: 440, data: audioData },
   ext: { file: 'extensions.html', width: 360, data: extData },
+  mobile: { file: 'mobile.html', width: 340, data: mobileData },
 };
 
 Object.assign(module.exports, { PANELS });
