@@ -87,7 +87,7 @@ function openPanel(kind) {
   const r = b && b.getBoundingClientRect();
   api.panel(kind, r ? (kind === 'fav' ? r.left : r.right) : undefined);
 }
-// Ctrl+Maj+J, Ctrl+Maj+B et Ctrl+Maj+E.
+// Ctrl+J, Ctrl+Maj+B et Ctrl+Maj+E.
 api.on('ui:panel', openPanel);
 api.on('term:clear', () => term().replaceChildren());
 api.on('term:toggle', () => setTerminalHidden(!app.classList.contains('term-hidden')));

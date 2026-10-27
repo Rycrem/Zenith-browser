@@ -9,6 +9,7 @@ const ui = require('./ui');
 const tabList = require('../tabs/tabs');
 const navigation = require('../tabs/navigation');
 const suggestions = require('../history/suggest');
+const output = require('../terminal/output');
 
 // Position de la fenêtre gardée d'un lancement à l'autre, si elle tombe encore sur un écran branché.
 function savedBounds() {
@@ -96,6 +97,10 @@ function createWindow(bounds, inactive = false) {
   });
   // Ctrl+Tab passe avant le terminal, qui garderait sinon Tab pour l'autocomplétion.
   state.win.webContents.on('before-input-event', (e, input) => {
+    if (output.isToggleKey(input)) {
+      e.preventDefault();
+      return output.toggleTerminal();
+    }
     if (input.type !== 'keyDown' || input.key !== 'Tab' || !input.control || input.alt || input.meta) return;
     e.preventDefault();
     tabList.cycleTab(input.shift ? -1 : 1);

@@ -10,10 +10,7 @@ const $ = (sel) => document.querySelector(sel);
 const filter = $('#filter');
 let data = null;
 let active = 0; // favori sélectionné au clavier, parmi ceux affichés
-let opened = new Set();
-try {
-  opened = new Set(JSON.parse(localStorage.getItem('opened') || '[]'));
-} catch {}
+const opened = new Set(); // dossiers ouverts : tous refermés à la prochaine ouverture de la popup
 
 function h(tag, attrs, ...children) {
   const el = document.createElement(tag);
@@ -47,13 +44,62 @@ function open(url, newTab) {
 
 function linkRow(l, sub, depth, path) {
   const newTab = (e) => e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1;
+  const where = path || l.path;
+  if (editing === where) return editRow(l, where, depth);
   return draggable(path, false, h('div', {
     class: `fav link${clean(l.url) === clean(data.current) ? ' here' : ''}`,
     title: `${l.url}\n${data.openTitle}`,
     'data-url': l.url,
     onclick: (e) => open(l.url, newTab(e)),
     onauxclick: (e) => e.button === 1 && open(l.url, true),
+    oncontextmenu: (e) => showMenu(e, l, where),
   }, indent(depth), h('span', { class: 'icon' }, '·'), h('span', { class: 'label' }, l.name), h('span', { class: 'sub' }, sub)));
+}
+
+// ------------------------------------------------ clic droit : copier le lien, modifier, supprimer
+
+let editing = null; // chemin du favori en cours de modification
+
+function closeMenu() {
+  const m = $('#menu');
+  if (m) m.remove();
+}
+
+function showMenu(e, l, path) {
+  e.preventDefault();
+  closeMenu();
+  const item = (label, fn, cls) => h('button', { type: 'button', class: `item${cls ? ` ${cls}` : ''}`, onclick: () => { closeMenu(); fn(); } }, label);
+  const menu = h('div', { id: 'menu', role: 'menu' },
+    item(data.copy, () => window.panel.act('copy', { path })),
+    item(data.edit, () => { editing = path; render(); }),
+    item(data.remove, () => window.panel.act('remove', { path }), 'danger'));
+  document.body.append(menu);
+  // Assez de place pour le menu sous la souris, quitte à agrandir la popup.
+  const need = e.clientY + menu.offsetHeight + 4;
+  if (need > innerHeight) window.panel.size(need);
+  menu.style.left = `${Math.min(e.clientX, innerWidth - menu.offsetWidth - 4)}px`;
+  menu.style.top = `${e.clientY}px`;
+}
+
+document.addEventListener('mousedown', (e) => { if (!e.target.closest('#menu')) closeMenu(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('#menu')) { e.stopPropagation(); closeMenu(); } }, true);
+
+function editRow(l, path, depth) {
+  const name = h('input', { class: 'edit-name', value: l.name, spellcheck: 'false' });
+  const url = h('input', { class: 'edit-url', value: l.url, spellcheck: 'false' });
+  const done = (save) => {
+    editing = null;
+    if (save) window.panel.act('edit', { path, name: name.value.trim(), url: url.value.trim() });
+    render();
+  };
+  const form = h('form', { class: 'fav edit', onsubmit: (e) => { e.preventDefault(); done(true); } },
+    indent(depth),
+    h('div', { class: 'fields' }, name, url),
+    h('button', { type: 'submit' }, data.ok),
+    h('button', { type: 'button', onclick: () => done(false) }, data.cancel));
+  form.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); done(false); } });
+  setTimeout(() => name.focus());
+  return form;
 }
 
 // ------------------------------------------------ glisser-déposer (arbre seulement, pas en filtrant)
@@ -120,9 +166,6 @@ function treeRows(folder, prefix, depth, out) {
         onclick: () => {
           if (isOpen) opened.delete(path);
           else opened.add(path);
-          try {
-            localStorage.setItem('opened', JSON.stringify([...opened]));
-          } catch {}
           render();
         },
       }, indent(depth), h('span', { class: 'icon' }, isOpen ? '▾' : '▸'), h('span', { class: 'label' }, `${c.name}/`), h('span', { class: 'sub' }, String(count(c))))));
@@ -183,22 +226,10 @@ filter.addEventListener('keydown', (e) => {
 });
 
 window.panel.onData((d) => {
-  const first = !data;
   data = d;
   $('#title').textContent = d.title;
   $('#hint').textContent = d.hint;
   filter.placeholder = d.filter;
-  // Au premier affichage d'un petit arbre, tout est déplié.
-  if (first && !opened.size && count(d.tree) <= 15) {
-    (function walk(folder, prefix) {
-      for (const c of folder.children) {
-        if (c.type !== 'folder') continue;
-        const path = prefix ? `${prefix}/${c.name}` : c.name;
-        opened.add(path);
-        walk(c, path);
-      }
-    })(d.tree, '');
-  }
   render();
-  filter.focus();
+  if (!editing) filter.focus();
 });

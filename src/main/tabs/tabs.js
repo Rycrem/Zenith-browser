@@ -129,9 +129,10 @@ function closeTab(tab) {
 
 // Plusieurs fenêtres. Un onglet passe d'une fenêtre à l'autre avec sa page (et ses DevTools
 // ancrés) : target est un état de state.allWindows(), gap sa place parmi les onglets de
-// target (à la fin sinon). Sa fenêtre d'origine se ferme s'il était son dernier onglet.
+// target (à la fin sinon), side son écran en split. Sa fenêtre d'origine se ferme s'il était
+// son dernier onglet.
 // Pas pendant la navigation privée d'une fenêtre : ses onglets normaux y sont mis de côté.
-function moveTabToWindow(tab, target, gap, focus = true) {
+function moveTabToWindow(tab, target, gap, focus = true, side) {
   const from = state.windowOfTab(tab);
   if (!from || !target || from === target || !target.win || from.privateMode || target.privateMode) return false;
   const last = from.tabs.length === 1;
@@ -156,7 +157,7 @@ function moveTabToWindow(tab, target, gap, focus = true) {
     ui.sendState();
   });
   state.inWindow(target, () => {
-    tab.side = state.panes.length > 1 ? state.activePane : 0;
+    tab.side = state.panes.length > 1 ? (side === 0 || side === 1 ? side : state.activePane) : 0;
     state.tabs.splice(Number.isInteger(gap) && gap >= 0 && gap <= state.tabs.length ? gap : state.tabs.length, 0, tab);
     sortSides();
     if (tab.view) state.win.contentView.addChildView(tab.view);

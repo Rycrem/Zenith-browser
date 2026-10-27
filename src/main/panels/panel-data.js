@@ -78,7 +78,7 @@ function dlData() {
     rows: state.downloads.map(dlRow),
     empty: t('Aucun téléchargement.'),
     dir: t('ouvrir le dossier Téléchargements'),
-    hint: t('Ctrl+Maj+J'),
+    hint: 'Ctrl+J',
     folder: t('dossier'),
     folderTitle: t('Afficher dans le dossier'),
     openTitle: t('Ouvrir le fichier'),
@@ -96,8 +96,13 @@ function favData() {
     empty: t('Aucun favori : « add nom » ajoute la page, « fav import » ceux d\'un autre navigateur.'),
     none: t('Aucun favori ne correspond.'),
     filter: t('filtrer…'),
-    hint: t('Ctrl+Maj+B · Ctrl+clic : nouvel onglet · glisser pour ranger'),
+    hint: t('Ctrl+Maj+B · Ctrl+clic : nouvel onglet · glisser pour ranger · clic droit : copier, modifier'),
     openTitle: t('ouvrir (Ctrl+clic : nouvel onglet)'),
+    copy: t('Copier le lien'),
+    edit: t('Modifier'),
+    remove: t('Supprimer'),
+    ok: t('OK'),
+    cancel: t('Annuler'),
   };
 }
 

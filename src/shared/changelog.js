@@ -4,6 +4,21 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.40',
+    notes: [
+      'Glisser le seul onglet d\'une fenêtre la déplace tout de suite, dans tous les sens. Au-dessus de la barre d\'onglets d\'une autre fenêtre, celle-ci montre où l\'onglet entrera ; lâché, il s\'y pose avec une petite animation.',
+      'Favoris : ☆ dans la barre d\'adresse ajoute la page (★ l\'en retire), et un clic droit dans la popup copie le lien, modifie le favori ou le supprime. Les dossiers ouverts se referment quand la popup se ferme.',
+      'Raccourcis : Ctrl+H ouvre l\'historique, Ctrl+J les téléchargements, Ctrl+K le terminal, et Ctrl+² (la touche sous Échap) cache le terminal.',
+      'Le bouton de téléchargement s\'anime quand un téléchargement commence, et un liseré vert fait son tour à mesure que le dernier avance.',
+    ],
+    en: [
+      'Dragging the only tab of a window moves the window right away, in any direction. Over another window\'s tab bar, that bar shows where the tab will go; dropped, it lands with a small animation.',
+      'Favorites: ☆ in the address bar adds the page (★ removes it), and right-click in the popup copies the link, edits the favorite or deletes it. Open folders close again when the popup closes.',
+      'Shortcuts: Ctrl+H opens history, Ctrl+J downloads, Ctrl+K the terminal, and Ctrl+` (the key below Esc) hides the terminal.',
+      'The download button animates when a download starts, and a green line runs around it as the latest one progresses.',
+    ],
+  },
+  {
     version: '0.1.39',
     notes: [
       'Plusieurs fenêtres : un onglet tiré vers le bas part dans sa propre fenêtre, qui suit la souris ; lâché sur la barre d\'onglets d\'une autre fenêtre, il y entre, et une fenêtre sans onglet se ferme.',

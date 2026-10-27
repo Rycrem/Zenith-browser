@@ -228,3 +228,13 @@ button.link { border: none; padding: 0; color: var(--accent); text-decoration: u
 .custom input { min-width: 0; flex: 1; font: inherit; color: var(--text); background: var(--bg-raised); border: 1px solid var(--line); border-radius: 3px; padding: 2px 6px; outline: none; }
 .custom input:focus { border-color: var(--accent); }
 .dim { color: var(--dim); }
+
+/* Clic droit sur un favori : menu au thème de l'appli, et modification sur place. */
+#menu { position: fixed; z-index: 10; min-width: 160px; padding: 4px 0; background: var(--bg-raised); border: 1px solid var(--accent); border-radius: 4px; box-shadow: 0 6px 18px rgba(0, 0, 0, .35); }
+#menu .item { display: block; width: 100%; padding: 5px 12px; border: none; border-radius: 0; text-align: left; color: var(--text); }
+#menu .item:hover { background: var(--line); }
+#menu .item.danger { color: var(--red); }
+.fav.edit { align-items: center; padding: 4px 12px; background: var(--bg-raised); }
+.fav.edit .fields { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.fav.edit input { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 3px; padding: 2px 6px; outline: none; }
+.fav.edit input:focus { border-color: var(--accent); }

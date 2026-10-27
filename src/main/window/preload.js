@@ -15,7 +15,9 @@ contextBridge.exposeInMainWorld('brows', {
   moveTab: (id, gap) => ipcRenderer.send('ui:tab-move', id, gap),
   moveTabToPane: (id, idx, pos) => ipcRenderer.send('ui:tab-to-pane', id, idx, pos),
   detachTab: (id, sx, sy, ox, oy) => ipcRenderer.send('ui:tab-detach', id, sx, sy, ox, oy),
+  favToggle: () => ipcRenderer.send('ui:fav-toggle'),
   dragTabWindow: (sx, sy) => ipcRenderer.send('ui:tab-drag-move', sx, sy),
+  tabHoverPos: (gap, side) => ipcRenderer.send('ui:tab-hover-pos', gap, side),
   dropTab: (id, sx, sy) => ipcRenderer.send('ui:tab-drop', id, sx, sy),
   devtools: (action) => ipcRenderer.send('ui:devtools', action),
   newTab: (pane) => ipcRenderer.send('ui:tab-new', pane),
@@ -39,7 +41,7 @@ contextBridge.exposeInMainWorld('brows', {
   recentMenu: () => ipcRenderer.send('ui:recent-menu'),
   findResult: (r) => ipcRenderer.send('ui:find-result', r),
   on: (channel, fn) => {
-    if (!['state', 'term:print', 'term:focus', 'term:toggle', 'term:clear', 'ui:panel', 'ui:find', 'suggest:done'].includes(channel)) return;
+    if (!['state', 'term:print', 'term:focus', 'term:toggle', 'term:clear', 'ui:panel', 'ui:find', 'suggest:done', 'ui:tab-hover', 'ui:tab-arrived'].includes(channel)) return;
     ipcRenderer.on(channel, (e, ...args) => fn(...args));
   },
 });

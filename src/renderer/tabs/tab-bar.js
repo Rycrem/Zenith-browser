@@ -109,17 +109,17 @@ function startTabDrag(e, tb) {
     });
   };
   const move = (ev) => {
-    // Détaché : sa fenêtre suit la souris.
+    // Détaché : sa fenêtre suit la souris (le processus principal la déplace).
     if (d.detached) return void api.dragTabWindow(ev.screenX, ev.screenY);
     const raw = ev.clientX - d.startX;
-    // Tiré vers le bas de plus de 5 % de la hauteur de l'écran : l'onglet part dans sa propre
-    // fenêtre, placée sous la souris (seul dans la sienne, c'est elle qui bouge).
-    if (ev.clientY - d.startY > screen.availHeight * 0.05) {
+    // Tiré vers le bas de plus de 5 % de la hauteur de l'écran, l'onglet part dans sa propre
+    // fenêtre, placée sous la souris. Seul dans la sienne, c'est elle qui bouge, dès le départ.
+    const alone = state.tabs.length === 1;
+    if (ev.clientY - d.startY > screen.availHeight * 0.05 || (alone && Math.hypot(raw, ev.clientY - d.startY) > 5)) {
       d.detached = true;
       capture(ev);
       cleanup();
       tabDrag = null; // la barre se redessine sans lui
-      const alone = state.tabs.length === 1;
       api.detachTab(d.id, ev.screenX, ev.screenY, alone ? ev.clientX : groups[0].strip.getBoundingClientRect().left + 40, alone ? ev.clientY : 18);
       return;
     }
@@ -200,11 +200,40 @@ function startTabDrag(e, tb) {
   window.addEventListener('blur', up);
 }
 
+// Un onglet d'une autre fenêtre glisse au-dessus de la barre (x : position de la souris, null
+// quand il s'en va) : la barre visée s'entoure de la couleur d'accent et un trait marque sa
+// place, que le processus principal garde pour le relâchement.
+let hoverMark = null;
+api.on('ui:tab-hover', (x) => {
+  for (const g of groups) g.strip.classList.remove('drop-into');
+  if (hoverMark) hoverMark.classList.remove('drop-l', 'drop-r');
+  hoverMark = null;
+  if (x === null || !state) return;
+  const split = state.panes.length > 1;
+  const side = split && x >= groups[1].el.getBoundingClientRect().left ? 1 : 0;
+  const g = groups[side];
+  g.strip.classList.add('drop-into');
+  const els = [...g.strip.querySelectorAll('.tab')];
+  const pos = els.filter((el) => { const b = el.getBoundingClientRect(); return b.left + b.width / 2 < x; }).length;
+  hoverMark = els[pos] || els[pos - 1] || null;
+  if (hoverMark) hoverMark.classList.add(els[pos] ? 'drop-l' : 'drop-r');
+  const sideTabs = state.tabs.filter((tb) => tb.side === side || !split);
+  const at = sideTabs[pos] ? state.tabs.indexOf(sideTabs[pos]) : sideTabs.length ? state.tabs.indexOf(sideTabs[sideTabs.length - 1]) + 1 : state.tabs.length;
+  api.tabHoverPos(at, side);
+});
+
+// Onglet qui vient d'entrer depuis une autre fenêtre : il se pose avec une petite animation.
+let arrivedId = null;
+api.on('ui:tab-arrived', (id) => {
+  arrivedId = id;
+  setTimeout(() => { if (arrivedId === id) arrivedId = null; }, 700);
+});
+
 function tabEl(tb, shown) {
   return h(
     'div',
     {
-      class: `tab${shown ? ' active' : ''}${tb.private ? ' private' : ''}`,
+      class: `tab${shown ? ' active' : ''}${tb.private ? ' private' : ''}${tb.id === arrivedId ? ' arrived' : ''}`,
       // Clic molette : ferme l'onglet.
       onmousedown: (e) => { if (e.button === 1) e.preventDefault(); },
       onauxclick: (e) => { if (e.button === 1) api.closeTab(tb.id); },
@@ -250,6 +279,7 @@ function renderTabs() {
   fitTabs();
   // Pas pendant qu'on la modifie.
   if (document.activeElement !== urlInput) urlInput.value = siteOf(state.status.url);
+  renderFavButton();
 }
 
 function renderPanes() {

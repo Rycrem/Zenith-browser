@@ -2,7 +2,7 @@
 
 applyStaticLabels();
 renderPs1();
-print([{ t: t('Zenith prêt. Ctrl+H revient ici, Ctrl+L vide le terminal, Ctrl+J le cache, Échap rend la main à la page.'), c: 'dim' }]);
+print([{ t: t('Zenith prêt. Ctrl+K revient ici, Ctrl+L vide le terminal, Ctrl+² le cache, Échap rend la main à la page.'), c: 'dim' }]);
 api.ready();
 cols[0].input.focus();
 

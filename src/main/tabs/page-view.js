@@ -187,6 +187,11 @@ function wireWebContents(tab, wc) {
     state.activePane = p;
     navigation.mouseNav(Number(e.message.slice(NAV_MARK.length)) < 0 ? -1 : 1);
   });
+  wc.on('before-input-event', (e, input) => {
+    if (!output.isToggleKey(input)) return;
+    e.preventDefault();
+    output.toggleTerminal();
+  });
   wc.on('input-event', (e, input) => {
     if (input.type === 'mouseDown') state.lastCommandAt = 0;
   });
