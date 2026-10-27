@@ -14,9 +14,10 @@ const commands = require('../terminal/commands');
 const panels = require('../panels/panels');
 
 const SHORTCUTS = [
-  ['Ctrl+H', mark('aller au terminal')],
+  ['Ctrl+K', mark('aller au terminal')],
+  ['Ctrl+H', mark('historique')],
   ['Ctrl+L', mark('vider le terminal')],
-  ['Ctrl+J', mark('cacher / montrer le terminal')],
+  [mark('Ctrl+² (la touche sous Échap)'), mark('cacher / montrer le terminal')],
   ['F11', mark('plein écran')],
   [mark('Échap'), mark('rendre la main à la page')],
   ['Ctrl+T / Ctrl+W', mark('nouvel onglet / fermer l\'onglet')],
@@ -29,7 +30,7 @@ const SHORTCUTS = [
   [mark('Ctrl+Maj+S / F6'), mark('split / changer d\'écran')],
   [mark('F12, clic droit › Inspecter'), mark('outils de développement')],
   ['Alt+1…9', mark('popup de l\'extension n')],
-  [mark('Ctrl+Maj+J'), mark('téléchargements (ou le bouton ↓ de la barre du bas)')],
+  ['Ctrl+J', mark('téléchargements (ou le bouton ↓ de la barre du bas)')],
   [mark('Ctrl+Maj+B'), mark('favoris (ou le bouton ★ en bas à gauche)')],
   [mark('Ctrl+molette, Ctrl+= / Ctrl+-'), 'zoom'],
   ['↑ ↓ / Tab', mark('historique des commandes / autocomplétion')],
@@ -47,9 +48,9 @@ function buildMenu() {
     {
       label: 'Zenith',
       submenu: [
-        { label: 'Terminal', accelerator: 'CmdOrCtrl+H', click: () => output.focusTerminal() },
+        { label: 'Terminal', accelerator: 'CmdOrCtrl+K', click: () => output.focusTerminal() },
+        { label: t('Historique'), accelerator: 'CmdOrCtrl+H', click: act(() => commands.runCommand('hist')) },
         { label: t('Vider le terminal'), accelerator: 'CmdOrCtrl+L', click: () => state.win.webContents.send('term:clear') },
-        { label: t('Cacher le terminal'), accelerator: 'CmdOrCtrl+J', click: () => { state.win.webContents.focus(); state.win.webContents.send('term:toggle'); } },
         { label: t('Plein écran'), accelerator: 'F11', click: () => state.win.setFullScreen(!state.win.isFullScreen()) },
         { label: t('Nouvel onglet'), accelerator: 'CmdOrCtrl+T', click: act(() => { tabList.createTab(); output.focusTerminal(); }) },
         { label: t('Fermer l\'onglet'), accelerator: 'CmdOrCtrl+W', click: act(() => tabList.closeTab(tabList.activeTab())) },
@@ -70,7 +71,8 @@ function buildMenu() {
         { label: t('Changer d\'écran'), accelerator: 'F6', click: () => state.panes.length > 1 && commands.runCommand('focus') },
         { label: t('Outils de développement'), accelerator: 'F12', click: act(() => devtools.toggleDevtools(tabList.activeTab())) },
         { label: t('Outils de développement'), accelerator: 'CmdOrCtrl+Shift+I', visible: false, click: act(() => devtools.toggleDevtools(tabList.activeTab())) },
-        { label: t('Téléchargements'), accelerator: 'CmdOrCtrl+Shift+J', click: () => state.win.webContents.send('ui:panel', 'dl') },
+        { label: t('Téléchargements'), accelerator: 'CmdOrCtrl+J', click: () => state.win.webContents.send('ui:panel', 'dl') },
+        { label: t('Téléchargements'), accelerator: 'CmdOrCtrl+Shift+J', visible: false, click: () => state.win.webContents.send('ui:panel', 'dl') },
         { label: t('Favoris'), accelerator: 'CmdOrCtrl+Shift+B', click: () => state.win.webContents.send('ui:panel', 'fav') },
         { label: 'Extensions', accelerator: 'CmdOrCtrl+Shift+E', click: () => state.win.webContents.send('ui:panel', 'ext') },
         { label: t('Mode mobile'), accelerator: 'CmdOrCtrl+Alt+M', click: () => panels.togglePanel('mobile') },

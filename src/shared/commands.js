@@ -81,7 +81,7 @@ const COMMANDS = [
   ['config', '<export | import> [fichier]', 'enregistrer ou charger tes réglages, favoris et extensions (pour un autre ordinateur)'],
   ['perm', '[reset [site]]', 'autorisations accordées aux sites (caméra, micro, position…)'],
   ['devtools', '[detach | close]', 'outils de développement : ouvrir, détacher dans une fenêtre, fermer'],
-  ['term', '', 'cacher le terminal (Ctrl+J pour le rappeler)'],
+  ['term', '', 'cacher le terminal (Ctrl+² pour le rappeler)'],
   ['fullscreen', '[on | off]', 'plein écran (F11)'],
   ['quit / exit', '', 'quitter le navigateur'],
   ['update', '[install | electron]', 'vérifier ou installer les mises à jour (appli et Electron)'],

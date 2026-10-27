@@ -1,6 +1,7 @@
 'use strict';
 
-const { app, BrowserWindow, shell } = require('electron');
+const { app, BrowserWindow, shell, clipboard } = require('electron');
+const { t } = require('../../shared/i18n');
 const path = require('path');
 const fav = require('../../shared/favorites');
 const state = require('../state');
@@ -23,7 +24,10 @@ function sendPanel(kind) {
   state.panel.win.webContents.send('panel:data', panelData.PANELS[kind].data());
 }
 
-const sendDl = () => sendPanel('dl');
+const sendDl = () => {
+  sendPanel('dl');
+  sendPanel('dlnew');
+};
 
 // Ouvre la popup au-dessus de son bouton de la barre du bas, ou la ferme.
 // x : bord droit du bouton (téléchargements, à droite) ou bord gauche (favoris, à gauche).
@@ -72,7 +76,7 @@ function togglePanel(kind, x) {
 
 // Actions demandées par une popup : seulement celles de son type, sur ses propres données.
 async function panelAction(kind, action, arg) {
-  if (kind === 'dl') {
+  if (kind === 'dl' || kind === 'dlnew') {
     if (action === 'dir') return void shell.openPath(app.getPath('downloads'));
     const d = Number.isInteger(arg) ? state.downloads[arg] : null;
     if (!d) return;
@@ -135,6 +139,21 @@ async function panelAction(kind, action, arg) {
     if (state.panel && state.panel.kind === 'fav' && !state.panel.win.isDestroyed()) state.panel.win.close();
     if (arg.newTab) tabList.createTab({ url: arg.url, background: true });
     else navigation.navigate(tabList.activeTab(), arg.url);
+  } else if (kind === 'fav' && ['copy', 'remove', 'edit'].includes(action) && arg && typeof arg.path === 'string') {
+    // Clic droit sur un favori de la popup.
+    const tree = state.favorites.data.tree;
+    const node = fav.getNode(tree, arg.path);
+    if (!node || node.type !== 'link') return;
+    if (action === 'copy') return void clipboard.writeText(node.url);
+    if (action === 'remove') fav.removeFavorite(tree, arg.path);
+    else {
+      const url = String(arg.url || '');
+      if (!/^(https?|file):/i.test(url)) throw new Error(t('adresse invalide : {url}', { url }));
+      const name = String(arg.name || '');
+      if (name && name !== node.name) fav.renameFavorite(tree, arg.path, name);
+      node.url = url;
+    }
+    favs.saveFavorites();
   } else if (kind === 'fav' && action === 'move' && arg && typeof arg.src === 'string' && typeof arg.target === 'string' && ['before', 'after', 'into'].includes(arg.where)) {
     try {
       fav.reorderFavorite(state.favorites.data.tree, arg.src, arg.target, arg.where);

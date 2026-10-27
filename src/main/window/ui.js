@@ -127,8 +127,17 @@ function sendStateNow() {
     },
     exts: state.exts.summary(),
     downloads: state.downloads.filter((d) => d.state === 'progressing').length,
+    lastDownload: lastDownload(),
     audio: audio.audioState(),
   });
+}
+
+// Le dernier téléchargement, pour le bouton ↓ : quand il a commencé, et son avancement (0 à 1)
+// s'il est en cours et que sa taille est connue.
+function lastDownload() {
+  const d = state.downloads[0];
+  if (!d) return null;
+  return { startedAt: d.startedAt || 0, progress: d.state === 'progressing' && d.total > 0 ? Math.min(1, d.received / d.total) : null };
 }
 
 // Ce qui suit « @ » dans l'invite : le site, l'écran, ou l'IA de la discussion.

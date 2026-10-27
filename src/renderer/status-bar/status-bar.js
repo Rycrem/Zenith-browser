@@ -35,13 +35,7 @@ function renderStatus() {
       title: t('Extensions (Ctrl+Maj+E)'),
       onclick: () => openPanel('ext'),
     }, puzzleIcon()),
-    h('button', {
-      type: 'button',
-      id: 'dl-chip',
-      class: `chip${state.downloads ? ' busy' : ''}`,
-      title: t('Téléchargements (Ctrl+Maj+J)'),
-      onclick: () => openPanel('dl'),
-    }, downloadIcon(), state.downloads ? ` ${state.downloads}` : null),
+    dlChip(),
     // Le bouton du thème est à la place de l'ancienne heure.
     h('button', {
       type: 'button',
@@ -51,4 +45,25 @@ function renderStatus() {
       onclick: () => api.toggleMode(),
     }, modeIcon(state.light))
   ]);
+}
+
+// Bouton ↓ : l'icône plonge quand un téléchargement commence, et un liseré vert fait le tour du
+// bouton à mesure que le dernier téléchargement avance. Le bouton est recréé à chaque état :
+// l'animation reprend où elle en était grâce à un délai négatif.
+const DL_START_MS = 900;
+function dlChip() {
+  const last = state.lastDownload;
+  const since = last ? Date.now() - last.startedAt : Infinity;
+  const started = since < DL_START_MS;
+  const progress = last && last.progress !== null ? last.progress : null;
+  const chip = h('button', {
+    type: 'button',
+    id: 'dl-chip',
+    class: `chip${state.downloads ? ' busy' : ''}${started ? ' started' : ''}${progress !== null ? ' progress' : ''}`,
+    title: t('Téléchargements (Ctrl+J)'),
+    onclick: () => openPanel('dl'),
+  }, downloadIcon(), state.downloads ? ` ${state.downloads}` : null);
+  if (started) chip.style.setProperty('--dl-delay', `-${since}ms`);
+  if (progress !== null) chip.style.setProperty('--p', progress.toFixed(3));
+  return chip;
 }

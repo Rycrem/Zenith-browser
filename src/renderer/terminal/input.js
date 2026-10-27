@@ -83,11 +83,11 @@ function setTerminalHidden(hidden) {
 api.on('term:print', print);
 // Popups de la barre du bas, au-dessus de leur bouton : ↓ (bord droit) ou ★ (bord gauche).
 function openPanel(kind) {
-  const b = $({ dl: '#dl-chip', fav: '#fav-chip', audio: '#audio-chip', ext: '#ext-chip' }[kind]);
+  const b = $({ dl: '#dl-chip', dlnew: '#dl-chip', fav: '#fav-chip', audio: '#audio-chip', ext: '#ext-chip' }[kind]);
   const r = b && b.getBoundingClientRect();
   api.panel(kind, r ? (kind === 'fav' ? r.left : r.right) : undefined);
 }
-// Ctrl+Maj+J, Ctrl+Maj+B et Ctrl+Maj+E.
+// Ctrl+J, Ctrl+Maj+B et Ctrl+Maj+E.
 api.on('ui:panel', openPanel);
 api.on('term:clear', () => term().replaceChildren());
 api.on('term:toggle', () => setTerminalHidden(!app.classList.contains('term-hidden')));

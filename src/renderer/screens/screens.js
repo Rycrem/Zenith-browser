@@ -9,8 +9,17 @@ const click = (cmd) => (e) => {
 };
 
 function item(cls, cmd, ...children) {
-  return h('button', { type: 'button', class: `item ${cls}`, onclick: click(cmd), onauxclick: click(cmd) }, ...children);
+  return h('button', { type: 'button', class: `item ${cls}`, 'data-n': /^\d+$/.test(cmd) ? cmd : null, onclick: click(cmd), onauxclick: click(cmd) }, ...children);
 }
+
+// Clic droit sur un lien numéroté : l'ouvrir dans un nouvel onglet ou copier son adresse.
+document.addEventListener('contextmenu', (e) => {
+  const el = e.target.closest('.screen [data-n]');
+  if (!el) return;
+  e.preventDefault();
+  e.stopPropagation();
+  api.linkMenu(Math.max(0, panesEl.indexOf(el.closest('.pane'))), Number(el.dataset.n));
+}, { capture: true });
 
 function head(text, extra) {
   return h('h2', {}, h('span', { class: 'prompt-sign' }, '❯ '), text, extra ? h('span', { class: 'dim' }, ` · ${extra}`) : null);
@@ -253,7 +262,7 @@ const screens = {
     // Les espaces autour du texte d'un lien restent hors du soulignement.
     const link = (p) => {
       const [, before, text, after] = p.text.match(/^(\s*)([\s\S]*?)(\s*)$/);
-      return [before, h('span', { class: 'tty-link', role: 'link', title: t('ouvrir (Ctrl+clic : nouvel onglet)'), onclick: click(String(p.link)), onauxclick: click(String(p.link)) }, text || '↗', h('span', { class: 'tty-n' }, `[${p.link}]`)), after];
+      return [before, h('span', { class: 'tty-link', role: 'link', 'data-n': p.link, title: t('ouvrir (Ctrl+clic : nouvel onglet)'), onclick: click(String(p.link)), onauxclick: click(String(p.link)) }, text || '↗', h('span', { class: 'tty-n' }, `[${p.link}]`)), after];
     };
     const parts = (b) => b.parts.flatMap((p) => (p.link ? link(p) : p.text));
     return [

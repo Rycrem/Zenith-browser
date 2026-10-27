@@ -24,18 +24,20 @@ function showInFolder(file) {
 }
 
 function setupDownloads(s = state.ses) {
-  s.on('will-download', (e, item) => {
+  s.on('will-download', (e, item, wc) => state.inWindow(state.windowOf(wc), () => {
     // Enregistrement direct dans Téléchargements, sans boîte de dialogue.
     const dir = app.getPath('downloads');
     const parsed = path.parse(item.getFilename());
     let file = path.join(dir, parsed.base);
     for (let i = 1; fs.existsSync(file); i++) file = path.join(dir, `${parsed.name} (${i})${parsed.ext}`);
     item.setSavePath(file);
-    const d = { name: path.basename(file), path: file, url: item.getURL(), state: 'progressing', received: 0, total: item.getTotalBytes(), item };
+    const d = { name: path.basename(file), path: file, url: item.getURL(), state: 'progressing', received: 0, total: item.getTotalBytes(), item, startedAt: Date.now() };
     state.downloads.unshift(d);
-    output.print([{ t: t('  ↓ téléchargement de {name} (dl ou Ctrl+Maj+J pour suivre)', { name: d.name }), c: 'dim' }]);
-    ui.sendState();
+    output.print([{ t: t('  ↓ téléchargement de {name} (dl ou Ctrl+J pour suivre)', { name: d.name }), c: 'dim' }]);
+    ui.sendStateAll();
     panels.sendDl();
+    // Il s'affiche seul au-dessus du bouton ↓ ; un clic ailleurs le ferme.
+    if (!state.panel || state.panel.win.isDestroyed()) state.win.webContents.send('ui:panel', 'dlnew');
     let last = { time: Date.now(), bytes: 0 };
     let refreshed = 0;
     item.on('updated', () => {
@@ -49,9 +51,11 @@ function setupDownloads(s = state.ses) {
         d.speed = d.speed ? d.speed * 0.6 + speed * 0.4 : speed;
         last = { time: now, bytes: d.received };
       }
+      // Le bouton ↓ de chaque fenêtre suit l'avancement.
       if (now - refreshed >= 250) {
         refreshed = now;
         panels.sendDl();
+        ui.sendStateAll();
       }
     });
     item.once('done', (ev, done) => {
@@ -62,10 +66,10 @@ function setupDownloads(s = state.ses) {
       output.print([{ t: msg, c: done === 'completed' ? 'ok' : 'err' }]);
       const tab = tabList.activeTab();
       if (tab.screen && tab.screen.kind === 'dl') showDl(tab);
-      ui.sendState();
+      ui.sendStateAll();
       panels.sendDl();
     });
-  });
+  }));
 }
 
 function refresh() {

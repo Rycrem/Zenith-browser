@@ -81,6 +81,17 @@ urlInput.addEventListener('blur', () => {
   setTimeout(() => { if (document.activeElement !== urlInput) closeSuggest(); }, 200);
 });
 api.on('suggest:done', () => urlInput.blur());
+// ☆ : la page dans les favoris ; ★ (déjà dedans) l'en retire.
+$('#url-fav').addEventListener('click', () => api.favToggle());
+function renderFavButton() {
+  const b = $('#url-fav');
+  const on = !!state.status.fav;
+  b.textContent = on ? '★' : '☆';
+  b.classList.toggle('on', on);
+  b.disabled = !state.status.url || /^(zenith|about):/.test(state.status.url) || state.status.mode !== 'SITE';
+  b.title = on ? t('Retirer des favoris ({path})', { path: state.status.fav }) : t('Ajouter aux favoris');
+  b.setAttribute('aria-label', b.title);
+}
 let copiedTimer = null;
 $('#url-copy').append(copyIcon());
 $('#url-copy').addEventListener('click', () => {

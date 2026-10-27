@@ -1,7 +1,8 @@
 'use strict';
 
-const { ipcMain, clipboard } = require('electron');
-const { getLang } = require('../../shared/i18n');
+const { ipcMain, clipboard, screen, Menu } = require('electron');
+const { t, getLang } = require('../../shared/i18n');
+const fav = require('../../shared/favorites');
 const state = require('../state');
 const theme = require('./theme');
 const ui = require('./ui');
@@ -23,6 +24,7 @@ const commands = require('../terminal/commands');
 const aiCommands = require('../ai/ai-command');
 const updates = require('../updates/update-command');
 const completion = require('../terminal/completion');
+const favs = require('../favorites/favorites');
 
 function setupIpc() {
   // Les canaux ui:* ne répondent qu'à l'interface d'une fenêtre, jamais à une page ou une
@@ -129,40 +131,104 @@ function setupIpc() {
     ui.sendState();
   });
   // Onglet glissé hors de la barre : il part dans sa propre fenêtre, qui suit la souris jusqu'au
-  // relâchement (ox, oy : place de la souris dans cette fenêtre). Lâché sur la barre d'onglets
-  // d'une autre fenêtre, il y entre.
-  let tabDrag = null; // { tab, w, ox, oy }
+  // relâchement (ox, oy : place de la souris dans cette fenêtre). Au-dessus de la barre d'onglets
+  // d'une autre fenêtre, celle-ci montre où il entrera et la fenêtre glissée s'efface à moitié ;
+  // lâché là, il y entre.
+  let tabDrag = null; // { tab, w, ox, oy, timer, over, gap }
   const inTabBar = (win, x, y) => {
     const b = win.getContentBounds();
     return x >= b.x && x < b.x + b.width && y >= b.y && y < b.y + 44;
   };
+  const windowUnder = (own, x, y) => state.allWindows().find((w) => w !== own && w.win && !w.win.isDestroyed() && w.win.isVisible() && !w.win.isMinimized() && inTabBar(w.win, x, y));
+  const hover = (d, w, x) => {
+    if (d.over && d.over !== w && d.over.win && !d.over.win.isDestroyed()) d.over.win.webContents.send('ui:tab-hover', null);
+    d.over = w;
+    if (d.w.win && !d.w.win.isDestroyed()) d.w.win.setOpacity(w ? 0.55 : 1);
+    if (w) w.win.webContents.send('ui:tab-hover', x - w.win.getContentBounds().x);
+  };
+  const endDrag = () => {
+    const d = tabDrag;
+    tabDrag = null;
+    if (!d) return null;
+    clearInterval(d.timer);
+    const over = d.over;
+    hover(d, null);
+    return { ...d, over };
+  };
   onUi('ui:tab-detach', (e, id, sx, sy, ox, oy) => {
     const tab = tabList.getTab(id);
     if (!tab || ![sx, sy, ox, oy].every(Number.isFinite)) return;
+    endDrag();
     const b = state.win.getBounds();
     const w = tabList.detachTab(tab, { x: Math.round(sx - ox), y: Math.round(sy - oy), width: b.width, height: b.height }, true);
-    if (w && w.win) {
-      if (w.win.isMaximized()) w.win.unmaximize();
-      tabDrag = { tab, w, ox, oy };
-    }
+    if (!w || !w.win) return;
+    if (w.win.isMaximized()) w.win.unmaximize();
+    const d = { tab, w, ox, oy, over: null, gap: undefined, last: null };
+    // La fenêtre suit la souris que signale l'interface, ou à défaut (souris au-dessus d'une
+    // autre fenêtre, événements en retard) le curseur lu ici.
+    d.timer = setInterval(() => {
+      if (!w.win || w.win.isDestroyed()) return void endDrag();
+      const p = d.last && Date.now() - d.last.at < 100 ? d.last : screen.getCursorScreenPoint();
+      w.win.setPosition(Math.round(p.x - ox), Math.round(p.y - oy));
+      const under = windowUnder(w, p.x, p.y);
+      if (under !== d.over || under) hover(d, under || null, p.x);
+    }, 16);
+    tabDrag = d;
   });
   onUi('ui:tab-drag-move', (e, sx, sy) => {
-    const d = tabDrag;
-    if (d && d.w.win && !d.w.win.isDestroyed() && Number.isFinite(sx) && Number.isFinite(sy)) d.w.win.setPosition(Math.round(sx - d.ox), Math.round(sy - d.oy));
+    if (tabDrag && Number.isFinite(sx) && Number.isFinite(sy)) tabDrag.last = { x: sx, y: sy, at: Date.now() };
+  });
+  // Place annoncée par la fenêtre survolée : gap parmi tous ses onglets, side son écran.
+  onUi('ui:tab-hover-pos', (e, gap, side) => {
+    if (tabDrag && tabDrag.over && tabDrag.over.win.webContents === e.sender && Number.isInteger(gap)) tabDrag.gap = { gap, side, w: tabDrag.over };
   });
   onUi('ui:tab-drop', (e, id, sx, sy) => {
-    const drag = tabDrag;
-    tabDrag = null;
+    const drag = endDrag();
     const tab = state.allTabs().find((tb) => tb.id === id);
     if (!tab || !Number.isFinite(sx) || !Number.isFinite(sy)) return;
     const own = state.windowOfTab(tab);
-    const target = state.allWindows().find((w) => w !== own && w.win && !w.win.isDestroyed() && w.win.isVisible() && !w.win.isMinimized() && inTabBar(w.win, sx, sy));
-    if (target) return void tabList.moveTabToWindow(tab, target);
+    const target = windowUnder(own, sx, sy);
+    if (target) {
+      const g = drag && drag.gap && drag.gap.w === target ? drag.gap : null;
+      if (tabList.moveTabToWindow(tab, target, g ? g.gap : undefined, true, g ? g.side : undefined)) target.win.webContents.send('ui:tab-arrived', tab.id);
+      return;
+    }
     if (drag) return void (own && own.win && own.win.focus());
     // Lâché hors de toute fenêtre sans avoir été détaché (glissé de côté) : sa propre fenêtre, là.
     const b = state.win.getBounds();
     const w = tabList.detachTab(tab, { x: Math.round(sx - 60), y: Math.round(sy - 18), width: b.width, height: b.height });
     if (w && w.win) w.win.focus();
+  });
+  // ☆ de la barre d'adresse : ajoute la page aux favoris (sous son titre), ★ l'en retire.
+  onUi('ui:fav-toggle', () => {
+    const tab = tabList.activeTab();
+    if (!tab || !tab.view || tab.screen || !/^(https?|file):/.test(tab.url)) return;
+    const tree = state.favorites.data.tree;
+    const here = fav.findByUrl(tree, tab.url);
+    if (here) {
+      state.lastUndo = fav.removeFavorite(tree, here.path);
+      output.print([{ t: t('  ✓ {name} retiré des favoris (« undo » pour annuler)', { name: here.path }), c: 'ok' }]);
+    } else {
+      const title = tab.view.webContents.getTitle();
+      const base = (title || ui.hostOf(tab.url)).replace(/\//g, '-').trim().slice(0, 80) || ui.hostOf(tab.url);
+      let name = base;
+      for (let i = 2; fav.getNode(tree, name); i++) name = `${base} (${i})`;
+      fav.addFavorite(tree, name, tab.url, title);
+      output.print([{ t: t('  ✓ ajouté aux favoris : {path}', { path: name }), c: 'ok' }]);
+    }
+    favs.saveFavorites();
+  });
+  // Clic droit sur un lien numéroté d'un écran (favoris, historique, recherche, tty…).
+  onUi('ui:link-menu', (e, idx, n) => {
+    const pane = state.panes[idx];
+    const tab = pane && tabList.getTab(pane.tabId);
+    const item = tab && tab.numbered[n - 1];
+    const url = item && (item.url || item.href);
+    if (!url) return;
+    Menu.buildFromTemplate([
+      { label: t('Ouvrir le lien dans un nouvel onglet'), click: () => tabList.createTab({ url, background: true, opener: tab }) },
+      { label: t('Copier l\'adresse du lien'), click: () => clipboard.writeText(url) },
+    ]).popup({ window: state.win });
   });
   // Flèches de la barre d'onglets : page précédente ou suivante de l'onglet de cet écran, comme back / fwd.
   onUi('ui:tab-nav', (e, idx, dir) => {
