@@ -127,6 +127,8 @@ function mobileData() {
 
 const PANELS = {
   dl: { file: 'downloads.html', width: 420, data: dlData },
+  // Le téléchargement qui vient de démarrer, seul, au-dessus du bouton ↓.
+  dlnew: { file: 'downloads.html', width: 420, data: () => ({ ...dlData(), title: t('téléchargement lancé'), rows: state.downloads.slice(0, 1).map(dlRow) }) },
   fav: { file: 'favorites.html', width: 380, data: favData },
   audio: { file: 'audio.html', width: 440, data: audioData },
   ext: { file: 'extensions.html', width: 360, data: extData },

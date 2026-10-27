@@ -1,6 +1,6 @@
 'use strict';
 
-const { ipcMain, clipboard, screen } = require('electron');
+const { ipcMain, clipboard, screen, Menu } = require('electron');
 const { t, getLang } = require('../../shared/i18n');
 const fav = require('../../shared/favorites');
 const state = require('../state');
@@ -217,6 +217,18 @@ function setupIpc() {
       output.print([{ t: t('  ✓ ajouté aux favoris : {path}', { path: name }), c: 'ok' }]);
     }
     favs.saveFavorites();
+  });
+  // Clic droit sur un lien numéroté d'un écran (favoris, historique, recherche, tty…).
+  onUi('ui:link-menu', (e, idx, n) => {
+    const pane = state.panes[idx];
+    const tab = pane && tabList.getTab(pane.tabId);
+    const item = tab && tab.numbered[n - 1];
+    const url = item && (item.url || item.href);
+    if (!url) return;
+    Menu.buildFromTemplate([
+      { label: t('Ouvrir le lien dans un nouvel onglet'), click: () => tabList.createTab({ url, background: true, opener: tab }) },
+      { label: t('Copier l\'adresse du lien'), click: () => clipboard.writeText(url) },
+    ]).popup({ window: state.win });
   });
   // Flèches de la barre d'onglets : page précédente ou suivante de l'onglet de cet écran, comme back / fwd.
   onUi('ui:tab-nav', (e, idx, dir) => {

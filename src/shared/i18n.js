@@ -476,6 +476,7 @@
     ' ou Alt+n ouvre la popup': ' or Alt+n opens the popup',
     '{count} téléchargements': '{count} downloads',
     'Aucun téléchargement.': 'No downloads.',
+    'téléchargement lancé': 'download started',
     'Tape un numéro pour ouvrir le fichier · ': 'Type a number to open the file · ',
     " l'affiche dans son dossier": ' shows it in its folder',
     Raccourcis: 'Shortcuts',

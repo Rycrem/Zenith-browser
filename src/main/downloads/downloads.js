@@ -24,7 +24,7 @@ function showInFolder(file) {
 }
 
 function setupDownloads(s = state.ses) {
-  s.on('will-download', (e, item) => {
+  s.on('will-download', (e, item, wc) => state.inWindow(state.windowOf(wc), () => {
     // Enregistrement direct dans Téléchargements, sans boîte de dialogue.
     const dir = app.getPath('downloads');
     const parsed = path.parse(item.getFilename());
@@ -36,6 +36,8 @@ function setupDownloads(s = state.ses) {
     output.print([{ t: t('  ↓ téléchargement de {name} (dl ou Ctrl+J pour suivre)', { name: d.name }), c: 'dim' }]);
     ui.sendStateAll();
     panels.sendDl();
+    // Il s'affiche seul au-dessus du bouton ↓ ; un clic ailleurs le ferme.
+    if (!state.panel || state.panel.win.isDestroyed()) state.win.webContents.send('ui:panel', 'dlnew');
     let last = { time: Date.now(), bytes: 0 };
     let refreshed = 0;
     item.on('updated', () => {
@@ -67,7 +69,7 @@ function setupDownloads(s = state.ses) {
       ui.sendStateAll();
       panels.sendDl();
     });
-  });
+  }));
 }
 
 function refresh() {

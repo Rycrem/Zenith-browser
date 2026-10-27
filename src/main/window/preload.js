@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('brows', {
   moveTabToPane: (id, idx, pos) => ipcRenderer.send('ui:tab-to-pane', id, idx, pos),
   detachTab: (id, sx, sy, ox, oy) => ipcRenderer.send('ui:tab-detach', id, sx, sy, ox, oy),
   favToggle: () => ipcRenderer.send('ui:fav-toggle'),
+  linkMenu: (idx, n) => ipcRenderer.send('ui:link-menu', idx, n),
   dragTabWindow: (sx, sy) => ipcRenderer.send('ui:tab-drag-move', sx, sy),
   tabHoverPos: (gap, side) => ipcRenderer.send('ui:tab-hover-pos', gap, side),
   dropTab: (id, sx, sy) => ipcRenderer.send('ui:tab-drop', id, sx, sy),

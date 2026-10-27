@@ -238,10 +238,13 @@ function tabEl(tb, shown) {
       onmousedown: (e) => { if (e.button === 1) e.preventDefault(); },
       onauxclick: (e) => { if (e.button === 1) api.closeTab(tb.id); },
       onpointerdown: (e) => startTabDrag(e, tb),
+      // Tout l'onglet se clique, bords compris.
+      onclick: (e) => { if (!e.target.closest('.close, .speaker')) api.tab(tb.id); },
     },
-    h('button', { type: 'button', class: 'label', title: tb.title, onclick: () => api.tab(tb.id) },
+    h('button', { type: 'button', class: 'label', title: tb.title },
       h('span', { class: 'n' }, `[${tb.n}]`),
-      tb.loading ? h('span', { class: 'spin', 'aria-label': t('chargement…') }) : tb.favicon ? h('img', { class: 'favicon', src: tb.favicon, alt: '' }) : null,
+      // Sans icône (ou si elle ne charge pas) : celle de Zenith.
+      tb.loading ? h('span', { class: 'spin', 'aria-label': t('chargement…') }) : h('img', { class: 'favicon', src: tb.favicon || 'zenith.png', alt: '', onerror: (e) => { if (!e.target.src.endsWith('zenith.png')) e.target.src = 'zenith.png'; } }),
       h('span', { class: 'text' }, tb.title)),
     tb.audible || tb.muted ? h('button', {
       type: 'button',

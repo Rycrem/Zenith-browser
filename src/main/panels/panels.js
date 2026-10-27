@@ -24,7 +24,10 @@ function sendPanel(kind) {
   state.panel.win.webContents.send('panel:data', panelData.PANELS[kind].data());
 }
 
-const sendDl = () => sendPanel('dl');
+const sendDl = () => {
+  sendPanel('dl');
+  sendPanel('dlnew');
+};
 
 // Ouvre la popup au-dessus de son bouton de la barre du bas, ou la ferme.
 // x : bord droit du bouton (téléchargements, à droite) ou bord gauche (favoris, à gauche).
@@ -73,7 +76,7 @@ function togglePanel(kind, x) {
 
 // Actions demandées par une popup : seulement celles de son type, sur ses propres données.
 async function panelAction(kind, action, arg) {
-  if (kind === 'dl') {
+  if (kind === 'dl' || kind === 'dlnew') {
     if (action === 'dir') return void shell.openPath(app.getPath('downloads'));
     const d = Number.isInteger(arg) ? state.downloads[arg] : null;
     if (!d) return;
