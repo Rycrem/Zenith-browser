@@ -62,26 +62,27 @@ const SENSITIVE = [
   /^default$/,
 ];
 
-// Une adresse locale, d'extension ou interne, ou dont la fin est assez longue pour emporter du texte
-// (une page piégée qui demanderait d'ouvrir « site.com/?d=<ce que Nadir a lu> »).
+// Une adresse locale, d'extension ou interne, ou assez longue pour emporter du texte (une page piégée
+// qui demanderait d'ouvrir « site.com/?d=<ce que Nadir a lu> », ou le texte dans le chemin ou le nom).
 function riskyUrl(word) {
   if (!looksLikeUrl(word)) return false;
   if (/^(file|view-source|chrome-extension|about):/i.test(word)) return true;
   try {
     const u = new URL(normalizeUrl(word));
-    return u.search.length + u.hash.length > 100;
+    return u.href.length > 120;
   } catch {
     return true;
   }
 }
 
 // Même lecture que l'exécution des commandes : l'alias est remplacé, puis la ligne coupée aux « ; ».
+// Une ligne très longue (une recherche, une question) peut aussi emporter du texte : elle est confirmée.
 function needsConfirm(line, aliases = {}, depth = 0) {
   const s = expandAlias(String(line), aliases).toLowerCase();
   if (/^alias\s/.test(s)) return true;
   const parts = splitCommands(s);
   if (parts.length > 1) return depth > 4 || parts.some((p) => needsConfirm(p, aliases, depth + 1));
-  return SENSITIVE.some((re) => re.test(s)) || s.split(/\s+/).some(riskyUrl);
+  return s.length > 120 || SENSITIVE.some((re) => re.test(s)) || s.split(/\s+/).some(riskyUrl);
 }
 
 // Un clic qui peut payer, envoyer ou supprimer quelque chose demande aussi un oui.

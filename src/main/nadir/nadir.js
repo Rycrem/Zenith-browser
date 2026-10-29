@@ -42,12 +42,13 @@ const levelName = (id) => t(N.LEVELS[id].name);
 function refresh(now = true) {
   const go = () => {
     refreshTimer = null;
+    // Le texte en continu ne change que la popup ; l'étoile de la barre du bas suit busy et running.
     for (const w of state.allWindows()) state.inWindow(w, () => panels.sendPanel('nadir'));
-    ui.sendStateAll();
   };
   if (now) {
     clearTimeout(refreshTimer);
     go();
+    ui.sendStateAll();
   } else if (!refreshTimer) refreshTimer = setTimeout(go, 80);
 }
 
@@ -103,6 +104,10 @@ function stopWorker() {
   worker = null;
   loaded = false;
   w.kill();
+  // Le processus ne dira plus « done » : la réponse en cours s'arrête ici.
+  if (chat.pending) chat.pending.resolve(false);
+  if (chat.live && !chat.live.text.trim()) chat.messages.splice(chat.messages.indexOf(chat.live), 1);
+  Object.assign(chat, { busy: false, status: null, live: null, queued: null, pending: null, acting: false });
   refresh();
   return true;
 }

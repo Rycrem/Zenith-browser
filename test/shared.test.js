@@ -295,7 +295,7 @@ test('Nadir demande avant ce qui efface, quitte ou paie', () => {
   // Comme à l'exécution : les « ; » et les alias sont dépliés avant de juger.
   for (const line of ['go a.com ; clean all', 'w', 'alias x = quit', 'ext add abc', 'dl 2', 'ia bonjour', 'config export', 'update auto off', 'dl cancel 1']) assert.ok(N.needsConfirm(line, { w: 'tab new a.com ; quit' }), line);
   // Adresses locales ou qui emporteraient du texte dans leur fin.
-  for (const line of ['go file:///etc/passwd', 'view-source:https://a.com', `go https://a.com/?d=${'x'.repeat(120)}`]) assert.ok(N.needsConfirm(line), line);
+  for (const line of ['go file:///etc/passwd', 'view-source:https://a.com', `go https://a.com/?d=${'x'.repeat(120)}`, `go https://a.com/${'x'.repeat(120)}`, `go https://${'x'.repeat(60)}.${'y'.repeat(60)}.com`, `brows ${'mot '.repeat(40)}`]) assert.ok(N.needsConfirm(line), line);
   assert.ok(!N.needsConfirm('go https://www.google.com/search?q=meteo+paris'));
   for (const label of ['Acheter maintenant', 'Passer la commande', 'Supprimer le compte', 'Envoyer', 'Buy now', 'Delete']) assert.ok(N.riskyClick(label), label);
   for (const label of ['Rechercher', 'Connexion', 'Suivant', 'Images', '']) assert.ok(!N.riskyClick(label), label);
