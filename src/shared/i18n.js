@@ -161,7 +161,6 @@
     '  extension déjà installée (« ext » pour la gérer)': '  extension already installed (“ext” to manage it)',
     '  ⚠ Zenith a planté au dernier lancement en chargeant l\'extension {name} : elle est désactivée (« ext on » pour la réactiver). Détails : {file}': '  ⚠ Zenith crashed at the last launch while loading the {name} extension: it is disabled (“ext on” turns it back on). Details: {file}',
     '  ⚠ Zenith a planté au dernier lancement : les extensions sont désactivées, « ext on <n> » les réactive une par une. Détails : {file}': '  ⚠ Zenith crashed at the last launch: extensions are disabled, “ext on <n>” turns them back on one by one. Details: {file}',
-    '  ⚠ Le stockage de {names} dépassait 512 Mo, ce qui fait planter Zenith : il a été vidé. L\'extension repart de ses réglages par défaut.': '  ⚠ The storage of {names} was over 512 MB, which makes Zenith crash: it has been cleared. The extension starts again from its default settings.',
     'Ajouter l\'extension': 'Add extension',
     'Annuler': 'Cancel',
     'Ajouter « {name} » à Zenith ?': 'Add “{name}” to Zenith?',

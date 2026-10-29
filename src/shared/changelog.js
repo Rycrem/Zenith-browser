@@ -4,6 +4,17 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.50',
+    notes: [
+      'Zenith ne vide plus le stockage d\'une extension parce qu\'il dépasse 512 Mo : des extensions comme Elasticvue en ont besoin.',
+      'La vraie cause des plantages avec uBlock Origin est corrigée : à chaque démarrage, uBlock recopiait tout son stockage dans une même entrée, qui avait fini par dépasser 1 Go. Cette entrée est vidée et ne grossit plus.',
+    ],
+    en: [
+      'Zenith no longer clears an extension\'s storage because it is over 512 MB: extensions such as Elasticvue need it.',
+      'The real cause of the crashes with uBlock Origin is fixed: on every start, uBlock copied its whole storage into a single entry, which had grown past 1 GB. That entry is cleared and no longer grows.',
+    ],
+  },
+  {
     version: '0.1.49',
     notes: [
       'Les discussions avec Nadir sont enregistrées et restent après un redémarrage : le bouton ☰ de la discussion les liste pour en rouvrir, renommer, épingler ou supprimer une. « nadir discussions » les liste aussi dans le terminal. Rien n\'est enregistré de la navigation privée.',
