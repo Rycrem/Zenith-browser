@@ -13,6 +13,8 @@ const { t } = require('../../shared/i18n');
 const UBLOCK_IDS = ['cjpalhdlnbpafiamejdnhcphjbkeiagm', 'ddkjiahejlhfcafbddmgiahcphecmpfh'];
 const UBLOCK_NAMES = /^(ublock|ubo|ublock[ -]?origin|ublock0)$/i;
 
+const MAX_STORAGE = 512 * 1024 * 1024;
+
 // Vrai si la version a est plus récente que b (« 1.62.0 » > « 1.61.2 »).
 function newer(a, b) {
   const x = String(a).split('.').map(Number);
@@ -43,6 +45,41 @@ class Extensions {
 
   get list() {
     return this.settings.data.extensions;
+  }
+
+  // chrome.storage.local de chaque extension (Local Extension Settings/<id>) : sa taille va au journal.
+  // Au-delà de 512 Mo (compressés sur le disque), sa relecture peut dépasser 2 Go en mémoire, ce que
+  // Chromium refuse : Zenith plante dès que l'extension démarre. On le vide alors ; uBlock Origin,
+  // qui y range ses listes de filtres, les retélécharge.
+  // Renvoie [{ name, size }] pour les stockages vidés.
+  checkStorage(userData, log) {
+    const root = path.join(userData, 'Local Extension Settings');
+    const sizeOf = (d) => {
+      let n = 0;
+      for (const e of fs.readdirSync(d, { withFileTypes: true })) n += e.isDirectory() ? sizeOf(path.join(d, e.name)) : fs.statSync(path.join(d, e.name)).size;
+      return n;
+    };
+    const cleared = [];
+    let ids = [];
+    try {
+      ids = fs.readdirSync(root);
+    } catch {}
+    for (const id of ids) {
+      let size = 0;
+      try {
+        size = sizeOf(path.join(root, id));
+      } catch {
+        continue;
+      }
+      const ext = this.list.find((e) => e.id === id);
+      const name = (ext && (ext.name || ext.alias)) || id;
+      log(`stockage de l'extension ${name} : ${Math.round(size / 1048576)} Mo`);
+      if (size <= MAX_STORAGE) continue;
+      fs.rmSync(path.join(root, id), { recursive: true, force: true });
+      log(`  plus de ${MAX_STORAGE / 1048576} Mo : vidé`);
+      cleared.push({ name, size });
+    }
+    return cleared;
   }
 
   // uBlock Origin livré avec l'appli : copié au premier lancement, puis à chaque nouvelle version.
