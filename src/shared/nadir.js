@@ -1,6 +1,6 @@
 'use strict';
 
-const { expandAlias, splitCommands, looksLikeUrl, normalizeUrl } = require('./commands');
+const { expandAlias, splitCommands, looksLikeUrl, normalizeUrl, COMMAND_NAMES } = require('./commands');
 
 // Nadir, l'assistant de Zenith : un modèle qui tourne sur l'ordinateur (node-llama-cpp).
 // Trois niveaux, du plus léger au plus juste ; chaque modèle est téléchargé à son premier usage.
@@ -124,4 +124,17 @@ function systemPrompt({ lang, commands, shortcuts }) {
   ].join('\n');
 }
 
-module.exports = { LEVELS, resolveLevel, defaultLevel, needsConfirm, riskyClick, systemPrompt };
+// Après avoir lu une page, Nadir pourrait recopier ce qu'il a lu vers un site, par petits morceaux :
+// toute ligne qui ouvre une adresse, cherche ou interroge une IA demande alors un oui.
+function sendsOut(line, aliases = {}, depth = 0) {
+  const s = expandAlias(String(line), aliases).toLowerCase();
+  const parts = splitCommands(s);
+  if (parts.length > 1) return depth > 4 || parts.some((p) => sendsOut(p, aliases, depth + 1));
+  const words = s.split(/\s+/);
+  if (words.some(looksLikeUrl)) return true;
+  if (/^(brows|go|ia|ai)$/.test(words[0]) || (words[0] === 'tab' && words[1] === 'new' && words.length > 2)) return true;
+  // Une ligne qui n'est pas une commande est une recherche (un numéro ouvre un élément de la liste).
+  return !COMMAND_NAMES.includes(words[0]) && !/^\d+t?$/.test(words[0]);
+}
+
+module.exports = { LEVELS, resolveLevel, defaultLevel, needsConfirm, sendsOut, riskyClick, systemPrompt };

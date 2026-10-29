@@ -122,7 +122,7 @@ Nadir is Zenith's assistant: an AI model that runs entirely on your computer, wi
 
 - It answers about Zenith's features (it knows its commands and shortcuts).
 - It answers about the open page: it reads its text, and your selection if you made one.
-- It acts in the browser by itself: run a command (open a site, switch tabs, split, bookmarks…), click a link or button on the page, type in a field. Every action shows in the chat, and commands also in the terminal. It asks first for anything that deletes, installs, changes a setting, opens a file, types in a field, quits, pays or sends (including a local or very long address), and never fills in passwords. Page text is never taken as an instruction.
+- It acts in the browser by itself: run a command (open a site, switch tabs, split, bookmarks…), click a link or button on the page, type in a field. Every action shows in the chat, and commands also in the terminal. It asks first for anything that deletes, installs, changes a setting, opens a file, types in a field, quits, pays or sends (including a local or very long address, and any address or search after reading a page), and never fills in passwords. Page text is never taken as an instruction.
 
 | Level | Model | Size | For |
 | --- | --- | --- | --- |

@@ -30,7 +30,8 @@ let refreshTimer = null;
 // La discussion, commune à toutes les fenêtres ; win : la fenêtre où Nadir agit.
 // sawPrivate : Nadir a vu un onglet privé, la discussion s'efface à la fin de la navigation privée.
 // acting : Nadir clique ou écrit dans la page, qui prend le focus sans fermer la popup.
-const chat = { messages: [], busy: false, status: null, pending: null, live: null, queued: null, asked: null, win: null, sawPrivate: false, acting: false };
+// readPage : Nadir a lu une page pendant cette réponse, ce qui sort vers un site demande un oui.
+const chat = { messages: [], busy: false, status: null, pending: null, live: null, queued: null, asked: null, win: null, sawPrivate: false, acting: false, readPage: false };
 
 const dir = () => path.join(app.getPath('userData'), 'nadir');
 const levelId = () => N.resolveLevel(state.settings.data.nadirLevel) || N.defaultLevel(os.totalmem());
@@ -136,9 +137,10 @@ function onMessage(m) {
   } else if (m.type === 'tool') {
     chat.live = null;
     const gone = !chat.win || !chat.win.win || chat.win.win.isDestroyed();
+    const w = worker; // un processus relancé entre-temps compte ses appels depuis 1 : le résultat n'est pas pour lui
     (gone ? Promise.resolve('La fenêtre a été fermée : arrête-toi là.') : state.inWindow(chat.win, () => runTool(m.name, m.params)))
       .catch((err) => `Erreur : ${err.message}`)
-      .then((result) => worker && worker.postMessage({ type: 'tool-result', callId: m.callId, result: String(result).slice(0, 6000) }));
+      .then((result) => worker === w && w.postMessage({ type: 'tool-result', callId: m.callId, result: String(result).slice(0, 6000) }));
   } else if (m.type === 'done') {
     finish();
   } else if (m.type === 'downloaded') {
@@ -248,7 +250,8 @@ async function runTool(name, p) {
     add('action', `❯ ${line}`);
     // Un numéro sur l'écran des téléchargements ouvre le fichier.
     const opensFile = /^\d+/.test(line) && tab && tab.screen && tab.screen.kind === 'dl';
-    if ((opensFile || N.needsConfirm(line, state.settings.data.aliases)) && !(await confirmAction(t('Lancer « {line} » ?', { line })))) return 'La personne a refusé : ne le refais pas.';
+    const leaks = chat.readPage && N.sendsOut(line, state.settings.data.aliases);
+    if ((opensFile || leaks || N.needsConfirm(line, state.settings.data.aliases)) && !(await confirmAction(t('Lancer « {line} » ?', { line })))) return 'La personne a refusé : ne le refais pas.';
     const r = await commands.exec(line);
     output.print([{ t: `❯ ${line}`, c: 'cmd' }, { t: t('  lancé par Nadir'), c: 'dim' }, ...r.lines]);
     await settled();
@@ -257,6 +260,7 @@ async function runTool(name, p) {
     return [said || 'Fait.', asked, page.whereAmI(tabList.activeTab())].filter(Boolean).join('\n');
   }
   if (name === 'onglets') return page.listTabs();
+  if (name === 'lire_page' || name === 'elements_page') chat.readPage = true;
   if (name === 'lire_page') {
     add('action', t('lit la page'));
     return page.readPage(tab, Number(p.partie) || 1);
@@ -273,9 +277,11 @@ async function runTool(name, p) {
     const n = Math.floor(Number(p.numero));
     const el = page.element(tab, n);
     const text = String(p.texte || '');
+    // La personne voit tout ce qui sera tapé : au-delà, le texte serait trop long pour être relu.
+    if (text.length > 300) return 'Texte trop long (300 caractères au plus) : écris moins, ou laisse la personne le taper.';
     add('action', t('écrit « {text} » dans {label}', { text: text.slice(0, 60), label: el.label || el.type }));
     // Ce qui est écrit part vers le site (et Entrée envoie le formulaire) : la personne dit oui d'abord.
-    const vars = { text: text.slice(0, 60), label: el.label || el.type };
+    const vars = { text, label: el.label || el.type };
     const question = p.entree ? t('Écrire « {text} » dans « {label} » et valider ?', vars) : t('Écrire « {text} » dans « {label} » ?', vars);
     if (!(await confirmAction(question))) return 'La personne a refusé : ne le refais pas.';
     return acting(() => page.write(tab, n, text, !!p.entree));
@@ -294,6 +300,7 @@ function contextLine() {
 function ask(text, shown = false) {
   chat.busy = true;
   chat.asked = text;
+  chat.readPage = false;
   if (state.privateMode || (tabList.activeTab() || {}).private) chat.sawPrivate = true;
   const id = levelId();
   // La question déjà affichée n'est pas la dernière ligne (une info peut la suivre) : on retire la dernière question.
@@ -464,6 +471,7 @@ function nadirCommand(args, rest, say) {
     return;
   }
   openPanel();
+  if (chat.busy) throw new Error(t('Nadir est occupé : attends la fin de sa réponse (ou ■ pour l\'arrêter)'));
   send(rest);
 }
 

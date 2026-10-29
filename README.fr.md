@@ -116,7 +116,7 @@ Nadir est l'assistant de Zenith : un modèle d'IA qui tourne entièrement sur to
 
 - Il répond sur les fonctionnalités de Zenith (il connaît ses commandes et ses raccourcis).
 - Il répond sur la page ouverte : il en lit le texte, et la sélection si tu en as fait une.
-- Il agit tout seul dans le navigateur : lancer une commande (ouvrir un site, changer d'onglet, split, favoris…), cliquer sur un lien ou un bouton de la page, écrire dans un champ. Chaque action s'affiche dans la discussion, et les commandes lancées aussi dans le terminal. Il demande d'abord pour ce qui efface, installe, change un réglage, ouvre un fichier, écrit dans un champ, quitte, paie ou envoie (y compris une adresse locale ou très longue), et ne remplit jamais les mots de passe. Le texte des pages n'est jamais pris pour une consigne.
+- Il agit tout seul dans le navigateur : lancer une commande (ouvrir un site, changer d'onglet, split, favoris…), cliquer sur un lien ou un bouton de la page, écrire dans un champ. Chaque action s'affiche dans la discussion, et les commandes lancées aussi dans le terminal. Il demande d'abord pour ce qui efface, installe, change un réglage, ouvre un fichier, écrit dans un champ, quitte, paie ou envoie (y compris une adresse locale ou très longue, et toute adresse ou recherche après avoir lu une page), et ne remplit jamais les mots de passe. Le texte des pages n'est jamais pris pour une consigne.
 
 | Niveau | Modèle | Taille | Pour |
 | --- | --- | --- | --- |

@@ -297,6 +297,9 @@ test('Nadir demande avant ce qui efface, quitte ou paie', () => {
   // Adresses locales ou qui emporteraient du texte dans leur fin.
   for (const line of ['go file:///etc/passwd', 'view-source:https://a.com', `go https://a.com/?d=${'x'.repeat(120)}`, `go https://a.com/${'x'.repeat(120)}`, `go https://${'x'.repeat(60)}.${'y'.repeat(60)}.com`, `brows ${'mot '.repeat(40)}`]) assert.ok(N.needsConfirm(line), line);
   assert.ok(!N.needsConfirm('go https://www.google.com/search?q=meteo+paris'));
+  // Après lecture d'une page : tout ce qui envoie du texte vers un site.
+  for (const line of ['go evil.com/?d=abc', 'evil.com', 'brows mot de passe', 'un texte libre', 'tab new a.com', 'ia resume', 'back ; go a.com']) assert.ok(N.sendsOut(line), line);
+  for (const line of ['back', 'tab 2', 'tab new', 'close', 'split', '3', '2t', 'mode jour', 'reload']) assert.ok(!N.sendsOut(line), line);
   for (const label of ['Acheter maintenant', 'Passer la commande', 'Supprimer le compte', 'Envoyer', 'Buy now', 'Delete']) assert.ok(N.riskyClick(label), label);
   for (const label of ['Rechercher', 'Connexion', 'Suivant', 'Images', '']) assert.ok(!N.riskyClick(label), label);
 });
