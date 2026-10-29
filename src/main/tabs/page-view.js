@@ -187,7 +187,15 @@ function wireWebContents(tab, wc) {
     state.activePane = p;
     navigation.mouseNav(Number(e.message.slice(NAV_MARK.length)) < 0 ? -1 : 1);
   });
+  // Ctrl+Tab passe avant la page : un site qui garde la touche (éditeur, jeu…) bloquait le raccourci du menu.
   wc.on('before-input-event', (e, input) => {
+    const dir = tabList.cycleKey(input);
+    if (dir) {
+      e.preventDefault();
+      const p = tabList.paneOf(tab);
+      if (p >= 0) state.activePane = p;
+      return tabList.cycleTab(dir);
+    }
     if (!output.isToggleKey(input)) return;
     e.preventDefault();
     output.toggleTerminal();

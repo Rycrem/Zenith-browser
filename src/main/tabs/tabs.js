@@ -195,6 +195,12 @@ function cycleTab(dir) {
   split.showInPane(same[(i + dir + same.length) % same.length], state.activePane);
 }
 
+// Ctrl+Tab ou Ctrl+Maj+Tab : 1 ou -1, sinon 0.
+function cycleKey(input) {
+  if (input.type !== 'keyDown' || input.key !== 'Tab' || !input.control || input.alt || input.meta) return 0;
+  return input.shift ? -1 : 1;
+}
+
 function tabTitle(tab) {
   if (!tab.screen) return tab.title || shortUrl(tab.url) || t('nouvel onglet');
   const s = tab.screen;
@@ -209,4 +215,4 @@ function showTabs(tab) {
   );
 }
 
-Object.assign(module.exports, { moveTabToWindow, detachTab, sesOf, apiOf, getTab, activeTab, paneOf, sideOf, sortSides, selectTab, replacement, createTab, reopenClosed, recentMenu, destroyTab, closeTab, cycleTab, tabTitle, showTabs });
+Object.assign(module.exports, { moveTabToWindow, detachTab, sesOf, apiOf, getTab, activeTab, paneOf, sideOf, sortSides, selectTab, replacement, createTab, reopenClosed, recentMenu, destroyTab, closeTab, cycleTab, cycleKey, tabTitle, showTabs });
