@@ -5,6 +5,7 @@
 const act = (action, arg) => window.panel.act(action, arg);
 
 let last = null;
+let shownLevels = null;
 
 function render(d) {
   last = d;
@@ -18,12 +19,30 @@ function render(d) {
   $('#input').placeholder = L.placeholder;
   $('#level').title = L.level;
   $('#level').disabled = d.busy;
-  $('#level').replaceChildren(...d.levels.map((l) => h('option', { value: l.id, selected: l.current, title: l.about }, `${l.name} · ${l.size}${l.downloaded ? ' ✓' : ''}`)));
+  const levels = JSON.stringify(d.levels);
+  if (levels !== shownLevels) {
+    shownLevels = levels;
+    $('#level').replaceChildren(...d.levels.map((l) => h('option', { value: l.id, selected: l.current, title: l.about }, `${l.name} · ${l.size}${l.downloaded ? ' ✓' : ''}`)));
+  }
 
+  // La réponse arrive par petits bouts : on ne touche qu'aux messages qui ont changé. Refaire toute
+  // la discussion à chaque bout faisait aussi tout recalculer à l'accessibilité de Windows (lecteurs
+  // d'écran, outils qui lisent les fenêtres), jusqu'à saturer la mémoire de Zenith.
   const chat = $('#chat');
   const stick = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 40;
   const msgs = d.messages.length ? d.messages : [{ role: 'nadir', text: L.hello }];
-  chat.replaceChildren(...msgs.map((m) => h('div', { class: `msg ${m.role}` }, m.text)));
+  const ask = chat.querySelector('.msg.ask');
+  if (ask) ask.remove();
+  msgs.forEach((m, i) => {
+    const cls = `msg ${m.role}`;
+    const el = chat.children[i];
+    if (!el) chat.append(h('div', { class: cls }, m.text));
+    else {
+      if (el.className !== cls) el.className = cls;
+      if (el.textContent !== m.text) el.textContent = m.text;
+    }
+  });
+  while (chat.children.length > msgs.length) chat.lastElementChild.remove();
   if (d.pending) {
     const dl = d.pending.kind === 'download';
     chat.append(h('div', { class: 'msg ask' },
