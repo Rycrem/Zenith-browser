@@ -4,6 +4,15 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.47',
+    notes: [
+      'Pendant que Nadir répond, sa popup ne met plus à jour que le message en cours : avec un outil d\'accessibilité de Windows actif, Zenith pouvait saturer sa mémoire et planter.',
+    ],
+    en: [
+      'While Nadir answers, its popup only updates the message being written: with a Windows accessibility tool running, Zenith could run out of memory and crash.',
+    ],
+  },
+  {
     version: '0.1.46',
     notes: [
       'La relecture automatique des modifications ne signale plus que les vrais problèmes, pour des corrections plus rapides.',
