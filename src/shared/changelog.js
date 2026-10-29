@@ -4,6 +4,15 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.42',
+    notes: [
+      'Moteur Chromium mis à jour (Electron 44.10.0) avec les derniers correctifs de sécurité.',
+    ],
+    en: [
+      'Chromium engine updated (Electron 44.10.0) with the latest security fixes.',
+    ],
+  },
+  {
     version: '0.1.41',
     notes: [
       'Zenith ne plante plus une minute après le lancement quand uBlock Origin met à jour ses listes de filtres.',
