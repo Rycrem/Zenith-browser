@@ -128,8 +128,7 @@ app.whenReady().then(async () => {
       safeNote = t('  ⚠ Zenith a planté au dernier lancement : les extensions sont désactivées, « ext on <n> » les réactive une par une. Détails : {file}', { file: path.join(dir, 'zenith.log') });
     }
   }
-  const cleared = state.exts.checkStorage(dir, journal.log);
-  const storageNote = cleared.length ? t('  ⚠ Le stockage de {names} dépassait 512 Mo, ce qui fait planter Zenith : il a été vidé. L\'extension repart de ses réglages par défaut.', { names: cleared.map((c) => c.name).join(', ') }) : null;
+  state.exts.logStorage(dir, journal.log);
   await state.exts.loadAll({
     before: (ext) => {
       guard.step(`extension ${ext.path}`);
@@ -149,8 +148,7 @@ app.whenReady().then(async () => {
   if (startUrls.length) for (const url of startUrls) tabList.createTab({ url });
   else tabList.createTab();
   guard.step('en marche');
-  const notes = [safeNote, storageNote].filter(Boolean).map((n) => ({ t: n, c: 'warn' }));
-  if (notes.length) state.win.webContents.once('did-finish-load', () => setTimeout(() => output.print(notes), 500));
+  if (safeNote) state.win.webContents.once('did-finish-load', () => setTimeout(() => output.print([{ t: safeNote, c: 'warn' }]), 500));
   // Stable après 20 s : un plantage plus tard ne viendra pas du démarrage.
   setTimeout(() => {
     guard.done();

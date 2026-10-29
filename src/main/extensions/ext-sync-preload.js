@@ -1,7 +1,7 @@
 'use strict';
 
 // Préchargement des pages et service workers des extensions : remplace chrome.storage.sync,
-// absent d'Electron, par chrome.storage.local (voir storage-sync.js). Fichier autonome
+// absent d'Electron, par chrome.storage.local (voir storage-sync.js), et vide storage.managed. Fichier autonome
 // (les préchargements en bac à sable ne peuvent rien importer) ; le processus principal
 // le lit aussi pour écrire la même fonction dans les scripts de contenu.
 // Exécutée telle quelle dans le contexte de l'extension : rien de l'extérieur n'y est utilisé.
@@ -135,7 +135,20 @@ function syncPolyfill() {
       Object.defineProperty(obj, key, { value, configurable: true, enumerable: true, writable: true });
     } catch {}
   };
+  // electron-chrome-extensions fait de chrome.storage.managed un alias de storage.local. uBlock Origin
+  // garde une copie de managed dans storage.local (cachedManagedStorage) : à chaque lancement, cette
+  // copie reprenait tout son stockage, copie précédente comprise, jusqu'à dépasser 1 Go et faire planter
+  // Zenith. Comme Chrome sans règle d'administration, managed est vide.
+  const empty = (cb) => done(Promise.resolve({}), cb);
+  const managed = {
+    get: (keys, cb) => empty(typeof keys === 'function' ? keys : cb),
+    getBytesInUse: (keys, cb) => done(Promise.resolve(0), typeof keys === 'function' ? keys : cb),
+    onChanged: { addListener() {}, removeListener() {}, hasListener: () => false, hasListeners: () => false },
+  };
+  // La copie déjà gonflée part (uBlock la refait, vide) ; pas dans les scripts de contenu des pages.
+  if (globalThis.location && location.protocol === 'chrome-extension:') local.remove('cachedManagedStorage', () => void (c.runtime && c.runtime.lastError));
   define(c.storage, 'sync', sync);
+  define(c.storage, 'managed', managed);
   if (onChanged) define(c.storage, 'onChanged', onChanged);
   define(c.storage, '__devBrowsSync', true);
 }

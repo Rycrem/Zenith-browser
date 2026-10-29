@@ -48,3 +48,17 @@ test('storage.sync n\'écoute storage.onChanged que si l\'extension écoute stor
     delete globalThis.chrome;
   }
 });
+
+test('storage.managed est vide, même si storage.local ne l\'est pas', async () => {
+  const { chrome } = fakeChrome();
+  chrome.storage.managed = chrome.storage.local;
+  globalThis.chrome = chrome;
+  try {
+    syncPolyfill();
+    await new Promise((r) => chrome.storage.local.set({ cachedManagedStorage: { a: 1 } }, r));
+    assert.deepStrictEqual(await chrome.storage.managed.get(), {});
+    assert.deepStrictEqual(await new Promise((r) => chrome.storage.managed.get(null, r)), {});
+  } finally {
+    delete globalThis.chrome;
+  }
+});
