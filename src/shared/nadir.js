@@ -86,7 +86,7 @@ function needsConfirm(line, aliases = {}, depth = 0) {
 }
 
 // Un clic qui peut payer, envoyer ou supprimer quelque chose demande aussi un oui.
-const RISKY_CLICK = /\b(achet|pay|commande[rz]?\b|valider (la|ma) commande|buy|order|checkout|supprim|delete|remove|effacer|envoy|send|publi|post|submit|souscri|subscribe|s'abonner|confirmer le paiement)/i;
+const RISKY_CLICK = /\b(achet|pay|commande[rz]?\b|valider (la|ma) commande|buy|order|checkout|supprim|delete|remove|effacer|envoy|send|publi|post|submit|souscri|subscribe|s'abonner|confirmer le paiement|paiement|r[ée]gler|r[ée]serv|book)/i;
 
 function riskyClick(label) {
   return RISKY_CLICK.test(String(label || ''));
