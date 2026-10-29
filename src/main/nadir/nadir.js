@@ -373,6 +373,8 @@ function reset() {
 function setLevel(id) {
   if (chat.busy) throw new Error(t('Nadir est occupé : attends la fin de sa réponse (ou ■ pour l\'arrêter)'));
   state.settings.data.nadirLevel = id;
+  // Un autre niveau retente la carte graphique (un plantage peut venir de la mémoire du niveau d'avant).
+  delete state.settings.data.nadirCpu;
   state.settings.save();
   // Le modèle de l'ancien niveau quitte la mémoire ; le nouveau se chargera au prochain message.
   stopWorker();

@@ -55,7 +55,8 @@ const shallow = ({ children, ...node }) => node;
 function hasPermission(ext, ...wanted) {
   const m = (ext && ext.manifest) || {};
   const all = [...(m.permissions || []), ...(m.optional_permissions || []), ...(m.host_permissions || [])];
-  return wanted.some((p) => all.includes(p));
+  // Comme dans Chrome, un motif d'hôte (https://*/*…) vaut pour les API qui demandent <all_urls>.
+  return wanted.some((p) => all.includes(p) || (p === '<all_urls>' && all.some((x) => typeof x === 'string' && x.includes('://'))));
 }
 
 function registerExtraApis(api, host) {
