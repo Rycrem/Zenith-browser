@@ -6,6 +6,7 @@ const ui = require('../window/ui');
 const tabList = require('../tabs/tabs');
 const audio = require('../audio/audio');
 const mobile = require('../page/mobile');
+const nadir = require('../nadir/nadir');
 
 function audioData() {
   return {
@@ -133,6 +134,7 @@ const PANELS = {
   audio: { file: 'audio.html', width: 440, data: audioData },
   ext: { file: 'extensions.html', width: 360, data: extData },
   mobile: { file: 'mobile.html', width: 340, data: mobileData },
+  nadir: { file: 'nadir.html', width: 420, data: () => nadir.panelInfo(), keep: true },
 };
 
-Object.assign(module.exports, { PANELS });
+Object.assign(module.exports, { PANELS, formatSize });

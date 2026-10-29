@@ -16,6 +16,7 @@ const dl = require('../downloads/downloads');
 const audio = require('../audio/audio');
 const panelData = require('./panel-data');
 const mobile = require('../page/mobile');
+const nadir = require('../nadir/nadir');
 
 let panelClosed = { kind: null, at: 0 };
 
@@ -39,9 +40,10 @@ function togglePanel(kind, x) {
   }
   // Le clic sur le bouton fait d'abord perdre le focus à la popup, qui se ferme : ce clic ne la rouvre pas.
   if (panelClosed.kind === kind && Date.now() - panelClosed.at < 300) return;
-  const { file, width } = panelData.PANELS[kind];
-  const b = state.win.getContentBounds();
+  const { file, width, keep } = panelData.PANELS[kind];
+  const win = state.win;
   const place = (height) => {
+    const b = win.getContentBounds();
     // Le mode mobile s'ouvre en haut à gauche de la fenêtre, sous les onglets.
     if (kind === 'mobile') return { x: b.x + 8, y: b.y + 48, width, height };
     let left;
@@ -64,8 +66,17 @@ function togglePanel(kind, x) {
   state.bindToCurrent(pw);
   pw.webContents.once('did-finish-load', () => sendPanel(kind));
   pw.once('ready-to-show', () => pw.show());
-  pw.on('blur', () => !pw.isDestroyed() && pw.close());
+  // Nadir reste ouvert pendant qu'il agit sur la page : il suit la fenêtre au lieu de se fermer.
+  const follow = () => !pw.isDestroyed() && pw.setBounds(place(pw.getBounds().height));
+  if (keep) {
+    win.on('move', follow);
+    win.on('resize', follow);
+  } else pw.on('blur', () => !pw.isDestroyed() && pw.close());
   pw.on('closed', () => {
+    if (keep && !win.isDestroyed()) {
+      win.off('move', follow);
+      win.off('resize', follow);
+    }
     panelClosed = { kind, at: Date.now() };
     if (state.panel && state.panel.win === pw) state.panel = null;
   });
@@ -117,6 +128,8 @@ async function panelAction(kind, action, arg) {
     }
     ui.sendState();
     sendPanel('ext');
+  } else if (kind === 'nadir') {
+    await nadir.panelAction(action, arg);
   } else if (kind === 'mobile') {
     const list = mobile.allDevices();
     if (action === 'set' && arg && list[arg.i]) mobile.setMobile(list[arg.i]);

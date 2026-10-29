@@ -4,6 +4,21 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.43',
+    notes: [
+      'Nadir, un assistant IA qui tourne sur ton ordinateur, sans Ollama ni clé : bouton ✦ Nadir en bas à droite, Ctrl+Maj+A ou « nadir <question> ».',
+      'Nadir répond sur les fonctionnalités de Zenith et sur la page ouverte, et agit tout seul dans le navigateur : ouvrir un site, changer d\'onglet, cliquer, remplir un champ. Il demande d\'abord pour ce qui efface, paie ou envoie.',
+      'Trois niveaux (léger 1 Go, normal 2,3 Go, fort 4,7 Go) dans la discussion ou avec « nadir niveau » : chaque modèle est téléchargé une seule fois, à son premier usage.',
+      'Le modèle n\'est chargé qu\'au premier message et quitte la mémoire après 5 minutes sans message, ou tout de suite avec « nadir stop ».',
+    ],
+    en: [
+      'Nadir, an AI assistant that runs on your computer, without Ollama or a key: ✦ Nadir button at the bottom right, Ctrl+Shift+A or “nadir <question>”.',
+      'Nadir answers about Zenith\'s features and the open page, and acts in the browser by itself: open a site, switch tabs, click, fill in a field. It asks first for anything that deletes, pays or sends.',
+      'Three levels (light 1 GB, normal 2.3 GB, strong 4.7 GB) in the chat or with “nadir level”: each model is downloaded only once, the first time it is used.',
+      'The model is only loaded with the first message and leaves memory after 5 minutes without a message, or right away with “nadir stop”.',
+    ],
+  },
+  {
     version: '0.1.42',
     notes: [
       'Moteur Chromium mis à jour (Electron 44.10.0) avec les derniers correctifs de sécurité.',

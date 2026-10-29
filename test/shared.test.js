@@ -267,3 +267,31 @@ test('reload hard et popback ne sont pas des recherches', () => {
   assert.ok(cmd.acceptsArgs('config', ['export']));
   assert.ok(!cmd.acceptsArgs('config', ['du', 'pc']));
 });
+
+test('Nadir : niveaux, niveau par défaut selon la mémoire', () => {
+  const N = require('../src/shared/nadir');
+  assert.strictEqual(N.resolveLevel('léger'), 'leger');
+  assert.strictEqual(N.resolveLevel('LIGHT'), 'leger');
+  assert.strictEqual(N.resolveLevel('strong'), 'fort');
+  assert.strictEqual(N.resolveLevel('turbo'), null);
+  assert.strictEqual(N.defaultLevel(4 * 1024 ** 3), 'leger');
+  assert.strictEqual(N.defaultLevel(16 * 1024 ** 3), 'normal');
+  for (const l of Object.values(N.LEVELS)) assert.ok(l.uri.startsWith('hf:') && l.file.endsWith('.gguf'));
+});
+
+test('Nadir demande avant ce qui efface, quitte ou paie', () => {
+  const N = require('../src/shared/nadir');
+  for (const line of ['quit', 'clean', 'clean all', 'fav rm 3', 'ext rm 2', 'ia logout', 'perm reset', 'update install', ' Exit ']) assert.ok(N.needsConfirm(line), line);
+  for (const line of ['go youtube.com', 'tab new', 'fav', 'ext', 'split', 'clicks', 'mode jour', 'quitter le travail']) assert.ok(!N.needsConfirm(line), line);
+  for (const label of ['Acheter maintenant', 'Passer la commande', 'Supprimer le compte', 'Envoyer', 'Buy now', 'Delete']) assert.ok(N.riskyClick(label), label);
+  for (const label of ['Rechercher', 'Connexion', 'Suivant', 'Images', '']) assert.ok(!N.riskyClick(label), label);
+});
+
+test('les consignes de Nadir listent les commandes et les raccourcis', () => {
+  const N = require('../src/shared/nadir');
+  const s = N.systemPrompt({ lang: 'fr', commands: cmd.COMMANDS, shortcuts: [['Ctrl+K', 'aller au terminal']] });
+  assert.match(s, /- brows <recherche> : lancer une recherche/);
+  assert.match(s, /- Ctrl\+K : aller au terminal/);
+  assert.match(s, /Réponds en français/);
+  assert.match(N.systemPrompt({ lang: 'en', commands: [], shortcuts: [] }), /Réponds en anglais/);
+});

@@ -31,6 +31,7 @@ const SHORTCUTS = [
   [mark('F12, clic droit › Inspecter'), mark('outils de développement')],
   ['Alt+1…9', mark('popup de l\'extension n')],
   ['Ctrl+J', mark('téléchargements (ou le bouton ↓ de la barre du bas)')],
+  [mark('Ctrl+Maj+A'), mark('Nadir, l\'assistant (ou son bouton en bas à droite)')],
   [mark('Ctrl+Maj+B'), mark('favoris (ou le bouton ★ en bas à gauche)')],
   [mark('Ctrl+molette, Ctrl+= / Ctrl+-'), 'zoom'],
   ['↑ ↓ / Tab', mark('historique des commandes / autocomplétion')],
@@ -75,6 +76,7 @@ function buildMenu() {
         { label: t('Téléchargements'), accelerator: 'CmdOrCtrl+Shift+J', visible: false, click: () => state.win.webContents.send('ui:panel', 'dl') },
         { label: t('Favoris'), accelerator: 'CmdOrCtrl+Shift+B', click: () => state.win.webContents.send('ui:panel', 'fav') },
         { label: 'Extensions', accelerator: 'CmdOrCtrl+Shift+E', click: () => state.win.webContents.send('ui:panel', 'ext') },
+        { label: 'Nadir', accelerator: 'CmdOrCtrl+Shift+A', click: () => state.win.webContents.send('ui:panel', 'nadir') },
         { label: t('Mode mobile'), accelerator: 'CmdOrCtrl+Alt+M', click: () => panels.togglePanel('mobile') },
         { label: t('Navigation privée'), accelerator: 'CmdOrCtrl+Shift+N', click: () => privateBrowsing.togglePrivate().catch((err) => output.print([{ t: `  ${err.message}`, c: 'err' }])) },
         ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({
