@@ -239,6 +239,7 @@ async function acting(fn) {
 
 async function runTool(name, p) {
   const tab = tabList.activeTab();
+  if (state.privateMode || (tab && tab.private)) chat.sawPrivate = true;
   if (name === 'commande') {
     const line = String(p.ligne || '').trim();
     if (!line) return 'Commande vide.';
@@ -273,8 +274,10 @@ async function runTool(name, p) {
     const el = page.element(tab, n);
     const text = String(p.texte || '');
     add('action', t('écrit « {text} » dans {label}', { text: text.slice(0, 60), label: el.label || el.type }));
-    // Entrée envoie le formulaire : comme un clic sur Envoyer, la personne dit oui d'abord.
-    if ((p.entree || N.riskyClick(el.label)) && !(await confirmAction(t('Écrire « {text} » dans « {label} » et valider ?', { text: text.slice(0, 60), label: el.label || el.type })))) return 'La personne a refusé : ne le refais pas.';
+    // Ce qui est écrit part vers le site (et Entrée envoie le formulaire) : la personne dit oui d'abord.
+    const vars = { text: text.slice(0, 60), label: el.label || el.type };
+    const question = p.entree ? t('Écrire « {text} » dans « {label} » et valider ?', vars) : t('Écrire « {text} » dans « {label} » ?', vars);
+    if (!(await confirmAction(question))) return 'La personne a refusé : ne le refais pas.';
     return acting(() => page.write(tab, n, text, !!p.entree));
   }
   return `Outil inconnu : ${name}`;
@@ -358,11 +361,12 @@ function stopAnswer() {
 }
 
 function reset() {
-  if (chat.busy) stopAnswer();
+  // Une réponse en cours se sert encore de la session : on arrête plutôt le processus.
+  if (chat.busy) stopWorker();
+  else if (worker) worker.postMessage({ type: 'reset' });
   chat.sawPrivate = false;
   chat.messages = [];
   chat.live = null;
-  if (worker) worker.postMessage({ type: 'reset' });
   refresh();
 }
 
