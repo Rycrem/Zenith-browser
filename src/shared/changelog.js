@@ -4,6 +4,15 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.44',
+    notes: [
+      'Chaque modification de Zenith est désormais relue automatiquement avant d\'être publiée, pour éviter les bugs et les régressions.',
+    ],
+    en: [
+      'Every change to Zenith is now reviewed automatically before release, to catch bugs and regressions.',
+    ],
+  },
+  {
     version: '0.1.42',
     notes: [
       'Moteur Chromium mis à jour (Electron 44.10.0) avec les derniers correctifs de sécurité.',
