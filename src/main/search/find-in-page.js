@@ -1,10 +1,8 @@
 'use strict';
 
-const { BrowserWindow } = require('electron');
-const path = require('path');
 const { t } = require('../../shared/i18n');
 const state = require('../state');
-const theme = require('../window/theme');
+const { popupWindow } = require('../panels/popup-window');
 const tabList = require('../tabs/tabs');
 const output = require('../terminal/output');
 
@@ -32,19 +30,8 @@ function openFind() {
       return undefined;
     }
   }
-  const fw = new BrowserWindow({
-    ...bounds,
-    parent: state.win,
-    frame: false,
-    resizable: false,
-    show: false,
-    skipTaskbar: true,
-    backgroundColor: theme.isLight() ? '#F6F7F9' : tab.private ? '#1A1024' : '#0E1116',
-    webPreferences: { preload: path.join(__dirname, '..', 'panels', 'panel-preload.js'), sandbox: true, contextIsolation: true },
-  });
+  const fw = popupWindow('find.html', bounds, tab.private);
   state.findWin = { win: fw, tabId: tab.id, screen };
-  fw.loadFile(path.join(__dirname, '../../renderer/panels/find.html'), { query: { accent: theme.accentColor(), mode: theme.isLight() ? 'jour' : 'nuit', private: tab.private ? '1' : '' } });
-  state.bindToCurrent(fw);
   fw.webContents.once('did-finish-load', () => fw.webContents.send('panel:data', {
     text: tab.findText || '',
     labels: { placeholder: screen ? t('chercher dans l\'écran') : t('chercher dans la page'), next: t('Résultat suivant (Entrée)'), prev: t('Résultat précédent (Maj+Entrée)'), close: t('Fermer (Échap)') },

@@ -1,25 +1,6 @@
 'use strict';
 
 // Popup des téléchargements : le processus principal envoie la liste déjà traduite.
-const accent = new URLSearchParams(location.search).get('accent');
-if (accent && /^#[0-9a-f]{6}$/i.test(accent)) document.documentElement.style.setProperty('--accent', accent);
-if (new URLSearchParams(location.search).get('mode') === 'jour') document.documentElement.dataset.mode = 'jour';
-if (new URLSearchParams(location.search).get('private')) document.documentElement.dataset.private = '1';
-
-function h(tag, attrs, ...children) {
-  const el = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs || {})) {
-    if (v === undefined || v === null || v === false) continue;
-    if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
-    else if (k === 'class') el.className = v;
-    else el.setAttribute(k, v === true ? '' : v);
-  }
-  for (const c of children.flat()) {
-    if (c === null || c === undefined || c === false) continue;
-    el.append(c instanceof Node ? c : document.createTextNode(String(c)));
-  }
-  return el;
-}
 
 // Roue de progression : un cercle plein pour le fond, un arc pour l'avancement.
 const SVG = 'http://www.w3.org/2000/svg';

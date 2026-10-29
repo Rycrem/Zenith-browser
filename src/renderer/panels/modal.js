@@ -2,13 +2,6 @@
 
 // Question au milieu de la fenêtre (installer une extension…) : Entrée ou le bouton principal
 // acceptent, Échap ou Annuler refusent.
-const params = new URLSearchParams(location.search);
-const accent = params.get('accent');
-if (accent && /^#[0-9a-f]{6}$/i.test(accent)) document.documentElement.style.setProperty('--accent', accent);
-if (params.get('mode') === 'jour') document.documentElement.dataset.mode = 'jour';
-if (params.get('private')) document.documentElement.dataset.private = '1';
-
-const $ = (sel) => document.querySelector(sel);
 
 $('#ok').addEventListener('click', () => window.panel.act('ok'));
 $('#cancel').addEventListener('click', () => window.panel.act('cancel'));

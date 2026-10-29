@@ -2,11 +2,6 @@
 
 // Recherche dans la page (Ctrl+F) : Entrée va au premier résultat, puis au suivant à chaque appui
 // (Maj+Entrée : au précédent). ↓ suivant, ↑ précédent, Échap ferme.
-const params = new URLSearchParams(location.search);
-const accent = params.get('accent');
-if (accent && /^#[0-9a-f]{6}$/i.test(accent)) document.documentElement.style.setProperty('--accent', accent);
-if (params.get('mode') === 'jour') document.documentElement.dataset.mode = 'jour';
-if (params.get('private')) document.documentElement.dataset.private = '1';
 
 const q = document.querySelector('#q');
 const count = document.querySelector('#count');

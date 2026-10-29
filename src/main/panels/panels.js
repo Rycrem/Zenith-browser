@@ -1,11 +1,9 @@
 'use strict';
 
-const { app, BrowserWindow, shell, clipboard } = require('electron');
+const { app, shell, clipboard } = require('electron');
 const { t } = require('../../shared/i18n');
-const path = require('path');
 const fav = require('../../shared/favorites');
 const state = require('../state');
-const theme = require('../window/theme');
 const ui = require('../window/ui');
 const tabList = require('../tabs/tabs');
 const extPopup = require('../extensions/popup');
@@ -17,6 +15,7 @@ const audio = require('../audio/audio');
 const panelData = require('./panel-data');
 const mobile = require('../page/mobile');
 const nadir = require('../nadir/nadir');
+const { popupWindow } = require('./popup-window');
 
 let panelClosed = { kind: null, at: 0 };
 
@@ -51,19 +50,8 @@ function togglePanel(kind, x) {
     else left = x !== undefined ? b.x + Math.round(x) - width : b.x + b.width - width - 16;
     return { x: Math.max(b.x, Math.min(left, b.x + b.width - width)), y: b.y + b.height - height - 28, width, height };
   };
-  const pw = new BrowserWindow({
-    ...place(160),
-    parent: state.win,
-    frame: false,
-    resizable: false,
-    show: false,
-    skipTaskbar: true,
-    backgroundColor: theme.isLight() ? '#F6F7F9' : '#0E1116',
-    webPreferences: { preload: path.join(__dirname, 'panel-preload.js'), sandbox: true, contextIsolation: true },
-  });
+  const pw = popupWindow(file, place(160));
   state.panel = { kind, win: pw, place };
-  pw.loadFile(path.join(__dirname, '../../renderer/panels', file), { query: { accent: theme.accentColor(), mode: theme.isLight() ? 'jour' : 'nuit', private: state.privateMode ? '1' : '' } });
-  state.bindToCurrent(pw);
   pw.webContents.once('did-finish-load', () => sendPanel(kind));
   pw.once('ready-to-show', () => pw.show());
   pw.on('blur', () => !pw.isDestroyed() && pw.close());
