@@ -88,9 +88,7 @@ function startWorker() {
       return ask(chat.asked, true);
     }
     if (chat.busy || chat.status) {
-      chat.busy = false;
-      chat.status = null;
-      chat.live = null;
+      endAnswer();
       add('error', t('Nadir s\'est arrêté en cours de route (code {code}) : la mémoire de l\'ordinateur ne suffit peut-être pas, essaie le niveau léger.', { code }));
     }
     refresh();
@@ -98,17 +96,24 @@ function startWorker() {
   return w;
 }
 
+// Le processus ne dira plus « done » : la réponse en cours (et sa question en attente) s'arrête ici.
+function endAnswer() {
+  if (chat.pending) chat.pending.resolve(false);
+  if (chat.live && !chat.live.text.trim()) chat.messages.splice(chat.messages.indexOf(chat.live), 1);
+  Object.assign(chat, { busy: false, status: null, live: null, queued: null, pending: null, acting: false });
+}
+
 function stopWorker() {
   clearTimeout(idleTimer);
-  if (!worker) return false;
+  endAnswer();
+  if (!worker) {
+    refresh();
+    return false;
+  }
   const w = worker;
   worker = null;
   loaded = false;
   w.kill();
-  // Le processus ne dira plus « done » : la réponse en cours s'arrête ici.
-  if (chat.pending) chat.pending.resolve(false);
-  if (chat.live && !chat.live.text.trim()) chat.messages.splice(chat.messages.indexOf(chat.live), 1);
-  Object.assign(chat, { busy: false, status: null, live: null, queued: null, pending: null, acting: false });
   refresh();
   return true;
 }
@@ -371,6 +376,7 @@ function reset() {
   // Une réponse en cours se sert encore de la session : on arrête plutôt le processus.
   if (chat.busy) stopWorker();
   else if (worker) worker.postMessage({ type: 'reset' });
+  else endAnswer();
   chat.sawPrivate = false;
   chat.messages = [];
   chat.live = null;
