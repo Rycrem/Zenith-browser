@@ -650,6 +650,7 @@
     "Onglet précédent (Ctrl+Maj+Tab)": "Previous tab (Ctrl+Shift+Tab)",
     "Onglet suivant (Ctrl+Tab)": "Next tab (Ctrl+Tab)",
     "chercher dans l'écran": "find on the screen",
+    "Écrire « {text} » dans « {label} » et valider ?": "Type \"{text}\" into \"{label}\" and submit?",
     "Ouvrir un téléchargement": "Open a download",
     "L'extension {name} veut ouvrir « {file} ». Un fichier peut lancer un programme : ne l'ouvre que si tu sais d'où il vient.": "The extension {name} wants to open \"{file}\". A file can start a program: only open it if you know where it comes from.",
     "Ouvrir": "Open",

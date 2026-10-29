@@ -52,13 +52,13 @@ const SENSITIVE = [
   /^clean\b/,
   /^fav\s+(rm|mv|rename|import)\b/,
   /^ext\s+(add|on|off|rm|alias)\b/,
-  /^dl\s+(rm\s+)?\d+$/,
+  /^dl\s+(rm\s+|cancel\s+)?\d+$/,
   /^(alias|unalias)\s/,
   /^tab\s+save\b/,
   /^perm\s+\S/,
   /^config\s/,
   /^(ia|ai)\s/,
-  /^update\s+(install|electron)\b/,
+  /^update\s+(install|electron|auto)\b/,
   /^default$/,
 ];
 

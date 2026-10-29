@@ -32,6 +32,7 @@ async function setupPrivateSession() {
 function wipePrivate() {
   const keep = state.exts.list.filter((e) => e.id).map((e) => `chrome-extension://${e.id}`);
   permissions.forgetPrivate();
+  require('../nadir/nadir').leavePrivate();
   return Promise.all([state.privSes.clearData({ excludeOrigins: keep }), state.privSes.clearCache(), state.privSes.clearAuthCache()]).catch(() => {});
 }
 

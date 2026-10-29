@@ -28,7 +28,9 @@ let idleTimer = null;
 let nextId = 1;
 let refreshTimer = null;
 // La discussion, commune à toutes les fenêtres ; win : la fenêtre où Nadir agit.
-const chat = { messages: [], busy: false, status: null, pending: null, live: null, queued: null, asked: null, win: null };
+// sawPrivate : Nadir a vu un onglet privé, la discussion s'efface à la fin de la navigation privée.
+// acting : Nadir clique ou écrit dans la page, qui prend le focus sans fermer la popup.
+const chat = { messages: [], busy: false, status: null, pending: null, live: null, queued: null, asked: null, win: null, sawPrivate: false, acting: false };
 
 const dir = () => path.join(app.getPath('userData'), 'nadir');
 const levelId = () => N.resolveLevel(state.settings.data.nadirLevel) || N.defaultLevel(os.totalmem());
@@ -38,13 +40,15 @@ const levelName = (id) => t(N.LEVELS[id].name);
 
 // La popup suit la discussion ; le texte qui arrive en continu la rafraîchit au plus toutes les 80 ms.
 function refresh(now = true) {
-  clearTimeout(refreshTimer);
   const go = () => {
+    refreshTimer = null;
     for (const w of state.allWindows()) state.inWindow(w, () => panels.sendPanel('nadir'));
     ui.sendStateAll();
   };
-  if (now) go();
-  else refreshTimer = setTimeout(go, 80);
+  if (now) {
+    clearTimeout(refreshTimer);
+    go();
+  } else if (!refreshTimer) refreshTimer = setTimeout(go, 80);
 }
 
 function add(role, text) {
@@ -126,7 +130,8 @@ function onMessage(m) {
     refresh(false);
   } else if (m.type === 'tool') {
     chat.live = null;
-    state.inWindow(chat.win, () => runTool(m.name, m.params))
+    const gone = !chat.win || !chat.win.win || chat.win.win.isDestroyed();
+    (gone ? Promise.resolve('La fenêtre a été fermée : arrête-toi là.') : state.inWindow(chat.win, () => runTool(m.name, m.params)))
       .catch((err) => `Erreur : ${err.message}`)
       .then((result) => worker && worker.postMessage({ type: 'tool-result', callId: m.callId, result: String(result).slice(0, 6000) }));
   } else if (m.type === 'done') {
@@ -218,6 +223,15 @@ async function settled() {
   }
 }
 
+async function acting(fn) {
+  chat.acting = true;
+  try {
+    return await fn();
+  } finally {
+    chat.acting = false;
+  }
+}
+
 async function runTool(name, p) {
   const tab = tabList.activeTab();
   if (name === 'commande') {
@@ -226,7 +240,9 @@ async function runTool(name, p) {
     if (/^nadir\b/i.test(line)) return 'Tu es déjà Nadir : pas besoin de cette commande.';
     if (state.prompts.length) return `Une question attend une réponse dans le terminal (${state.prompts[0].question}) : la personne doit y répondre d'abord.`;
     add('action', `❯ ${line}`);
-    if (N.needsConfirm(line, state.settings.data.aliases) && !(await confirmAction(t('Lancer « {line} » ?', { line })))) return 'La personne a refusé : ne le refais pas.';
+    // Un numéro sur l'écran des téléchargements ouvre le fichier.
+    const opensFile = /^\d+/.test(line) && tab && tab.screen && tab.screen.kind === 'dl';
+    if ((opensFile || N.needsConfirm(line, state.settings.data.aliases)) && !(await confirmAction(t('Lancer « {line} » ?', { line })))) return 'La personne a refusé : ne le refais pas.';
     const r = await commands.exec(line);
     output.print([{ t: `❯ ${line}`, c: 'cmd' }, { t: t('  lancé par Nadir'), c: 'dim' }, ...r.lines]);
     await settled();
@@ -245,13 +261,16 @@ async function runTool(name, p) {
     const el = page.element(tab, n);
     add('action', t('clic : {label}', { label: el.label || el.type }));
     if (N.riskyClick(el.label) && !(await confirmAction(t('Cliquer sur « {label} » ?', { label: el.label })))) return 'La personne a refusé : ne le refais pas.';
-    return page.click(tab, n);
+    return acting(() => page.click(tab, n));
   }
   if (name === 'ecrire') {
     const n = Math.floor(Number(p.numero));
     const el = page.element(tab, n);
-    add('action', t('écrit « {text} » dans {label}', { text: String(p.texte || '').slice(0, 60), label: el.label || el.type }));
-    return page.write(tab, n, p.texte || '', !!p.entree);
+    const text = String(p.texte || '');
+    add('action', t('écrit « {text} » dans {label}', { text: text.slice(0, 60), label: el.label || el.type }));
+    // Entrée envoie le formulaire : comme un clic sur Envoyer, la personne dit oui d'abord.
+    if ((p.entree || N.riskyClick(el.label)) && !(await confirmAction(t('Écrire « {text} » dans « {label} » et valider ?', { text: text.slice(0, 60), label: el.label || el.type })))) return 'La personne a refusé : ne le refais pas.';
+    return acting(() => page.write(tab, n, text, !!p.entree));
   }
   return `Outil inconnu : ${name}`;
 }
@@ -267,8 +286,11 @@ function contextLine() {
 function ask(text, shown = false) {
   chat.busy = true;
   chat.asked = text;
+  if (state.privateMode || (tabList.activeTab() || {}).private) chat.sawPrivate = true;
   const id = levelId();
-  const prior = shown ? chat.messages.slice(0, -1) : chat.messages;
+  // La question déjà affichée n'est pas la dernière ligne (une info peut la suivre) : on retire la dernière question.
+  const lastUser = shown ? chat.messages.map((m) => m.role).lastIndexOf('user') : -1;
+  const prior = chat.messages.filter((m, i) => i !== lastUser);
   const history = prior.filter((m) => (m.role === 'user' || m.role === 'nadir') && m.text).slice(-12).map((m) => ({ role: m.role, text: m.text }));
   if (!shown) add('user', text);
   startWorker().postMessage({
@@ -332,6 +354,7 @@ function stopAnswer() {
 
 function reset() {
   if (chat.busy) stopAnswer();
+  chat.sawPrivate = false;
   chat.messages = [];
   chat.live = null;
   if (worker) worker.postMessage({ type: 'reset' });
@@ -435,4 +458,11 @@ function nadirCommand(args, rest, say) {
 
 const nadirState = () => ({ running: loaded, busy: chat.busy });
 
-Object.assign(module.exports, { nadirCommand, panelInfo, panelAction, nadirState, stopWorker });
+// Fin de la navigation privée : ce que Nadir y a lu ne reste ni dans la discussion ni dans le modèle.
+function leavePrivate() {
+  if (chat.sawPrivate) reset();
+}
+
+const keepOpen = () => chat.acting;
+
+Object.assign(module.exports, { nadirCommand, panelInfo, panelAction, nadirState, stopWorker, leavePrivate, keepOpen });

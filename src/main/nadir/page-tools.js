@@ -113,6 +113,7 @@ async function write(tab, n, text, enter) {
   pageOf(tab);
   const el = element(tab, n);
   if (el.type === 'password') throw new Error('Nadir ne remplit pas les mots de passe : la personne doit le taper elle-même.');
+  if (['lien', 'bouton', 'liste', 'checkbox', 'radio', 'submit', 'button', 'file'].includes(el.type)) throw new Error('Ce n\'est pas un champ où écrire : choisis un champ de texte dans elements_page.');
   const ok = await run(tab, `(() => {
     const el = window.__nadir && window.__nadir[${n - 1}];
     if (!el || !el.isConnected) return false;

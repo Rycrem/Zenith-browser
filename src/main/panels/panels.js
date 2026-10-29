@@ -54,7 +54,7 @@ function togglePanel(kind, x) {
   state.panel = { kind, win: pw, place };
   pw.webContents.once('did-finish-load', () => sendPanel(kind));
   pw.once('ready-to-show', () => pw.show());
-  pw.on('blur', () => !pw.isDestroyed() && pw.close());
+  pw.on('blur', () => !pw.isDestroyed() && !(kind === 'nadir' && nadir.keepOpen()) && pw.close());
   pw.on('closed', () => {
     panelClosed = { kind, at: Date.now() };
     if (state.panel && state.panel.win === pw) state.panel = null;

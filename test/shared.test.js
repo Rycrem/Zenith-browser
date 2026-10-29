@@ -293,7 +293,7 @@ test('Nadir demande avant ce qui efface, quitte ou paie', () => {
   for (const line of ['quit', 'clean', 'clean all', 'fav rm 3', 'ext rm 2', 'ia logout', 'perm reset', 'update install', ' Exit ']) assert.ok(N.needsConfirm(line), line);
   for (const line of ['go youtube.com', 'tab new', 'fav', 'ext', 'split', 'clicks', 'mode jour', 'quitter le travail', 'alias', 'perm', 'dl']) assert.ok(!N.needsConfirm(line), line);
   // Comme à l'exécution : les « ; » et les alias sont dépliés avant de juger.
-  for (const line of ['go a.com ; clean all', 'w', 'alias x = quit', 'ext add abc', 'dl 2', 'ia bonjour', 'config export']) assert.ok(N.needsConfirm(line, { w: 'tab new a.com ; quit' }), line);
+  for (const line of ['go a.com ; clean all', 'w', 'alias x = quit', 'ext add abc', 'dl 2', 'ia bonjour', 'config export', 'update auto off', 'dl cancel 1']) assert.ok(N.needsConfirm(line, { w: 'tab new a.com ; quit' }), line);
   // Adresses locales ou qui emporteraient du texte dans leur fin.
   for (const line of ['go file:///etc/passwd', 'view-source:https://a.com', `go https://a.com/?d=${'x'.repeat(120)}`]) assert.ok(N.needsConfirm(line), line);
   assert.ok(!N.needsConfirm('go https://www.google.com/search?q=meteo+paris'));
