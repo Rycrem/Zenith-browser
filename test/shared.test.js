@@ -258,6 +258,15 @@ test('config : export sans les clés, import validé', () => {
   assert.throws(() => config.parseConfig('{"a":1}'));
   assert.throws(() => config.parseConfig('pas du json'));
   assert.deepStrictEqual(config.parseConfig(JSON.stringify({ ...data, extensions: [{ source: '../evil' }] })).extensions, []);
+  // Un fichier venu d'ailleurs : ce qui n'a pas la bonne forme est ignoré.
+  const odd = config.parseConfig(JSON.stringify({
+    format: 1,
+    settings: { aliases: { a: 'go x', b: 3 }, permissions: { 'https://a.com': { camera: true }, 'https://b.com': { camera: 'oui' } }, volume: 7, mode: 'bleu', muteAll: 'non' },
+    favorites: { type: 'folder', children: [{ type: 'link', url: 'javascript:alert(1)' }, { type: 'link', url: 'https://a.com', name: 5 }, { type: 'folder', name: 'd', children: [{}] }] },
+  }));
+  assert.deepStrictEqual(odd.settings, { aliases: { a: 'go x' }, volume: 1, permissions: { 'https://a.com': { camera: true } } });
+  assert.deepStrictEqual(odd.favorites.children.map((n) => n.name), ['https://a.com', 'd']);
+  assert.deepStrictEqual(odd.favorites.children[1].children, []);
 });
 
 test('reload hard et popback ne sont pas des recherches', () => {
@@ -282,7 +291,12 @@ test('Nadir : niveaux, niveau par défaut selon la mémoire', () => {
 test('Nadir demande avant ce qui efface, quitte ou paie', () => {
   const N = require('../src/shared/nadir');
   for (const line of ['quit', 'clean', 'clean all', 'fav rm 3', 'ext rm 2', 'ia logout', 'perm reset', 'update install', ' Exit ']) assert.ok(N.needsConfirm(line), line);
-  for (const line of ['go youtube.com', 'tab new', 'fav', 'ext', 'split', 'clicks', 'mode jour', 'quitter le travail']) assert.ok(!N.needsConfirm(line), line);
+  for (const line of ['go youtube.com', 'tab new', 'fav', 'ext', 'split', 'clicks', 'mode jour', 'quitter le travail', 'alias', 'perm', 'dl']) assert.ok(!N.needsConfirm(line), line);
+  // Comme à l'exécution : les « ; » et les alias sont dépliés avant de juger.
+  for (const line of ['go a.com ; clean all', 'w', 'alias x = quit', 'ext add abc', 'dl 2', 'ia bonjour', 'config export']) assert.ok(N.needsConfirm(line, { w: 'tab new a.com ; quit' }), line);
+  // Adresses locales ou qui emporteraient du texte dans leur fin.
+  for (const line of ['go file:///etc/passwd', 'view-source:https://a.com', `go https://a.com/?d=${'x'.repeat(120)}`]) assert.ok(N.needsConfirm(line), line);
+  assert.ok(!N.needsConfirm('go https://www.google.com/search?q=meteo+paris'));
   for (const label of ['Acheter maintenant', 'Passer la commande', 'Supprimer le compte', 'Envoyer', 'Buy now', 'Delete']) assert.ok(N.riskyClick(label), label);
   for (const label of ['Rechercher', 'Connexion', 'Suivant', 'Images', '']) assert.ok(!N.riskyClick(label), label);
 });

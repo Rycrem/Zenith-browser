@@ -2,6 +2,7 @@
 
 const ui = require('../window/ui');
 const screens = require('../terminal/screens');
+const { WORLD } = require('./links');
 
 // Mode tty : la page en texte simple. Titres, paragraphes, listes et blocs de code ; chaque
 // lien a un numéro (le même pour une même adresse). Les éléments cachés sont ignorés.
@@ -110,9 +111,9 @@ async function showTty(tab, ready) {
     return; // dom-ready ou did-stop-loading rappelle showTty
   }
   try {
-    const r = await wc.executeJavaScript(TTY_SCRIPT);
+    const r = await wc.executeJavaScriptInIsolatedWorld(WORLD, [{ code: TTY_SCRIPT }]);
     if (!tab.tty) return;
-    screens.setScreen(tab, { kind: 'tty', host: ui.hostOf(tab.url), url: tab.url, title: r.title, blocks: r.blocks, links: r.links.length }, r.links.map((url) => ({ kind: 'url', url })));
+    screens.setScreen(tab, { kind: 'tty', host: ui.hostOf(tab.url), url: tab.url, title: r.title, blocks: r.blocks, links: r.links.length }, r.links.map((url) => ({ kind: 'url', url: /^(https?|mailto):/i.test(url) ? url : 'about:blank' })));
   } catch (err) {
     screens.setScreen(tab, { kind: 'tty', host: ui.hostOf(tab.url), url: tab.url, title: '', blocks: [], links: 0, error: err.message }, []);
   }

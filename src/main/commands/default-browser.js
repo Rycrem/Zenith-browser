@@ -1,12 +1,18 @@
 'use strict';
 
 const { app, shell } = require('electron');
+const fs = require('fs');
+const path = require('path');
+const { pathToFileURL } = require('url');
 const { t } = require('../../shared/i18n');
 const state = require('../state');
 const tabList = require('../tabs/tabs');
 
-// Adresses passées par le système (Zenith navigateur par défaut, lien ouvert depuis une autre appli).
-const urlsIn = (argv) => argv.filter((a) => /^https?:\/\//i.test(a));
+// Adresses passées par le système (Zenith navigateur par défaut, lien ou page .html ouverts depuis une autre appli).
+const urlsIn = (argv) => argv.flatMap((a) => {
+  if (/^https?:\/\//i.test(a)) return [a];
+  return /\.html?$/i.test(a) && path.isAbsolute(a) && fs.existsSync(a) ? [pathToFileURL(a).href] : [];
+});
 
 function openExternalUrls(argv) {
   const urls = urlsIn(argv);
@@ -40,7 +46,8 @@ async function registerWindowsBrowser() {
     await reg(`Classes\\${cls}`, null, cls === 'ZenithURL' ? 'Zenith URL' : 'Zenith HTML');
     if (cls === 'ZenithURL') await reg(`Classes\\${cls}`, 'URL Protocol', '');
     await reg(`Classes\\${cls}\\DefaultIcon`, null, `"${exe}",0`);
-    await reg(`Classes\\${cls}\\shell\\open\\command`, null, `"${exe}" "%1"`);
+    // « -- » : ce qui suit est une adresse, jamais une option de lancement glissée dans un lien.
+    await reg(`Classes\\${cls}\\shell\\open\\command`, null, `"${exe}" -- "%1"`);
     await reg(`Classes\\${cls}\\Application`, 'ApplicationName', 'Zenith');
     await reg(`Classes\\${cls}\\Application`, 'ApplicationIcon', `"${exe}",0`);
   }

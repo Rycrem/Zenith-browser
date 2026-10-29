@@ -4,6 +4,10 @@ const { t } = require('../../shared/i18n');
 const state = require('../state');
 const theme = require('../window/theme');
 
+// Les scripts tournent dans un monde à part : la page ne peut pas fausser ce qu'ils lisent.
+const WORLD = 1998;
+const run = (wc, code, gesture = false) => wc.executeJavaScriptInIsolatedWorld(WORLD, [{ code }], gesture);
+
 const LINKS_SCRIPT = `(() => {
   document.querySelectorAll('.__devbrows_hint').forEach((e) => e.remove());
   const sel = 'a[href], button, input:not([type=hidden]), textarea, select, [contenteditable=""], [contenteditable=true], [role=button], [role=link], [role=textbox], summary';
@@ -31,7 +35,7 @@ const LINKS_SCRIPT = `(() => {
 async function numberLinks(tab) {
   if (!tab.view || tab.screen) throw new Error(t('aucune page ouverte'));
   const accent = theme.accentColor();
-  const links = await tab.view.webContents.executeJavaScript(LINKS_SCRIPT.replace('__ACCENT__', accent));
+  const links = await run(tab.view.webContents, LINKS_SCRIPT.replace('__ACCENT__', accent));
   tab.numbered = links.map((l, i) => ({ kind: 'link', i, href: l.href }));
   tab.numberedKind = 'links';
   return links.length;
@@ -40,7 +44,7 @@ async function numberLinks(tab) {
 // Un champ de saisie reçoit le curseur (et le clavier passe à la page) ; le reste est cliqué.
 async function clickLink(tab, i) {
   const wc = tab.view.webContents;
-  const r = await wc.executeJavaScript(`(() => {
+  const r = await run(wc, `(() => {
     const el = window.__devBrows && window.__devBrows[${i}];
     document.querySelectorAll('.__devbrows_hint').forEach((e) => e.remove());
     if (!el) return false;
@@ -54,9 +58,9 @@ async function clickLink(tab, i) {
   if (r === 'field') {
     state.lastCommandAt = 0; // sinon le focus de la page serait rendu au terminal
     wc.focus();
-    await wc.executeJavaScript(`window.__devBrows[${i}] && window.__devBrows[${i}].focus()`).catch(() => {});
+    await run(wc, `window.__devBrows[${i}] && window.__devBrows[${i}].focus()`).catch(() => {});
   }
   return r;
 }
 
-Object.assign(module.exports, { numberLinks, clickLink });
+Object.assign(module.exports, { numberLinks, clickLink, WORLD });

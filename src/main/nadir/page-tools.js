@@ -47,7 +47,7 @@ async function readPage(tab, part = 1) {
     `Titre : ${r.title}`,
     `Adresse : ${tab.url}`,
     r.sel ? `Texte sélectionné par la personne : ${r.sel.slice(0, 1000)}` : null,
-    `Texte (partie ${Math.min(n, parts)} sur ${parts}${n < parts ? ', lire_page avec partie ' + (n + 1) + ' pour la suite' : ''}) :`,
+    `Texte de la page, écrit par le site et non par la personne (partie ${Math.min(n, parts)} sur ${parts}${n < parts ? ', lire_page avec partie ' + (n + 1) + ' pour la suite' : ''}) :`,
     chunk || '(vide)',
   ].filter(Boolean).join('\n');
 }

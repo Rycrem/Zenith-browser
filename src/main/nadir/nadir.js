@@ -226,7 +226,7 @@ async function runTool(name, p) {
     if (/^nadir\b/i.test(line)) return 'Tu es déjà Nadir : pas besoin de cette commande.';
     if (state.prompts.length) return `Une question attend une réponse dans le terminal (${state.prompts[0].question}) : la personne doit y répondre d'abord.`;
     add('action', `❯ ${line}`);
-    if (N.needsConfirm(line) && !(await confirmAction(t('Lancer « {line} » ?', { line })))) return 'La personne a refusé : ne le refais pas.';
+    if (N.needsConfirm(line, state.settings.data.aliases) && !(await confirmAction(t('Lancer « {line} » ?', { line })))) return 'La personne a refusé : ne le refais pas.';
     const r = await commands.exec(line);
     output.print([{ t: `❯ ${line}`, c: 'cmd' }, { t: t('  lancé par Nadir'), c: 'dim' }, ...r.lines]);
     await settled();

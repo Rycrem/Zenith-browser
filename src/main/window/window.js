@@ -10,6 +10,7 @@ const tabList = require('../tabs/tabs');
 const navigation = require('../tabs/navigation');
 const suggestions = require('../history/suggest');
 const output = require('../terminal/output');
+const { lockInternal, RENDERER } = require('../panels/popup-window');
 
 // Position de la fenêtre gardée d'un lancement à l'autre, si elle tombe encore sur un écran branché.
 function savedBounds() {
@@ -45,7 +46,8 @@ function createWindow(bounds, inactive = false) {
   if (!bounds && state.settings.data.window && state.settings.data.window.maximized) state.win.maximize();
   state.win.on('focus', () => state.setFocused(own));
   if (inactive) state.win.showInactive();
-  state.win.loadFile(path.join(__dirname, '..', '..', 'renderer', 'index.html'));
+  lockInternal(state.win.webContents);
+  state.win.loadFile(path.join(RENDERER, 'index.html'));
   // Les erreurs et les blocages de l'interface vont dans le journal ; bloquée, elle est relancée.
   state.win.webContents.on('console-message', (e) => {
     if (e.level === 'error') journal.log(`interface : ${e.message} (${path.basename(e.sourceId || '')}:${e.lineNumber})`);

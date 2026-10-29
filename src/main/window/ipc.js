@@ -25,11 +25,12 @@ const aiCommands = require('../ai/ai-command');
 const updates = require('../updates/update-command');
 const completion = require('../terminal/completion');
 const favs = require('../favorites/favorites');
+const { fromInternal } = require('../panels/popup-window');
 
 function setupIpc() {
   // Les canaux ui:* ne répondent qu'à l'interface d'une fenêtre, jamais à une page ou une
   // extension ; ils s'appliquent à cette fenêtre.
-  const uiWindow = (e) => state.allWindows().find((w) => w.win && !w.win.isDestroyed() && e.sender === w.win.webContents);
+  const uiWindow = (e) => fromInternal(e) && state.allWindows().find((w) => w.win && !w.win.isDestroyed() && e.sender === w.win.webContents);
   const onUi = (channel, fn) => ipcMain.on(channel, (e, ...args) => {
     const w = uiWindow(e);
     if (w) state.inWindow(w, () => fn(e, ...args));
@@ -41,7 +42,7 @@ function setupIpc() {
     return state.inWindow(w, () => fn(e, ...args));
   });
   // Les popups (panneaux, recherche, suggestions…) parlent pour la fenêtre qui les a ouvertes.
-  const onPopup = (channel, fn) => ipcMain.on(channel, (e, ...args) => state.inWindow(state.windowOf(e.sender), () => fn(e, ...args)));
+  const onPopup = (channel, fn) => ipcMain.on(channel, (e, ...args) => fromInternal(e) && state.inWindow(state.windowOf(e.sender), () => fn(e, ...args)));
   onUi('ui:layout', (e, r) => {
     state.rects = r.map((x) => x && { x: Math.round(x.x), y: Math.round(x.y), width: Math.round(x.width), height: Math.round(x.height) });
     ui.layout();

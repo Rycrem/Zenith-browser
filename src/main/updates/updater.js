@@ -128,12 +128,12 @@ async function installVersion(version, onProgress) {
 
 // Code source : lance scripts/update.js avec le node du système puis ferme l'appli ; le script la relance.
 function launchSource(mode) {
+  // Sans shell : un dossier dont le nom contient un espace ou un « & » ne devient pas une commande.
   return new Promise((resolve, reject) => {
     const child = spawn('node', [path.join(appDir, 'scripts', 'update.js'), appDir, String(process.pid), mode, reportFile()], {
       cwd: appDir,
       detached: true,
       stdio: 'ignore',
-      shell: win,
     });
     child.once('error', () => reject(new Error(t('node est introuvable : mets à jour à la main avec « npm update »'))));
     child.once('spawn', () => {
