@@ -4,6 +4,27 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.45',
+    notes: [
+      'Nadir, un assistant IA qui tourne sur ton ordinateur, sans Ollama ni clé : l\'étoile ✦ en bas à droite, Ctrl+Maj+A ou « nadir <question> ».',
+      'Nadir répond sur les fonctionnalités de Zenith et sur la page ouverte, et agit tout seul dans le navigateur : ouvrir un site, changer d\'onglet, cliquer, remplir un champ. Il demande d\'abord pour ce qui efface, paie ou envoie.',
+      'Trois niveaux (léger 1 Go, normal 2,3 Go, fort 4,7 Go) dans la discussion ou avec « nadir niveau » : chaque modèle est téléchargé une seule fois, à son premier usage.',
+      'Le modèle n\'est chargé qu\'au premier message et quitte la mémoire après 5 minutes sans message, ou tout de suite avec « nadir stop ».',
+      'Sécurité : un lien glissé sur la fenêtre de Zenith ne peut plus y charger un site, les extensions n\'ont accès qu\'aux API qu\'elles déclarent, et Zenith demande avant qu\'une extension ouvre un fichier téléchargé.',
+      'Sécurité : les numéros de « clicks » et le mode tty ne peuvent plus être faussés par la page, une configuration importée est vérifiée, et en navigation privée « toujours » ou « jamais » n\'est plus retenu après la session.',
+      'Les pages .html ouvertes depuis l\'explorateur s\'ouvrent dans Zenith (relance « default » sur Windows pour en profiter).',
+    ],
+    en: [
+      'Nadir, an AI assistant that runs on your computer, without Ollama or a key: the ✦ star at the bottom right, Ctrl+Shift+A or “nadir <question>”.',
+      'Nadir answers about Zenith\'s features and the open page, and acts in the browser by itself: open a site, switch tabs, click, fill in a field. It asks first for anything that deletes, pays or sends.',
+      'Three levels (light 1 GB, normal 2.3 GB, strong 4.7 GB) in the chat or with “nadir level”: each model is downloaded only once, the first time it is used.',
+      'The model is only loaded with the first message and leaves memory after 5 minutes without a message, or right away with “nadir stop”.',
+      'Security: a link dropped on the Zenith window can no longer load a site into it, extensions only reach the APIs they declare, and Zenith asks before an extension opens a downloaded file.',
+      'Security: the page can no longer tamper with “clicks” numbers or tty mode, an imported configuration is checked, and in private browsing “always” or “never” is no longer kept after the session.',
+      '.html pages opened from the file explorer open in Zenith (run “default” again on Windows to get it).',
+    ],
+  },
+  {
     version: '0.1.44',
     notes: [
       'Chaque modification de Zenith est désormais relue automatiquement avant d\'être publiée, pour éviter les bugs et les régressions.',

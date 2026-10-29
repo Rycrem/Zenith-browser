@@ -2,6 +2,7 @@
 
 // Côté main des API ajoutées par ext-api-preload.js : on les déclare sur le routeur
 // d'electron-chrome-extensions, qui vérifie déjà que l'appel vient d'une extension chargée.
+// Chaque API demande, comme dans Chrome, la permission déclarée dans le manifeste de l'extension.
 // `host` relie ces API aux données de dev-brows (onglet affiché, historique, favoris…).
 const { BrowserWindow } = require('electron');
 
@@ -50,8 +51,22 @@ function bookmarkTree(tree) {
 // Copie sans les enfants, comme bookmarks.get et getChildren.
 const shallow = ({ children, ...node }) => node;
 
+// Permissions du manifeste (les facultatives sont accordées d'office par electron-chrome-extensions).
+function hasPermission(ext, ...wanted) {
+  const m = (ext && ext.manifest) || {};
+  const all = [...(m.permissions || []), ...(m.optional_permissions || []), ...(m.host_permissions || [])];
+  // Comme dans Chrome, un motif d'hôte (https://*/*…) vaut pour les API qui demandent <all_urls>.
+  return wanted.some((p) => all.includes(p) || (p === '<all_urls>' && all.some((x) => typeof x === 'string' && x.includes('://'))));
+}
+
 function registerExtraApis(api, host) {
-  const handle = api.ctx.router.apiHandler();
+  const route = api.ctx.router.apiHandler();
+  // Le nom de l'API donne sa permission (devbrows.history.search → history) ; need la remplace.
+  const handle = (name, fn, need) => route(name, (event, ...args) => {
+    const wanted = need || [name.split('.')[1]];
+    if (!hasPermission(event.extension, ...wanted)) throw new Error(`${name.replace('devbrows.', '')} requires the ${wanted.join(' or ')} permission`);
+    return fn(event, ...args);
+  });
   const session = api.ctx.session;
   const extensions = () => (session.extensions || session).getAllExtensions();
 
@@ -63,14 +78,14 @@ function registerExtraApis(api, host) {
     if (opts.format === 'png') return image.toDataURL();
     const quality = Number.isFinite(opts.quality) ? opts.quality : 92;
     return `data:image/jpeg;base64,${image.toJPEG(quality).toString('base64')}`;
-  });
+  }, ['<all_urls>', 'activeTab']);
 
   handle('devbrows.search.query', (event, info = {}) => {
     if (!info.text) throw new Error('Missing text');
     host.search(String(info.text), info.disposition === 'CURRENT_TAB' && !info.tabId);
   });
 
-  handle('devbrows.management.getSelf', (event) => extensionInfo(event.extension));
+  route('devbrows.management.getSelf', (event) => extensionInfo(event.extension));
   handle('devbrows.management.getAll', () => extensions().map((e) => extensionInfo(e)));
   handle('devbrows.management.get', (event, id) => {
     const ext = extensions().find((e) => e.id === id);
@@ -173,15 +188,15 @@ function registerExtraApis(api, host) {
   );
 
   // Panneau latéral : ouvert dans une fenêtre étroite à droite de dev-brows.
-  handle('devbrows.sidePanel.open', (event) => {
+  route('devbrows.sidePanel.open', (event) => {
     const p = ((event.extension.manifest || {}).side_panel || {}).default_path;
     if (!p) throw new Error('No side panel');
     host.openSidePanel(`${event.extension.url}${p.replace(/^\//, '')}`, event.extension.name);
   });
 
   handle('devbrows.downloads.download', (event, options = {}) => {
-    if (!options.url) throw new Error('Missing url');
-    host.download(options.url);
+    if (!/^(https?|data|blob):/i.test(String(options.url || ''))) throw new Error('Invalid url');
+    host.download(String(options.url));
     return host.downloads().length;
   });
   handle('devbrows.downloads.search', () =>
@@ -209,10 +224,12 @@ function registerExtraApis(api, host) {
     const d = byId(id);
     if (d) host.showItem(d.path);
   });
+  // Ouvrir un fichier peut lancer un programme : la personne dit oui à chaque fois.
   handle('devbrows.downloads.open', (event, id) => {
     const d = byId(id);
-    if (d && d.state === 'completed') host.openItem(d.path);
-  });
+    if (d && d.state === 'completed') return host.openItem(d.path, event.extension.name);
+    return undefined;
+  }, ['downloads.open']);
   handle('devbrows.downloads.showDefaultFolder', () => host.showDownloadsFolder());
 }
 

@@ -116,6 +116,19 @@ function modeIcon(light) {
   return svg;
 }
 
+// Nadir : une étoile à quatre branches.
+function nadirIcon() {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 16 16');
+  svg.setAttribute('class', 'nadir-icon');
+  const p = document.createElementNS(NS, 'path');
+  p.setAttribute('d', 'M8 1.5C8.6 5.6 10.4 7.4 14.5 8C10.4 8.6 8.6 10.4 8 14.5C7.4 10.4 5.6 8.6 1.5 8C5.6 7.4 7.4 5.6 8 1.5z');
+  p.setAttribute('fill', 'currentColor');
+  svg.append(p);
+  return svg;
+}
+
 function fill(el, children) {
   el.replaceChildren(...children.flat(Infinity).filter((c) => c !== null && c !== undefined && c !== false));
 }

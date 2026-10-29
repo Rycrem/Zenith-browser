@@ -9,6 +9,7 @@ const tabList = require('../tabs/tabs');
 const findInPage = require('../search/find-in-page');
 const audio = require('../audio/audio');
 const mobile = require('../page/mobile');
+const nadir = require('../nadir/nadir');
 
 const tr = t; // là où une variable locale « t » (un onglet) cache t()
 
@@ -129,6 +130,7 @@ function sendStateNow() {
     downloads: state.downloads.filter((d) => d.state === 'progressing').length,
     lastDownload: lastDownload(),
     audio: audio.audioState(),
+    nadir: nadir.nadirState(),
   });
 }
 

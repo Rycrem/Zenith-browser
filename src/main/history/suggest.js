@@ -1,11 +1,10 @@
 'use strict';
 
-const { BrowserWindow } = require('electron');
-const path = require('path');
 const state = require('../state');
 const theme = require('../window/theme');
 const tabList = require('../tabs/tabs');
 const navigation = require('../tabs/navigation');
+const { popupWindow } = require('../panels/popup-window');
 
 // Les pages de l'historique qui correspondent à ce qui est tapé : d'abord celles dont
 // l'adresse commence par le texte, puis celles qui le contiennent, puis par le titre ;
@@ -55,27 +54,15 @@ function showSuggest(rect, selected) {
     state.suggest = null;
   }
   if (!state.suggest) {
-    const sw = new BrowserWindow({
-      ...bounds,
-      parent: state.win,
-      frame: false,
-      resizable: false,
-      focusable: false,
-      show: false,
-      skipTaskbar: true,
-      backgroundColor: theme.isLight() ? '#F6F7F9' : state.privateMode ? '#1A1024' : '#0E1116',
-      webPreferences: { preload: path.join(__dirname, '..', 'panels', 'panel-preload.js'), sandbox: true, contextIsolation: true },
-    });
+    const sw = popupWindow('suggest.html', { ...bounds, focusable: false });
     state.suggest = { win: sw, key, ready: false, data: null };
     const s = state.suggest;
-    state.bindToCurrent(sw);
     sw.webContents.on('did-finish-load', () => {
       s.ready = true;
       if (!s.data || sw.isDestroyed() || !state.suggestList.length) return;
       sw.webContents.send('panel:data', s.data);
       sw.showInactive();
     });
-    sw.loadFile(path.join(__dirname, '../../renderer/panels/suggest.html'), { query: { accent: theme.accentColor(), mode: theme.isLight() ? 'jour' : 'nuit', private: state.privateMode ? '1' : '' } });
   }
   state.suggest.data = { list: state.suggestList, selected };
   state.suggest.win.setBounds(bounds);

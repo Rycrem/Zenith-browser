@@ -1,31 +1,11 @@
 'use strict';
 
 // Popup des favoris : l'arbre (dossiers repliables) ou, en tapant, les favoris qui correspondent.
-const accent = new URLSearchParams(location.search).get('accent');
-if (accent && /^#[0-9a-f]{6}$/i.test(accent)) document.documentElement.style.setProperty('--accent', accent);
-if (new URLSearchParams(location.search).get('mode') === 'jour') document.documentElement.dataset.mode = 'jour';
-if (new URLSearchParams(location.search).get('private')) document.documentElement.dataset.private = '1';
 
-const $ = (sel) => document.querySelector(sel);
 const filter = $('#filter');
 let data = null;
 let active = 0; // favori sélectionné au clavier, parmi ceux affichés
 const opened = new Set(); // dossiers ouverts : tous refermés à la prochaine ouverture de la popup
-
-function h(tag, attrs, ...children) {
-  const el = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs || {})) {
-    if (v === undefined || v === null || v === false) continue;
-    if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
-    else if (k === 'class') el.className = v;
-    else el.setAttribute(k, v === true ? '' : v);
-  }
-  for (const c of children.flat()) {
-    if (c === null || c === undefined || c === false) continue;
-    el.append(c instanceof Node ? c : document.createTextNode(String(c)));
-  }
-  return el;
-}
 
 // Même ordre que src/shared/favorites.js : celui choisi à la main, sinon dossiers d'abord puis alphabétique.
 const sorted = (folder) => (folder.manual ? folder.children : [...folder.children].sort((a, b) => (a.type !== b.type ? (a.type === 'folder' ? -1 : 1) : a.name.localeCompare(b.name, 'fr'))));

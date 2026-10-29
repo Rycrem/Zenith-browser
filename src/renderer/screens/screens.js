@@ -34,6 +34,7 @@ const LOGO = String.raw` _____          _ _   _
 const HOME_COMMANDS = [
   ['brows', mark('<recherche>'), mark('lancer une recherche')],
   ['ia', '<question>', mark('réponse courte d\'une IA (« ia » pour la choisir)')],
+  ['nadir', '<question>', mark('l\'assistant sur ton ordinateur, qui agit dans Zenith')],
   ['go', '<url>', mark('ouvrir une adresse')],
   ['fav', '', mark('liste des favoris')],
   ['add', mark('[dossier/]nom'), mark('ajouter la page aux favoris')],

@@ -2,6 +2,7 @@
 
 const { app, BrowserWindow, shell } = require('electron');
 const path = require('path');
+const { t } = require('../../shared/i18n');
 const { ElectronChromeExtensions } = require('electron-chrome-extensions');
 const { registerExtraApis } = require('./ext-api');
 const state = require('../state');
@@ -10,6 +11,7 @@ const pageView = require('../tabs/page-view');
 const output = require('../terminal/output');
 const dl = require('../downloads/downloads');
 const search = require('../search/run-search');
+const modal = require('../panels/modal');
 
 // electron-chrome-extensions n'envoie jamais tabs.onHighlighted, et le sender des messages n'a
 // tab.active vrai que si la page a le focus clavier. Dashlane attend l'un ou l'autre pour
@@ -78,7 +80,15 @@ function setupChromeApi(s) {
     downloads: () => state.downloads,
     download: (url) => s.downloadURL(url),
     showItem: (p) => dl.showInFolder(p),
-    openItem: (p) => shell.openPath(p),
+    async openItem(p, name) {
+      const yes = await modal.confirmModal({
+        title: t('Ouvrir un téléchargement'),
+        message: t('L\'extension {name} veut ouvrir « {file} ». Un fichier peut lancer un programme : ne l\'ouvre que si tu sais d\'où il vient.', { name, file: path.basename(p) }),
+        ok: t('Ouvrir'),
+        cancel: t('Annuler'),
+      });
+      if (yes) await shell.openPath(p);
+    },
     showDownloadsFolder: () => shell.openPath(app.getPath('downloads')),
     openSidePanel(url, title) {
       const b = state.win.getBounds();

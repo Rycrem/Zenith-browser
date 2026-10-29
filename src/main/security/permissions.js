@@ -42,14 +42,20 @@ function permissionKeys(permission, details) {
   return types.map((t) => (t === 'video' ? 'camera' : 'microphone'));
 }
 
+// En navigation privée, « toujours » et « jamais » ne valent que jusqu'à sa fin : rien n'est enregistré.
+const privateSaved = {};
+const forgetPrivate = () => Object.keys(privateSaved).forEach((k) => delete privateSaved[k]);
+
 function setupPermissions(s = state.ses) {
-  if (!state.settings.data.permissions) state.settings.data.permissions = {};
-  const saved = state.settings.data.permissions;
+  const keep = s === state.ses;
+  // Relu à chaque fois : « config import » peut remplacer l'objet des réglages.
+  const store = () => (keep ? (state.settings.data.permissions = state.settings.data.permissions || {}) : privateSaved);
   s.setPermissionRequestHandler((wc, permission, callback, details) => {
     if (SAFE_PERMISSIONS.has(permission)) return callback(true);
     if (state.win && wc === state.win.webContents) return callback(false); // l'interface n'a besoin de rien
     const origin = originOf(details.requestingUrl || (wc && wc.getURL()));
     const keys = permissionKeys(permission, details);
+    const saved = store();
     const known = keys.map((k) => saved[origin] && saved[origin][k]);
     if (known.every((v) => v !== undefined)) return callback(known.every(Boolean));
     const label = [...new Set(keys.map((k) => (PERMISSION_LABELS[k] ? t(PERMISSION_LABELS[k]) : k)))].join(t(' et '));
@@ -60,7 +66,7 @@ function setupPermissions(s = state.ses) {
       if (/^(t|toujours|j|jamais|a|always|x|never)$/.test(a)) {
         saved[origin] = saved[origin] || {};
         for (const k of keys) saved[origin][k] = ok;
-        state.settings.save();
+        if (keep) state.settings.save();
       }
       callback(ok);
       say(ok ? t('  ✓ {what} : autorisé pour {site}', { what: label, site: origin }) : t('  ✗ {what} : refusé à {site}', { what: label, site: origin }), ok ? 'ok' : 'dim');
@@ -76,12 +82,13 @@ function setupPermissions(s = state.ses) {
     if (wc && state.win && wc === state.win.webContents) return false;
     const origin = originOf(requestingOrigin);
     const key = permission === 'media' ? (details.mediaType === 'video' ? 'camera' : 'microphone') : permission;
+    const saved = store();
     return !!(saved[origin] && saved[origin][key] === true);
   });
 }
 
 function permCommand(args, say) {
-  const saved = state.settings.data.permissions;
+  const saved = (state.settings.data.permissions = state.settings.data.permissions || {});
   if (args[0] === 'reset') {
     const origin = args[1] ? originOf(C.normalizeUrl(args[1])) : null;
     if (origin) delete saved[origin];
@@ -99,4 +106,4 @@ function permCommand(args, say) {
   say(t('  perm reset [site] pour effacer'), 'dim');
 }
 
-Object.assign(module.exports, { setupPermissions, permCommand });
+Object.assign(module.exports, { setupPermissions, permCommand, forgetPrivate });

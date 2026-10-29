@@ -388,6 +388,12 @@ th { color: var(--dim); }
 .dl-icon { width: 14px; height: 14px; display: block; }
 #mode-chip, #ext-chip { color: var(--text); padding: 0 6px; min-width: 26px; }
 .mode-icon { width: 14px; height: 14px; display: block; }
+#nadir-chip { position: relative; color: var(--text); padding: 0 6px; min-width: 26px; }
+#nadir-chip .nadir-icon { width: 14px; height: 14px; display: block; color: var(--accent); }
+#nadir-chip.busy .nadir-icon { animation: nadir-think 1.4s ease-in-out infinite; }
+#nadir-chip.busy { box-shadow: inset 0 0 0 1px var(--accent); }
+#nadir-chip.running::after { content: ''; position: absolute; top: 3px; right: 3px; width: 5px; height: 5px; border-radius: 50%; background: var(--green); }
+@keyframes nadir-think { 0% { transform: rotate(0) scale(1); } 50% { transform: rotate(180deg) scale(.65); } 100% { transform: rotate(360deg) scale(1); } }
 
 /* Son : haut-parleur dans l'onglet, player dans la barre d'état */
 .speaker-icon { width: 14px; height: 14px; display: block; }

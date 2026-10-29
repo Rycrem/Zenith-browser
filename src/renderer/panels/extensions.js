@@ -1,27 +1,6 @@
 'use strict';
 
 // Popup des extensions : ★ épingle une extension dans la barre du bas, un clic sur son nom l'ouvre.
-const accent = new URLSearchParams(location.search).get('accent');
-if (accent && /^#[0-9a-f]{6}$/i.test(accent)) document.documentElement.style.setProperty('--accent', accent);
-if (new URLSearchParams(location.search).get('mode') === 'jour') document.documentElement.dataset.mode = 'jour';
-if (new URLSearchParams(location.search).get('private')) document.documentElement.dataset.private = '1';
-
-const $ = (sel) => document.querySelector(sel);
-
-function h(tag, attrs, ...children) {
-  const el = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs || {})) {
-    if (v === undefined || v === null || v === false) continue;
-    if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
-    else if (k === 'class') el.className = v;
-    else el.setAttribute(k, v === true ? '' : v);
-  }
-  for (const c of children.flat()) {
-    if (c === null || c === undefined || c === false) continue;
-    el.append(c instanceof Node ? c : document.createTextNode(String(c)));
-  }
-  return el;
-}
 
 const act = (action, arg) => window.panel.act(action, arg);
 
