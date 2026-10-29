@@ -4,7 +4,7 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
-    version: '0.1.43',
+    version: '0.1.45',
     notes: [
       'Nadir, un assistant IA qui tourne sur ton ordinateur, sans Ollama ni clé : l\'étoile ✦ en bas à droite, Ctrl+Maj+A ou « nadir <question> ».',
       'Nadir répond sur les fonctionnalités de Zenith et sur la page ouverte, et agit tout seul dans le navigateur : ouvrir un site, changer d\'onglet, cliquer, remplir un champ. Il demande d\'abord pour ce qui efface, paie ou envoie.',
@@ -22,6 +22,15 @@ const CHANGELOG = [
       'Security: a link dropped on the Zenith window can no longer load a site into it, extensions only reach the APIs they declare, and Zenith asks before an extension opens a downloaded file.',
       'Security: the page can no longer tamper with “clicks” numbers or tty mode, an imported configuration is checked, and in private browsing “always” or “never” is no longer kept after the session.',
       '.html pages opened from the file explorer open in Zenith (run “default” again on Windows to get it).',
+    ],
+  },
+  {
+    version: '0.1.44',
+    notes: [
+      'Chaque modification de Zenith est désormais relue automatiquement avant d\'être publiée, pour éviter les bugs et les régressions.',
+    ],
+    en: [
+      'Every change to Zenith is now reviewed automatically before release, to catch bugs and regressions.',
     ],
   },
   {
