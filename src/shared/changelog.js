@@ -4,6 +4,19 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.41',
+    notes: [
+      'Zenith ne plante plus une minute après le lancement quand uBlock Origin met à jour ses listes de filtres.',
+      'Ouvrir Zenith alors qu\'il est déjà ouvert ne fait plus croire, au lancement suivant, que la fenêtre ouverte avait planté.',
+      'L\'arrêt ou le redémarrage de Windows ferme Zenith proprement : favoris, historique et onglets sont enregistrés.',
+    ],
+    en: [
+      'Zenith no longer crashes a minute after launch when uBlock Origin updates its filter lists.',
+      'Opening Zenith while it is already open no longer makes the next launch think the open window had crashed.',
+      'Shutting down or restarting Windows now closes Zenith cleanly: favorites, history and tabs are saved.',
+    ],
+  },
+  {
     version: '0.1.40',
     notes: [
       'Glisser le seul onglet d\'une fenêtre la déplace tout de suite, dans tous les sens. Au-dessus de la barre d\'onglets d\'une autre fenêtre, celle-ci montre où l\'onglet entrera ; lâché, il s\'y pose avec une petite animation.',

@@ -36,7 +36,40 @@ function syncPolyfill() {
     promise.then((r) => cb(r), () => cb());
     return undefined;
   };
+  const split = (changes) => {
+    const syncChanges = {};
+    const localChanges = {};
+    for (const [k, v] of Object.entries(changes)) {
+      if (k.startsWith(P)) syncChanges[k.slice(P.length)] = v;
+      else localChanges[k] = v;
+    }
+    return [syncChanges, localChanges];
+  };
   const syncListeners = new Set();
+  // L'écouteur de chrome.storage.onChanged n'est posé que si l'extension écoute storage.sync :
+  // posé dans chaque cadre (scripts de contenu), il faisait recopier par le processus principal
+  // chaque écriture de storage.local vers tous les cadres. uBlock Origin y range ses listes de
+  // filtres (des dizaines de Mo) : Zenith saturait la mémoire et plantait une minute après le lancement.
+  const original = c.storage.onChanged;
+  const relay = (changes, area) => {
+    if (area !== 'local') return;
+    const [syncChanges] = split(changes);
+    if (!Object.keys(syncChanges).length) return;
+    for (const fn of syncListeners) {
+      try {
+        fn(syncChanges);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
+  const listen = (fn) => {
+    if (!syncListeners.size && original && original.addListener) original.addListener(relay);
+    syncListeners.add(fn);
+  };
+  const unlisten = (fn) => {
+    if (syncListeners.delete(fn) && !syncListeners.size && original && original.removeListener) original.removeListener(relay);
+  };
   const sync = {
     QUOTA_BYTES: 102400,
     QUOTA_BYTES_PER_ITEM: 8192,
@@ -67,38 +100,14 @@ function syncPolyfill() {
       return done(Promise.resolve(), cb);
     },
     onChanged: {
-      addListener: (fn) => syncListeners.add(fn),
-      removeListener: (fn) => syncListeners.delete(fn),
+      addListener: listen,
+      removeListener: unlisten,
       hasListener: (fn) => syncListeners.has(fn),
       hasListeners: () => syncListeners.size > 0,
     },
   };
   // chrome.storage.onChanged : les clés préfixées arrivent comme des changements de « sync ».
-  const original = c.storage.onChanged;
   const wrapped = new Map();
-  const split = (changes) => {
-    const syncChanges = {};
-    const localChanges = {};
-    for (const [k, v] of Object.entries(changes)) {
-      if (k.startsWith(P)) syncChanges[k.slice(P.length)] = v;
-      else localChanges[k] = v;
-    }
-    return [syncChanges, localChanges];
-  };
-  if (original && original.addListener) {
-    original.addListener((changes, area) => {
-      if (area !== 'local') return;
-      const [syncChanges] = split(changes);
-      if (!Object.keys(syncChanges).length) return;
-      for (const fn of syncListeners) {
-        try {
-          fn(syncChanges);
-        } catch (e) {
-          console.error(e);
-        }
-      }
-    });
-  }
   const onChanged = original && {
     addListener(fn) {
       if (wrapped.has(fn)) return;
