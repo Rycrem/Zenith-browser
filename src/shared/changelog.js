@@ -4,6 +4,15 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.48',
+    notes: [
+      'Au lancement, Zenith vide le stockage d\'une extension qui dépasse 512 Mo : celui de uBlock Origin avait tant grossi que Zenith plantait dès son démarrage. uBlock retélécharge ses listes de filtres. La taille de chaque stockage est notée dans zenith.log.',
+    ],
+    en: [
+      'At launch, Zenith clears an extension\'s storage when it is over 512 MB: uBlock Origin\'s had grown so much that Zenith crashed as soon as it started. uBlock downloads its filter lists again. The size of each storage is written to zenith.log.',
+    ],
+  },
+  {
     version: '0.1.47',
     notes: [
       'Pendant que Nadir répond, sa popup ne met plus à jour que le message en cours : avec un outil d\'accessibilité de Windows actif, Zenith pouvait saturer sa mémoire et planter.',
