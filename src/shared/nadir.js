@@ -137,4 +137,14 @@ function sendsOut(line, aliases = {}, depth = 0) {
   return !COMMAND_NAMES.includes(words[0]) && !/^\d+t?$/.test(words[0]);
 }
 
-module.exports = { LEVELS, resolveLevel, defaultLevel, needsConfirm, sendsOut, riskyClick, systemPrompt };
+// Discussions enregistrées : le titre vient de la première question, les épinglées passent devant,
+// puis les plus récentes.
+function chatTitle(messages) {
+  const first = messages.find((m) => m.role === 'user');
+  const text = first ? first.text.replace(/\s+/g, ' ').trim() : '';
+  return text.length > 60 ? `${text.slice(0, 59)}…` : text;
+}
+
+const sortChats = (list) => list.slice().sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || b.updated - a.updated);
+
+module.exports = { LEVELS, resolveLevel, defaultLevel, needsConfirm, sendsOut, riskyClick, systemPrompt, chatTitle, sortChats };

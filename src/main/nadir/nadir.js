@@ -1,6 +1,7 @@
 'use strict';
 
 const { app, utilityProcess } = require('electron');
+const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -27,11 +28,11 @@ let loaded = false; // le modèle est en mémoire
 let idleTimer = null;
 let nextId = 1;
 let refreshTimer = null;
-// La discussion, commune à toutes les fenêtres ; win : la fenêtre où Nadir agit.
+// La discussion, commune à toutes les fenêtres ; id : celle enregistrée qu'elle continue ; win : la fenêtre où Nadir agit.
 // sawPrivate : Nadir a vu un onglet privé, la discussion s'efface à la fin de la navigation privée.
 // acting : Nadir clique ou écrit dans la page, qui prend le focus sans fermer la popup.
 // readPage : Nadir a lu une page pendant cette réponse, ce qui sort vers un site demande un oui.
-const chat = { messages: [], busy: false, status: null, pending: null, live: null, queued: null, asked: null, win: null, sawPrivate: false, acting: false, readPage: false };
+const chat = { id: null, messages: [], busy: false, status: null, pending: null, live: null, queued: null, asked: null, win: null, sawPrivate: false, acting: false, readPage: false };
 
 const dir = () => path.join(app.getPath('userData'), 'nadir');
 const levelId = () => N.resolveLevel(state.settings.data.nadirLevel) || N.defaultLevel(os.totalmem());
@@ -57,8 +58,67 @@ function add(role, text) {
   const m = { role, text };
   chat.messages.push(m);
   if (chat.messages.length > 200) chat.messages.splice(0, chat.messages.length - 200);
+  persist();
   refresh();
   return m;
+}
+
+// ------------------------------------------------ les discussions enregistrées
+
+const chatList = () => state.nadirChats.data.list;
+
+// Enregistrée dès la première question, pour la retrouver après un redémarrage ; jamais ce que Nadir
+// a vu en navigation privée.
+function persist() {
+  if (chat.sawPrivate || !chat.messages.some((m) => m.role === 'user')) return;
+  let c = chat.id && chatList().find((x) => x.id === chat.id);
+  if (!c) {
+    c = { id: crypto.randomUUID(), title: N.chatTitle(chat.messages), pinned: false, created: Date.now() };
+    chatList().push(c);
+    chat.id = c.id;
+  }
+  c.messages = chat.messages.filter((m) => m.text).map((m) => ({ role: m.role, text: m.text }));
+  c.updated = Date.now();
+  state.nadirChats.save();
+}
+
+function findChat(id) {
+  const c = chatList().find((x) => x.id === id);
+  if (!c) throw new Error(t('Cette discussion n\'existe plus'));
+  return c;
+}
+
+function openChat(id) {
+  const c = findChat(id);
+  if (chat.busy) throw new Error(t('Nadir est occupé : attends la fin de sa réponse (ou ■ pour l\'arrêter)'));
+  reset();
+  chat.id = c.id;
+  chat.messages = c.messages.map((m) => ({ role: m.role, text: m.text }));
+  refresh();
+}
+
+function renameChat(id, title) {
+  const c = findChat(id);
+  const name = String(title || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+  if (!name) return;
+  c.title = name;
+  state.nadirChats.save();
+  refresh();
+}
+
+function pinChat(id) {
+  const c = findChat(id);
+  c.pinned = !c.pinned;
+  state.nadirChats.save();
+  refresh();
+}
+
+function deleteChat(id) {
+  findChat(id);
+  state.nadirChats.data.list = chatList().filter((x) => x.id !== id);
+  state.nadirChats.save();
+  if (chat.id === id) reset();
+  else refresh();
 }
 
 function openPanel() {
@@ -168,6 +228,7 @@ function onMessage(m) {
 function finish() {
   if (chat.live && !chat.live.text.trim()) chat.messages.splice(chat.messages.indexOf(chat.live), 1);
   chat.live = null;
+  persist();
   chat.busy = false;
   chat.status = null;
   chat.queued = null;
@@ -378,6 +439,7 @@ function reset() {
   else if (worker) worker.postMessage({ type: 'reset' });
   else endAnswer();
   chat.sawPrivate = false;
+  chat.id = null;
   chat.messages = [];
   chat.live = null;
   refresh();
@@ -419,12 +481,22 @@ function panelInfo() {
     progress: chat.status && chat.status.kind === 'download' && chat.status.total ? chat.status.done / chat.status.total : null,
     pending: chat.pending ? { kind: chat.pending.kind, question: chat.pending.question } : null,
     levels: levels(),
+    chats: N.sortChats(chatList()).map((c) => ({ id: c.id, title: c.title, pinned: !!c.pinned, updated: c.updated, current: c.id === chat.id })),
     running: loaded,
     labels: {
       hello: t('Bonjour, je suis Nadir. Je tourne sur ton ordinateur, sans rien envoyer sur internet. Pose-moi une question sur Zenith ou sur la page ouverte, ou demande-moi de faire quelque chose dans le navigateur.'),
       placeholder: t('Écris à Nadir… (Entrée pour envoyer)'),
       level: t('Niveau'),
       reset: t('Nouvelle discussion (nadir clear)'),
+      chats: t('Discussions enregistrées'),
+      noChats: t('Aucune discussion enregistrée : elles apparaissent ici dès ta première question.'),
+      back: t('Retour à la discussion'),
+      rename: t('Renommer'),
+      pin: t('Épingler en haut'),
+      unpin: t('Désépingler'),
+      remove: t('Supprimer'),
+      confirmRemove: t('Supprimer ?'),
+      lang: getLang(),
       stop: t('Arrêter'),
       close: t('Fermer (Échap)'),
       yes: t('Oui'),
@@ -442,6 +514,16 @@ async function panelAction(action, arg) {
   else if (action === 'answer' && chat.pending) chat.pending.resolve(!!(arg && arg.yes));
   else if (action === 'stop') stopAnswer();
   else if (action === 'reset') reset();
+  else if (['open', 'rename', 'pin', 'delete'].includes(action) && arg && typeof arg.id === 'string') {
+    try {
+      if (action === 'open') openChat(arg.id);
+      else if (action === 'rename') renameChat(arg.id, arg.title);
+      else if (action === 'pin') pinChat(arg.id);
+      else deleteChat(arg.id);
+    } catch (err) {
+      add('error', err.message);
+    }
+  }
   else if (action === 'level' && arg && N.LEVELS[arg.id]) {
     try {
       setLevel(arg.id);
@@ -469,6 +551,21 @@ function nadirCommand(args, rest, say) {
   if (sub === 'stop' && args.length === 1) {
     stopAnswer();
     say(stopWorker() ? t('  ✓ Nadir : modèle libéré de la mémoire') : t('  Nadir ne tourne pas'), 'ok');
+    return;
+  }
+  if ((sub === 'discussions' || sub === 'chats') && args.length <= 2) {
+    const list = N.sortChats(chatList());
+    if (args[1]) {
+      const c = list[Number(args[1]) - 1];
+      if (!/^\d+$/.test(args[1]) || !c) throw new Error(t('pas de discussion n° {n} (« nadir discussions » les liste)', { n: args[1] }));
+      openChat(c.id);
+      openPanel();
+      say(t('  ✓ Nadir : discussion « {title} »', { title: c.title }), 'ok');
+      return;
+    }
+    if (!list.length) return say(t('  aucune discussion enregistrée'), 'dim');
+    list.forEach((c, i) => say(`  ${String(i + 1).padStart(2)}  ${c.pinned ? '★ ' : ''}${c.title}`, c.id === chat.id ? 'acc' : ''));
+    say(t('  « nadir discussions <n> » pour la rouvrir ; renommer, épingler ou supprimer : ☰ dans la discussion'), 'dim');
     return;
   }
   if ((sub === 'clear' || sub === 'reset') && args.length === 1) {

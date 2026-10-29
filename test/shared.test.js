@@ -304,6 +304,16 @@ test('Nadir demande avant ce qui efface, quitte ou paie', () => {
   for (const label of ['Rechercher', 'Connexion', 'Suivant', 'Images', '']) assert.ok(!N.riskyClick(label), label);
 });
 
+test('Nadir : titre et ordre des discussions enregistrées', () => {
+  const N = require('../src/shared/nadir');
+  assert.strictEqual(N.chatTitle([{ role: 'info', text: 'x' }, { role: 'user', text: '  ouvre\n wikipedia ' }]), 'ouvre wikipedia');
+  assert.strictEqual(N.chatTitle([]), '');
+  assert.strictEqual(N.chatTitle([{ role: 'user', text: 'a'.repeat(80) }]).length, 60);
+  const list = [{ id: 'a', updated: 3 }, { id: 'b', updated: 1, pinned: true }, { id: 'c', updated: 5 }];
+  assert.deepStrictEqual(N.sortChats(list).map((c) => c.id), ['b', 'c', 'a']);
+  assert.strictEqual(list[0].id, 'a');
+});
+
 test('les consignes de Nadir listent les commandes et les raccourcis', () => {
   const N = require('../src/shared/nadir');
   const s = N.systemPrompt({ lang: 'fr', commands: cmd.COMMANDS, shortcuts: [['Ctrl+K', 'aller au terminal']] });

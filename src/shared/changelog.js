@@ -4,6 +4,17 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.49',
+    notes: [
+      'Les discussions avec Nadir sont enregistrées et restent après un redémarrage : le bouton ☰ de la discussion les liste pour en rouvrir, renommer, épingler ou supprimer une. « nadir discussions » les liste aussi dans le terminal. Rien n\'est enregistré de la navigation privée.',
+      'Ctrl+Tab et Ctrl+Maj+Tab changent d\'onglet même quand le site ouvert garde la touche Tab pour lui.',
+    ],
+    en: [
+      'Conversations with Nadir are saved and stay after a restart: the chat\'s ☰ button lists them to reopen, rename, pin or delete one. “nadir chats” also lists them in the terminal. Nothing from private browsing is saved.',
+      'Ctrl+Tab and Ctrl+Shift+Tab switch tabs even when the open site keeps the Tab key for itself.',
+    ],
+  },
+  {
     version: '0.1.48',
     notes: [
       'Au lancement, Zenith vide le stockage d\'une extension qui dépasse 512 Mo : celui de uBlock Origin avait tant grossi que Zenith plantait dès son démarrage. uBlock retélécharge ses listes de filtres. La taille de chaque stockage est notée dans zenith.log.',

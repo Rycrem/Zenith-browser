@@ -6,6 +6,67 @@ const act = (action, arg) => window.panel.act(action, arg);
 
 let last = null;
 let shownLevels = null;
+let shownChats = null;
+let view = 'chat'; // ou 'list' : les discussions enregistrées
+let editing = null; // discussion en cours de renommage
+
+function showView(v) {
+  view = v;
+  editing = null;
+  shownChats = null;
+  if (last) render(last);
+  if (v === 'chat') $('#input').focus();
+}
+
+function when(ms, lang) {
+  return new Date(ms).toLocaleString(lang === 'en' ? 'en-US' : 'fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+function renameRow(row, c, L) {
+  editing = c.id;
+  const input = h('input', { type: 'text', value: c.title, maxlength: '80', 'aria-label': L.rename });
+  const done = (save) => {
+    if (editing !== c.id) return;
+    if (save) act('rename', { id: c.id, title: input.value });
+    editing = null;
+    shownChats = null;
+    render(last);
+  };
+  input.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') done(true);
+    else if (e.key === 'Escape') done(false);
+  });
+  input.addEventListener('blur', () => done(true));
+  row.replaceChildren(input);
+  input.focus();
+  input.select();
+}
+
+// La liste ne se refait que quand elle change (pas à chaque bout de réponse), ni pendant un renommage.
+function renderChats(d) {
+  const L = d.labels;
+  const key = JSON.stringify([d.chats, d.busy]);
+  if (editing || key === shownChats) return;
+  shownChats = key;
+  const rows = d.chats.map((c) => {
+    const row = h('div', { class: `chat-row${c.current ? ' current' : ''}` });
+    const remove = h('button', { type: 'button', class: 'danger', title: L.remove, disabled: d.busy }, '✕');
+    remove.addEventListener('click', () => {
+      if (remove.dataset.sure) return act('delete', { id: c.id });
+      remove.dataset.sure = '1';
+      remove.textContent = L.confirmRemove;
+    });
+    row.append(
+      h('button', { type: 'button', class: 'open', disabled: d.busy, onclick: () => { act('open', { id: c.id }); showView('chat'); } },
+        h('span', { class: 'name' }, `${c.pinned ? '★ ' : ''}${c.title}`), h('span', { class: 'when' }, when(c.updated, L.lang))),
+      h('button', { type: 'button', title: c.pinned ? L.unpin : L.pin, onclick: () => act('pin', { id: c.id }) }, c.pinned ? '★' : '☆'),
+      h('button', { type: 'button', title: L.rename, onclick: () => renameRow(row, c, L) }, '✎'),
+      remove);
+    return row;
+  });
+  $('#chats').replaceChildren(...(rows.length ? rows : [h('div', { class: 'dim empty' }, L.noChats)]));
+}
 
 function render(d) {
   last = d;
@@ -14,6 +75,12 @@ function render(d) {
   $('#hint').textContent = L.hint;
   $('#memory').textContent = d.running ? L.running : '';
   $('#reset').title = L.reset;
+  $('#list').title = view === 'list' ? L.back : L.chats;
+  $('#list').classList.toggle('on', view === 'list');
+  $('#chat').hidden = view === 'list';
+  $('#chats').hidden = view !== 'list';
+  $('#ask').hidden = view === 'list';
+  if (view === 'list') renderChats(d);
   $('#close').title = L.close;
   $('#stop').title = L.stop;
   $('#input').placeholder = L.placeholder;
@@ -71,11 +138,17 @@ $('#input').addEventListener('keydown', (e) => {
   $('#input').value = '';
 });
 $('#level').addEventListener('change', (e) => act('level', { id: e.target.value }));
-$('#reset').addEventListener('click', () => act('reset'));
+$('#reset').addEventListener('click', () => {
+  act('reset');
+  showView('chat');
+});
+$('#list').addEventListener('click', () => showView(view === 'list' ? 'chat' : 'list'));
 $('#close').addEventListener('click', () => act('close'));
 $('#stop').addEventListener('click', () => act('stop'));
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') act('close');
+  if (e.key !== 'Escape') return;
+  if (view === 'list') showView('chat');
+  else act('close');
 });
 window.addEventListener('focus', () => $('#input').focus());
 
