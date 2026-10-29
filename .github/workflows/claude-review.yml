@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
       - uses: anthropics/claude-code-action@v1
         with:
@@ -31,26 +31,40 @@ jobs:
           prompt: |
             DÉPÔT : ${{ github.repository }}
             PR : ${{ github.event.pull_request.number }}
+            ÉVÉNEMENT : ${{ github.event.action }}
+            AVANT : ${{ github.event.before }}
+            APRÈS : ${{ github.event.pull_request.head.sha }}
 
             Relis cette PR de Zenith (navigateur Electron piloté depuis un terminal, voir CLAUDE.md
-            et README.fr.md pour l'architecture). Lis `gh pr diff` puis le code autour des changements.
+            et README.fr.md pour l'architecture).
 
-            Cherche, par ordre d'importance :
-            1. Justesse : bugs, cas limites, erreurs non gérées, IPC ou API exposée aux sites
-               (preload, liste blanche, contextIsolation), fuite de données en navigation privée.
-            2. Régressions : comportement existant cassé (commandes du terminal, raccourcis, onglets,
-               split, extensions, mises à jour), ou incohérence avec le reste du code.
-            3. Optimisation : travail inutile dans le processus principal, écouteurs ou timers non
-               libérés, écritures disque répétées, code plus simple possible.
-            Vérifie aussi les règles du dépôt : version montée dans package.json, entrée fr/en en tête
-            de src/shared/changelog.js, nouvelles phrases traduites dans src/shared/i18n.js,
-            commandes documentées dans README.md et README.fr.md, test si la logique est dans src/shared/.
+            Quoi relire :
+            - Si ÉVÉNEMENT vaut `synchronize` et que AVANT existe dans l'historique, relis seulement
+              `git diff AVANT APRÈS`, limité aux fichiers de `gh pr diff --name-only`. Ce qui vient
+              d'un merge de main n'est pas à relire.
+            - Sinon, relis `gh pr diff`.
+            - Lis d'abord les retours déjà postés (`gh pr view --comments` et
+              `gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments`).
+              Ne répète jamais un point déjà signalé, qu'il ait été corrigé ou que l'auteur ait
+              répondu pourquoi il le garde.
 
-            Retours en français, courts et concrets : le problème, pourquoi, la correction.
-            Pas de compliments, pas de remarques de style sans conséquence.
-            - Un problème précis sur une ligne : commentaire en ligne avec
-              mcp__github_inline_comment__create_inline_comment (confirmed: true).
-            - Puis un seul commentaire de synthèse avec `gh pr comment` : verdict (prête / à corriger),
-              liste des points bloquants. Si rien à signaler, dis-le en une ligne.
+            Quoi signaler : uniquement les problèmes bloquants.
+            - Justesse : un bug réel (plantage, mauvais résultat, état bloqué).
+            - Régression : un comportement existant cassé.
+            - Sécurité : faille exploitable (API exposée aux sites, preload, IPC, navigation privée,
+              confirmation contournable).
+            Pas de remarques d'optimisation, de style, de nommage ni de cas théoriques.
+
+            Avant de signaler un problème, prouve-le dans le code réel : suis l'appel jusqu'au bout,
+            y compris dans node_modules quand une bibliothèque est en jeu, et décris le scénario
+            concret qui le déclenche. Si tu ne peux pas le prouver, ne le signale pas.
+            Les tests tournent dans un autre job de la CI : n'en parle pas.
+
+            Comment répondre, en français, court et concret :
+            - Chaque problème : commentaire en ligne avec
+              mcp__github_inline_comment__create_inline_comment (confirmed: true) : le problème,
+              le scénario, la correction.
+            - Puis un seul commentaire de synthèse avec `gh pr comment`.
+              S'il n'y a rien de bloquant, écris seulement « Rien à signaler. » et rien d'autre.
           claude_args: |
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh api:*),Bash(git diff:*),Bash(git log:*),Bash(git cat-file:*)"

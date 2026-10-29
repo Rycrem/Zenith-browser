@@ -4,6 +4,15 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.46',
+    notes: [
+      'La relecture automatique des modifications ne signale plus que les vrais problèmes, pour des corrections plus rapides.',
+    ],
+    en: [
+      'The automatic review of changes now only reports real problems, for faster fixes.',
+    ],
+  },
+  {
     version: '0.1.45',
     notes: [
       'Nadir, un assistant IA qui tourne sur ton ordinateur, sans Ollama ni clé : l\'étoile ✦ en bas à droite, Ctrl+Maj+A ou « nadir <question> ».',
