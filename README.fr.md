@@ -112,7 +112,7 @@ Chaque clé reste sur cet ordinateur, chiffrée par le système quand c'est poss
 
 ## Nadir
 
-Nadir est l'assistant de Zenith : un modèle d'IA qui tourne entièrement sur ton ordinateur, sans Ollama, sans clé et sans rien envoyer sur internet. Clique sur ✦ Nadir en bas à droite (ou Ctrl+Maj+A, ou `nadir <question>`) pour lui parler.
+Nadir est l'assistant de Zenith : un modèle d'IA qui tourne entièrement sur ton ordinateur, sans Ollama, sans clé et sans rien envoyer sur internet. Clique sur l'étoile ✦ en bas à droite (ou Ctrl+Maj+A, ou `nadir <question>`) pour lui parler.
 
 - Il répond sur les fonctionnalités de Zenith (il connaît ses commandes et ses raccourcis).
 - Il répond sur la page ouverte : il en lit le texte, et la sélection si tu en as fait une.
@@ -124,7 +124,7 @@ Nadir est l'assistant de Zenith : un modèle d'IA qui tourne entièrement sur to
 | normal | Qwen3 4B Instruct | 2,3 Go | le niveau par défaut (léger sur un ordinateur de moins de 8 Go de mémoire) |
 | fort | Qwen3 8B | 4,7 Go | plus juste, demande une bonne carte graphique ou 16 Go de mémoire |
 
-Le niveau se choisit en haut de la discussion ou avec `nadir niveau <nom>`. Chaque modèle est téléchargé une seule fois (depuis Hugging Face, après ton accord), au premier message à ce niveau, dans le dossier `nadir` des données. Le modèle n'est chargé qu'au premier message et quitte la mémoire après 5 minutes sans message (ou tout de suite avec `nadir stop`) ; un point vert sur le bouton dit qu'il est en mémoire. Il utilise la carte graphique quand il peut (Vulkan, Metal sur Mac), sinon le processeur.
+Le niveau se choisit en haut de la discussion ou avec `nadir niveau <nom>`. Chaque modèle est téléchargé une seule fois (depuis Hugging Face, après ton accord), au premier message à ce niveau, dans le dossier `nadir` des données. Le modèle n'est chargé qu'au premier message et quitte la mémoire après 5 minutes sans message (ou tout de suite avec `nadir stop`) ; un point vert sur l'étoile dit qu'il est en mémoire, et elle tourne pendant qu'il réfléchit. Il utilise la carte graphique quand il peut (Vulkan, Metal sur Mac), sinon le processeur.
 
 ## Mises à jour
 

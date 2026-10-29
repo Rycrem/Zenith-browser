@@ -118,7 +118,7 @@ Each key stays on this computer, encrypted by the system when possible, and neve
 
 ## Nadir
 
-Nadir is Zenith's assistant: an AI model that runs entirely on your computer, without Ollama, without a key and without sending anything over the internet. Click ✦ Nadir at the bottom right (or Ctrl+Shift+A, or `nadir <question>`) to talk to it.
+Nadir is Zenith's assistant: an AI model that runs entirely on your computer, without Ollama, without a key and without sending anything over the internet. Click the ✦ star at the bottom right (or Ctrl+Shift+A, or `nadir <question>`) to talk to it.
 
 - It answers about Zenith's features (it knows its commands and shortcuts).
 - It answers about the open page: it reads its text, and your selection if you made one.
@@ -130,7 +130,7 @@ Nadir is Zenith's assistant: an AI model that runs entirely on your computer, wi
 | normal | Qwen3 4B Instruct | 2.3 GB | the default level (light on a computer with less than 8 GB of memory) |
 | strong | Qwen3 8B | 4.7 GB | more accurate, needs a good graphics card or 16 GB of memory |
 
-Pick the level at the top of the chat or with `nadir level <name>`. Each model is downloaded only once (from Hugging Face, after you agree), with the first message at that level, into the `nadir` folder of the data. The model is only loaded with the first message and leaves memory after 5 minutes without a message (or right away with `nadir stop`); a green dot on the button shows it is in memory. It uses the graphics card when it can (Vulkan, Metal on Mac), otherwise the processor.
+Pick the level at the top of the chat or with `nadir level <name>`. Each model is downloaded only once (from Hugging Face, after you agree), with the first message at that level, into the `nadir` folder of the data. The model is only loaded with the first message and leaves memory after 5 minutes without a message (or right away with `nadir stop`); a green dot on the star shows it is in memory, and it spins while it thinks. It uses the graphics card when it can (Vulkan, Metal on Mac), otherwise the processor.
 
 ## Updates
 

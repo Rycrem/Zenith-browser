@@ -40,7 +40,7 @@ function togglePanel(kind, x) {
   }
   // Le clic sur le bouton fait d'abord perdre le focus à la popup, qui se ferme : ce clic ne la rouvre pas.
   if (panelClosed.kind === kind && Date.now() - panelClosed.at < 300) return;
-  const { file, width, keep } = panelData.PANELS[kind];
+  const { file, width } = panelData.PANELS[kind];
   const win = state.win;
   const place = (height) => {
     const b = win.getContentBounds();
@@ -66,17 +66,8 @@ function togglePanel(kind, x) {
   state.bindToCurrent(pw);
   pw.webContents.once('did-finish-load', () => sendPanel(kind));
   pw.once('ready-to-show', () => pw.show());
-  // Nadir reste ouvert pendant qu'il agit sur la page : il suit la fenêtre au lieu de se fermer.
-  const follow = () => !pw.isDestroyed() && pw.setBounds(place(pw.getBounds().height));
-  if (keep) {
-    win.on('move', follow);
-    win.on('resize', follow);
-  } else pw.on('blur', () => !pw.isDestroyed() && pw.close());
+  pw.on('blur', () => !pw.isDestroyed() && pw.close());
   pw.on('closed', () => {
-    if (keep && !win.isDestroyed()) {
-      win.off('move', follow);
-      win.off('resize', follow);
-    }
     panelClosed = { kind, at: Date.now() };
     if (state.panel && state.panel.win === pw) state.panel = null;
   });
