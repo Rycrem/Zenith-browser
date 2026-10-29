@@ -62,6 +62,13 @@ app.userAgentFallback = app.userAgentFallback
 // Journal (zenith.log dans le dossier de données) : lancement, extensions, plantages.
 journal.open(app.getPath('userData'));
 journal.log(`lancement de Zenith ${app.getVersion()} (Electron ${process.versions.electron}, ${process.platform} ${os.release()})`);
+// Une seule fenêtre Zenith : un second lancement (lien ouvert depuis une autre appli) passe ses adresses
+// à la première et s'arrête là, sans toucher aux témoins de la session en cours (sinon elle passait pour plantée).
+if (!app.requestSingleInstanceLock()) {
+  journal.log('Zenith est déjà ouvert : adresses passées à la fenêtre ouverte');
+  app.exit(0);
+}
+app.on('second-instance', (e, argv) => defaultBrowser.openExternalUrls(argv));
 // Un plantage du processus principal ne passe par aucun code JavaScript : seul un rapport de
 // plantage (gardé sur le disque, jamais envoyé) et le témoin de session en laissent une trace.
 app.setPath('crashDumps', path.join(app.getPath('userData'), 'Crashpad'));
@@ -80,11 +87,6 @@ app.on('render-process-gone', (e, wc, d) => {
   if (w && d.reason !== 'clean-exit') setTimeout(() => w.win && !w.win.isDestroyed() && w.win.webContents.reload(), 500);
 });
 app.on('child-process-gone', (e, d) => journal.log(`processus ${d.type}${d.name ? ` (${d.name})` : ''} arrêté : ${d.reason}, code ${d.exitCode}`));
-// Une seule fenêtre Zenith : un second lancement (lien ouvert depuis une autre appli) passe ses adresses à la première.
-if (!app.requestSingleInstanceLock()) {
-  app.exit(0);
-}
-app.on('second-instance', (e, argv) => defaultBrowser.openExternalUrls(argv));
 const guard = journal.startupGuard(app.getPath('userData'));
 
 app.whenReady().then(async () => {
@@ -152,10 +154,16 @@ app.whenReady().then(async () => {
   }, 20000);
 });
 
-app.on('before-quit', () => {
+function closeNormally() {
   guard.done(); // fermeture normale, même avant la fin du démarrage
   session_.done();
   for (const s of [state.favorites, state.history, state.settings, state.sessionStore]) if (s) s.flush();
-});
+}
+app.on('before-quit', closeNormally);
+// Arrêt ou déconnexion de Windows : l'appli est tuée sans before-quit, seul session-end prévient.
+app.on('browser-window-created', (e, w) => w.on('session-end', () => {
+  journal.log('arrêt de Windows : fermeture');
+  closeNormally();
+}));
 
 app.on('window-all-closed', () => app.quit());
