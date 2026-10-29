@@ -45,6 +45,7 @@ Logic tests (bookmarks, aliases, result parsing, extensions, translations): `npm
 | `ia`, `ia use <ai>`, `ia key <key>`, `ia logout`, `ia model [id]` | choose and connect the AI |
 | `nadir [question]` | opens the chat with Nadir, the assistant that runs on your computer (see [Nadir](#nadir)) |
 | `nadir level [light \| normal \| strong]`, `nadir stop`, `nadir clear` | Nadir's level, free its memory, new conversation |
+| `nadir chats [n]` | list the saved conversations with Nadir, or reopen conversation n |
 | `<n>` / `<n>t` | opens item n of the list on screen, `t` for a new tab |
 | `go <url>` | opens an address (typing an address directly works too) |
 | `clicks` | numbers the page's links, buttons and input fields; a number clicks the link or button, or puts the cursor in the field |
@@ -131,6 +132,8 @@ Nadir is Zenith's assistant: an AI model that runs entirely on your computer, wi
 | strong | Qwen3 8B | 4.7 GB | more accurate, needs a good graphics card or 16 GB of memory |
 
 Pick the level at the top of the chat or with `nadir level <name>`. Each model is downloaded only once (from Hugging Face, after you agree), with the first message at that level, into the `nadir` folder of the data. The model is only loaded with the first message and leaves memory after 5 minutes without a message (or right away with `nadir stop`); a green dot on the star shows it is in memory, and it spins while it thinks. It uses the graphics card when it can (Vulkan, Metal on Mac), otherwise the processor.
+
+Each conversation is saved from the first question and stays after a restart: the ☰ button at the top of the chat lists them (pinned first, then the most recent), to reopen, rename, pin or delete one; ⟲ starts a new one. `nadir chats` lists them in the terminal. What Nadir saw in private browsing is never saved.
 
 ## Updates
 

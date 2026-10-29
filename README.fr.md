@@ -38,6 +38,7 @@ Tests de la logique (favoris, alias, lecture des résultats, extensions) : `npm 
 | `ia`, `ia use <ia>`, `ia key <clé>`, `ia logout`, `ia model [id]` | choisir et connecter l'IA |
 | `nadir [question]` | ouvre la discussion avec Nadir, l'assistant qui tourne sur ton ordinateur (voir [Nadir](#nadir)) |
 | `nadir niveau [léger \| normal \| fort]`, `nadir stop`, `nadir clear` | niveau de Nadir, libérer sa mémoire, nouvelle discussion |
+| `nadir discussions [n]` | lister les discussions enregistrées avec Nadir, ou rouvrir la discussion n |
 | `<n>` / `<n>t` | ouvre l'élément n de la liste affichée, `t` pour un nouvel onglet |
 | `go <url>` | ouvre une adresse (taper directement une adresse marche aussi) |
 | `clicks` | numérote les liens, boutons et champs de la page ; un numéro clique le lien ou le bouton, ou place le curseur dans le champ |
@@ -125,6 +126,8 @@ Nadir est l'assistant de Zenith : un modèle d'IA qui tourne entièrement sur to
 | fort | Qwen3 8B | 4,7 Go | plus juste, demande une bonne carte graphique ou 16 Go de mémoire |
 
 Le niveau se choisit en haut de la discussion ou avec `nadir niveau <nom>`. Chaque modèle est téléchargé une seule fois (depuis Hugging Face, après ton accord), au premier message à ce niveau, dans le dossier `nadir` des données. Le modèle n'est chargé qu'au premier message et quitte la mémoire après 5 minutes sans message (ou tout de suite avec `nadir stop`) ; un point vert sur l'étoile dit qu'il est en mémoire, et elle tourne pendant qu'il réfléchit. Il utilise la carte graphique quand il peut (Vulkan, Metal sur Mac), sinon le processeur.
+
+Chaque discussion est enregistrée dès la première question et reste après un redémarrage : le bouton ☰ en haut de la discussion les liste (les épinglées d'abord, puis les plus récentes), pour en rouvrir, renommer, épingler ou supprimer une ; ⟲ en commence une nouvelle. `nadir discussions` les liste dans le terminal. Ce que Nadir a vu en navigation privée n'est jamais enregistré.
 
 ## Mises à jour
 

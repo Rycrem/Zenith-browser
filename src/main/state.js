@@ -13,6 +13,7 @@ const shared = {
   sessionStore: null, // JsonStore { tabs } : adresses des onglets ouverts, pour « popback »
   previousSession: [], // celles de la dernière fois, lues au lancement
   settings: null, // JsonStore { engine, theme, aliases, extensions }
+  nadirChats: null, // JsonStore { list } : les discussions avec Nadir
   exts: null,
   downloads: [],
   privSes: null, // session de la navigation privée (créée au premier Ctrl+Maj+N)

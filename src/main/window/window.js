@@ -103,9 +103,10 @@ function createWindow(bounds, inactive = false) {
       e.preventDefault();
       return output.toggleTerminal();
     }
-    if (input.type !== 'keyDown' || input.key !== 'Tab' || !input.control || input.alt || input.meta) return;
+    const dir = tabList.cycleKey(input);
+    if (!dir) return;
     e.preventDefault();
-    tabList.cycleTab(input.shift ? -1 : 1);
+    tabList.cycleTab(dir);
   });
   // F11 ou la fenêtre qui sort du plein écran : la vidéo en sort aussi.
   state.win.on('leave-full-screen', () => {
