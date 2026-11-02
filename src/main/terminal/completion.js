@@ -9,13 +9,19 @@ const state = require('../state');
 // Autocomplétion avec Tab.
 function complete(line) {
   const parts = line.split(' ');
-  const last = parts[parts.length - 1];
-  const head = parts.slice(0, -1).filter(Boolean);
+  let last = parts[parts.length - 1];
+  let head = parts.slice(0, -1).filter(Boolean);
   const tree = state.favorites.data.tree;
   const favPaths = () => fav.flatten(tree).map((n) => (n.type === 'folder' ? `${n.path}/` : n.path));
   const folders = () => fav.flatten(tree).filter((n) => n.type === 'folder').map((n) => `${n.path}/`);
+  // Le nom d'un favori s'ouvre tapé seul : il se complète comme une commande, espaces compris.
+  const favNames = fav.allLinks(tree).flatMap((l) => [l.name, l.path]);
+  if (head.length && !C.COMMAND_NAMES.includes(head[0]) && favNames.some((n) => n.toLowerCase().startsWith(line.toLowerCase()))) {
+    last = line;
+    head = [];
+  }
   let pool = [];
-  if (!head.length) pool = [...C.COMMAND_NAMES, ...Object.keys(state.settings.data.aliases)];
+  if (!head.length) pool = [...C.COMMAND_NAMES, ...Object.keys(state.settings.data.aliases), ...favNames];
   else if (head[0] === 'fav' && head.length === 1) pool = [...C.SUBCOMMANDS.fav, ...folders()];
   else if (head[0] === 'fav' && ['rm', 'mv', 'rename'].includes(head[1])) pool = head[1] === 'mv' && head.length === 3 ? folders() : favPaths();
   else if (head[0] === 'add') pool = folders();

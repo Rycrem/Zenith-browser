@@ -59,6 +59,18 @@ test('rename et flatten trié dossiers d\'abord', () => {
   assert.strictEqual(fav.findByUrl(t, 'https://m/').path, 'dev/docs');
 });
 
+test('findByName : chemin ou nom unique, sans tenir compte de la casse', () => {
+  const t = fav.emptyTree();
+  fav.addFavorite(t, 'dev/Mon site', 'https://m');
+  fav.addFavorite(t, 'a/doc', 'https://a');
+  fav.addFavorite(t, 'b/doc', 'https://b');
+  assert.strictEqual(fav.findByName(t, 'mon site').url, 'https://m');
+  assert.strictEqual(fav.findByName(t, 'b/doc').url, 'https://b');
+  assert.strictEqual(fav.findByName(t, 'doc'), null);
+  assert.strictEqual(fav.findByName(t, 'dev'), null);
+  assert.strictEqual(fav.findByName(t, 'inconnu'), null);
+});
+
 test('glisser-déposer : ordre manuel, dans un dossier, pas dans lui-même', () => {
   const t = fav.emptyTree();
   fav.addFavorite(t, 'a', 'https://a');

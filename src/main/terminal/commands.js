@@ -90,6 +90,7 @@ async function exec(raw, depth = 0) {
     // Une commande suivie de mots qu'elle n'attend pas (« home depot », « close friends »)
     // est une recherche, pas une erreur.
     if (args.length && !C.acceptsArgs(name, args)) {
+      if (openFavorite(tab, input)) return result;
       say(`  → brows ${input}`, 'dim');
       out.push(...(await search.runSearch(tab, input)));
       return result;
@@ -125,6 +126,12 @@ async function exec(raw, depth = 0) {
       case 'go':
       case 'open':
         if (!rest) throw new Error(t('quelle adresse ? go <url>'));
+        // Ce qui n'est pas une adresse (barre d'adresse comprise) devient une recherche.
+        if (!C.looksLikeUrl(rest)) {
+          say(`  → brows ${rest}`, 'dim');
+          out.push(...(await search.runSearch(tab, rest)));
+          break;
+        }
         navigation.navigate(tab, C.normalizeUrl(rest));
         break;
       case 'tty': {
@@ -374,6 +381,7 @@ async function exec(raw, depth = 0) {
         setTimeout(() => app.quit(), 50);
         break;
       default:
+        if (openFavorite(tab, input)) break;
         if (C.looksLikeUrl(input)) navigation.navigate(tab, C.normalizeUrl(input));
         else {
           say(`  → brows ${input}`, 'dim');
@@ -384,6 +392,13 @@ async function exec(raw, depth = 0) {
     say(`  ${err.message}`, 'err');
   }
   return result;
+}
+
+// Le nom d'un favori tapé seul l'ouvre.
+function openFavorite(tab, input) {
+  const link = fav.findByName(state.favorites.data.tree, input);
+  if (link) navigation.navigate(tab, link.url);
+  return !!link;
 }
 
 async function select(tab, n, newTab, say, onlyKind) {
