@@ -38,6 +38,18 @@ function setupDownloads(s = state.ses) {
     panels.sendDl();
     // Il s'affiche seul au-dessus du bouton ↓ ; un clic ailleurs le ferme.
     if (!state.panel || state.panel.win.isDestroyed()) state.win.webContents.send('ui:panel', 'dlnew');
+    // Lien ouvert dans un nouvel onglet qui n'a rien affiché d'autre que ce téléchargement :
+    // l'onglet se ferme et l'on revient à la page d'où vient le lien.
+    const from = state.allTabs().find((tb) => tb.view && tb.view.webContents === wc);
+    if (from && from.openerId && !from.shownPage) {
+      setImmediate(() => state.inWindow(state.windowOfTab(from), () => {
+        if (!state.tabs.includes(from)) return;
+        const shown = tabList.paneOf(from) >= 0;
+        const opener = tabList.getTab(from.openerId);
+        tabList.closeTab(from);
+        if (shown && opener) tabList.selectTab(opener);
+      }));
+    }
     let last = { time: Date.now(), bytes: 0 };
     let refreshed = 0;
     item.on('updated', () => {

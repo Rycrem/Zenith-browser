@@ -127,6 +127,7 @@ function wireWebContents(tab, wc) {
     ui.sendState();
   });
   wc.on('did-navigate', (e, url) => {
+    tab.shownPage = true;
     favicon.faviconNavigated(tab);
     navigation.recordNavigation(tab, wc);
     tab.url = url;

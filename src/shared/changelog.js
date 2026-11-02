@@ -4,6 +4,19 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.51',
+    notes: [
+      'La barre d\'adresse lance une recherche quand ce qui est tapé n\'est pas une adresse, au lieu d\'ouvrir « https://… ». « go » fait pareil.',
+      'Taper le nom d\'un favori dans le terminal l\'ouvre, et Tab complète les noms des favoris.',
+      'Un lien qui ouvre un nouvel onglet juste pour télécharger un fichier ferme cet onglet vide : le téléchargement continue et l\'on revient à la page d\'où vient le lien.',
+    ],
+    en: [
+      'The address bar runs a search when what you type is not an address, instead of opening "https://…". "go" does the same.',
+      'Typing a bookmark\'s name in the terminal opens it, and Tab completes bookmark names.',
+      'A link that opens a new tab only to download a file closes that empty tab: the download goes on and you are back on the page the link came from.',
+    ],
+  },
+  {
     version: '0.1.50',
     notes: [
       'Zenith ne vide plus le stockage d\'une extension parce qu\'il dépasse 512 Mo : des extensions comme Elasticvue en ont besoin.',

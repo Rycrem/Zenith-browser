@@ -197,6 +197,16 @@ function findByUrl(tree, url) {
   return allLinks(tree).find((l) => clean(l.url) === clean(url)) || null;
 }
 
+// Favori désigné par son chemin (« dev/github ») ou par son seul nom s'il est unique.
+function findByName(tree, text) {
+  const node = getNode(tree, text);
+  if (node && node.type === 'link') return node;
+  const name = String(text || '').trim().toLowerCase();
+  if (!name) return null;
+  const links = allLinks(tree).filter((l) => l.name.toLowerCase() === name);
+  return links.length === 1 ? links[0] : null;
+}
+
 function recent(tree, n) {
   const links = [];
   (function walk(folder, prefix) {
@@ -237,6 +247,7 @@ module.exports = {
   flatten,
   allLinks,
   findByUrl,
+  findByName,
   recent,
   countAll,
 };
