@@ -308,8 +308,9 @@ async function exec(raw, depth = 0) {
       case 'theme':
         if (!args.length) say(t('  thèmes : {themes} (actuel : {theme})', { themes: Object.keys(theme.THEMES).join(', '), theme: state.settings.data.theme }));
         else {
-          if (!theme.THEMES[args[0]]) throw new Error(t('thèmes : {themes}', { themes: Object.keys(theme.THEMES).join(', ') }));
-          state.settings.data.theme = args[0];
+          // Une couleur au choix (#rrggbb, sélecteur des réglages) ou un des thèmes.
+          if (!theme.THEMES[args[0]] && !/^#[0-9a-f]{6}$/i.test(args[0])) throw new Error(t('thèmes : {themes} ou une couleur #rrggbb', { themes: Object.keys(theme.THEMES).join(', ') }));
+          state.settings.data.theme = args[0].toLowerCase();
           state.settings.save();
           ui.sendState();
         }
@@ -334,7 +335,7 @@ async function exec(raw, depth = 0) {
       case 'settings':
       case 'reglages':
       case 'réglages':
-        settingsPage.showSettings(tab);
+        settingsPage.showSettings(tab, (args[0] || 'general').toLowerCase());
         break;
       case 'gpu': {
         const on = state.settings.data.gpu !== false;

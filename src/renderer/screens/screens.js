@@ -279,19 +279,42 @@ const screens = {
     ];
   },
 
-  // Réglages : un clic sur un choix lance sa commande (affichée dans le terminal), puis la page se met à jour.
+  // Réglages : un volet de pages à gauche (général, puis une page par commande). Chaque choix ou
+  // formulaire lance sa commande (affichée dans le terminal), puis la page se met à jour.
   settings(s) {
     const choice = (o) => h('button', { type: 'button', class: `pill${o.on ? ' on' : ''}`, title: o.cmd, onclick: () => run(o.cmd) }, o.label);
+    const formEl = (f) => {
+      const inputs = f.fields.map((x) => h('input', {
+        type: x.type || 'text', class: x.wide ? 'wide' : '', value: x.value, placeholder: x.placeholder, title: x.title, spellcheck: 'false',
+      }));
+      const send = () => {
+        const vals = inputs.map((i) => i.value.trim());
+        if (vals.some((v) => !v)) return;
+        run(f.template.replace(/\{(\d)\}/g, (m, n) => vals[n]));
+        for (const i of inputs) if (i.type !== 'color') i.value = '';
+      };
+      // La couleur s'applique dès qu'elle est choisie ; les autres champs avec Entrée ou le bouton.
+      for (const i of inputs) {
+        if (i.type === 'color') i.addEventListener('change', send);
+        else i.addEventListener('keydown', (e) => e.key === 'Enter' && (e.preventDefault(), send()));
+      }
+      return h('span', { class: 'settings-form' }, inputs, f.button ? h('button', { type: 'button', class: 'pill', onclick: send }, f.button) : null);
+    };
     return [
       head(t('réglages'), 'settings'),
-      h('table', { class: 'settings' }, s.rows.map((r) => h(
-        'tr',
-        {},
-        h('td', {}, r.label, r.hint ? h('span', { class: 'dim' }, ` (${r.hint})`) : null),
-        h('td', {}, r.options.map(choice)),
-      ))),
-      h('h3', {}, t('Plus de réglages')),
-      h('div', { class: 'settings-actions' }, s.actions.map(choice)),
+      h('div', { class: 'settings-wrap' },
+        h('nav', { class: 'settings-nav' }, s.pages.map((p) => h('button', {
+          type: 'button',
+          class: `${p.sub ? 'sub' : ''}${p.id === s.page ? ' on' : ''}`,
+          title: `settings ${p.id}`,
+          onclick: () => run(`settings ${p.id}`, { echo: false }),
+        }, p.label))),
+        h('table', { class: 'settings' }, s.rows.map((r) => h(
+          'tr',
+          {},
+          h('td', {}, r.icon ? h('img', { class: 'ext-icon', src: r.icon, alt: '' }) : null, r.icon ? ' ' : null, r.label, r.hint ? h('div', { class: 'dim' }, r.hint) : null),
+          h('td', {}, (r.options || []).map(choice), r.form ? formEl(r.form) : null),
+        )))),
       h('div', { class: 'hint' }, t('Chaque choix lance sa commande dans le terminal : survole-le pour la voir.')),
     ];
   },

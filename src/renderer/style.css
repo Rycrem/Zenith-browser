@@ -313,6 +313,7 @@ th { color: var(--dim); }
 #app.split .term-sep { display: block; width: 6px; background: var(--bg-deep); border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
 .scrollback { flex: 1; overflow-y: auto; white-space: pre-wrap; word-break: break-word; font-size: 13px; }
 .scrollback .cmd { color: var(--dim); }
+.scrollback .tab-sel { background: var(--accent); color: var(--bg); }
 .scrollback .cmd::first-letter { color: var(--accent); }
 
 .prompt { display: flex; align-items: flex-start; gap: 10px; font-size: 15px; padding-top: 6px; }
@@ -368,7 +369,8 @@ th { color: var(--dim); }
 #status .pill.zoom { background: var(--bg); color: var(--text); font-size: 12px; }
 .chip { box-sizing: border-box; height: 22px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 0 8px; border-radius: 3px; background: var(--bg); color: var(--green); font-size: 12px; font-weight: 600; }
 .chip.off { color: var(--dim); }
-.chip.ext { padding: 0 5px; }
+.chip.ext { padding: 0 5px; position: relative; }
+.ext-badge { position: absolute; right: -3px; bottom: -3px; min-width: 10px; padding: 0 2px; border-radius: 3px; background: #555; color: #fff; font-size: 9px; line-height: 11px; font-weight: 700; text-align: center; pointer-events: none; }
 .ext-icon { width: 16px; height: 16px; object-fit: contain; }
 .chip.off .ext-icon { filter: grayscale(1); opacity: 0.5; }
 #dl-chip, #fav-chip { color: var(--text); }
@@ -425,11 +427,22 @@ th { color: var(--dim); }
 .link-btn:hover { color: var(--accent); text-decoration: underline; }
 tr.current td { background: var(--bg-raised); }
 td .pill + .pill { margin-left: 6px; }
+.settings-wrap { display: flex; gap: 32px; align-items: flex-start; }
+.settings-nav { display: flex; flex-direction: column; min-width: 190px; border-right: 1px solid var(--line); padding-right: 12px; }
+.settings-nav button { padding: 5px 10px; border-radius: 3px; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.settings-nav button.sub { padding-left: 22px; color: var(--dim); }
+.settings-nav button:first-child + .sub { margin-top: 10px; }
+.settings-nav button:hover { color: var(--accent); }
+.settings-nav button.on { background: var(--accent); color: var(--bg); }
 table.settings td { padding: 6px 16px 6px 0; vertical-align: middle; }
-table.settings .pill, .settings-actions .pill { margin: 2px 6px 2px 0; color: var(--text); cursor: pointer; }
+table.settings td .dim { font-size: 13px; }
+table.settings .pill { margin: 2px 6px 2px 0; color: var(--text); cursor: pointer; }
 table.settings .pill.on { background: var(--accent); color: var(--bg); }
-.settings-actions { display: flex; flex-wrap: wrap; }
-table.settings + h3 { margin-top: 24px; }
+.settings-form { display: inline-flex; gap: 6px; align-items: center; margin-left: 2px; }
+.settings-form input { padding: 2px 8px; background: var(--chip); border: 1px solid var(--line); border-radius: 3px; color: var(--text); font: inherit; width: 140px; outline: none; }
+.settings-form input.wide { width: 280px; }
+.settings-form input:focus { border-color: var(--accent); }
+.settings-form input[type=color] { width: 34px; height: 24px; padding: 0 2px; cursor: pointer; }
 
 /* Mode tty : la page en texte, liens en bleu soulignés et numérotés. */
 .tty { max-width: 110ch; line-height: 1.55; color: var(--text); }

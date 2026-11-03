@@ -103,6 +103,8 @@ function createWindow(bounds, inactive = false) {
       e.preventDefault();
       return output.toggleTerminal();
     }
+    // Échap dans le terminal ferme aussi la recherche Ctrl+F.
+    if (input.type === 'keyDown' && input.key === 'Escape' && state.findWin) require('../search/find-in-page').closeFind(false);
     const dir = tabList.cycleKey(input);
     if (!dir) return;
     e.preventDefault();

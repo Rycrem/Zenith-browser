@@ -89,4 +89,18 @@ function toggleDevtools(tab) {
   return true;
 }
 
-Object.assign(module.exports, { openDevtools, closeDevtools, detachDevtools, attachDevtools, toggleDevtools });
+// Ctrl+Maj+C : les DevTools en mode sélection, comme dans Chrome ; un clic sur la page montre l'élément dans le HTML.
+function inspectMode(tab) {
+  const starting = !tab.devStarted;
+  openDevtools(tab);
+  const wc = tab.view.webContents;
+  const enter = () => {
+    const dev = tab.dev && tab.dev.webContents;
+    if (dev && !dev.isDestroyed()) dev.executeJavaScript('DevToolsAPI.enterInspectElementMode()', true).catch(() => {});
+    if (!wc.isDestroyed()) wc.focus();
+  };
+  if (starting) wc.once('devtools-opened', () => setTimeout(enter, 300));
+  else enter();
+}
+
+Object.assign(module.exports, { openDevtools, closeDevtools, detachDevtools, attachDevtools, toggleDevtools, inspectMode });

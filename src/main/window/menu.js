@@ -29,6 +29,7 @@ const SHORTCUTS = [
   ['Ctrl+F / Ctrl+D', mark('chercher dans la page / ajouter aux favoris')],
   [mark('Ctrl+Maj+S / F6'), mark('split / changer d\'écran')],
   [mark('F12, clic droit › Inspecter'), mark('outils de développement')],
+  [mark('Ctrl+Maj+C'), mark('sélectionner un élément de la page et le voir dans le HTML')],
   ['Alt+1…9', mark('popup de l\'extension n')],
   ['Ctrl+J', mark('téléchargements (ou le bouton ↓ de la barre du bas)')],
   [mark('Ctrl+Maj+A'), mark('Nadir, l\'assistant (ou son bouton en bas à droite)')],
@@ -59,7 +60,12 @@ function buildMenu() {
         { label: t('Onglet suivant'), accelerator: 'Ctrl+Tab', click: act(() => tabList.cycleTab(1)) },
         { label: t('Onglet précédent'), accelerator: 'Ctrl+Shift+Tab', click: act(() => tabList.cycleTab(-1)) },
         ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({
-          label: t('Onglet {n}', { n }), accelerator: `CmdOrCtrl+${n}`, visible: false, click: act(() => state.tabs[n - 1] && tabList.selectTab(state.tabs[n - 1])),
+          label: t('Onglet {n}', { n }), accelerator: `CmdOrCtrl+${n}`, visible: false, click: act(() => {
+            if (!state.tabs[n - 1]) return;
+            const inUi = state.win.webContents.isFocused();
+            tabList.selectTab(state.tabs[n - 1]);
+            tabList.focusShown(inUi);
+          }),
         })),
         { label: t('Précédent'), accelerator: 'Alt+Left', click: act(() => navigation.goBack(tabList.activeTab())) },
         { label: t('Suivant'), accelerator: 'Alt+Right', click: act(() => navigation.goForward(tabList.activeTab())) },
@@ -72,6 +78,7 @@ function buildMenu() {
         { label: t('Changer d\'écran'), accelerator: 'F6', click: () => state.panes.length > 1 && commands.runCommand('focus') },
         { label: t('Outils de développement'), accelerator: 'F12', click: act(() => devtools.toggleDevtools(tabList.activeTab())) },
         { label: t('Outils de développement'), accelerator: 'CmdOrCtrl+Shift+I', visible: false, click: act(() => devtools.toggleDevtools(tabList.activeTab())) },
+        { label: t('Sélectionner un élément de la page'), accelerator: 'CmdOrCtrl+Shift+C', click: act(() => devtools.inspectMode(tabList.activeTab())) },
         { label: t('Téléchargements'), accelerator: 'CmdOrCtrl+J', click: () => state.win.webContents.send('ui:panel', 'dl') },
         { label: t('Téléchargements'), accelerator: 'CmdOrCtrl+Shift+J', visible: false, click: () => state.win.webContents.send('ui:panel', 'dl') },
         { label: t('Favoris'), accelerator: 'CmdOrCtrl+Shift+B', click: () => state.win.webContents.send('ui:panel', 'fav') },

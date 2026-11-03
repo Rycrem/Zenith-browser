@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, shell } = require('electron');
+const { app, BrowserWindow, shell, nativeImage } = require('electron');
 const path = require('path');
 const { t } = require('../../shared/i18n');
 const { ElectronChromeExtensions } = require('electron-chrome-extensions');
@@ -105,7 +105,57 @@ function setupChromeApi(s) {
       side.loadURL(url);
     },
   });
+  // Logo, pastille et texte d'une extension changent (chrome.action.setIcon, setBadgeText…) :
+  // la barre d'état suit, comme la barre d'outils de Chrome.
+  const ba = api.api && api.api.browserAction;
+  if (ba && typeof ba.onUpdate === 'function') {
+    const onUpdate = ba.onUpdate.bind(ba);
+    ba.onUpdate = () => {
+      onUpdate();
+      require('../window/ui').sendStateAll();
+    };
+  }
   return api;
 }
 
-Object.assign(module.exports, { highlightForExtensions, setupChromeApi });
+// État du bouton d'une extension pour l'onglet affiché : logo du moment (data:), texte et
+// couleur de sa pastille. null si l'extension n'a pas de bouton connu.
+const iconCache = new Map(); // clé : extension, onglet, date du changement → data:
+const pick = (set) => {
+  if (!set || typeof set !== 'object') return set;
+  const sizes = Object.keys(set).map(Number).sort((a, b) => a - b);
+  return set[sizes.find((n) => n >= 32) || sizes[sizes.length - 1]];
+};
+const cssColor = (c) => (Array.isArray(c) ? `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${(c[3] ?? 255) / 255})` : typeof c === 'string' ? c : null);
+
+function actionState(tab, extId, extPath) {
+  const api = tab && tabList.apiOf(tab);
+  const ba = api && api.api && api.api.browserAction;
+  const action = ba && ba.actionMap && ba.actionMap.get(extId);
+  if (!action) return null;
+  const wc = tab.view && tab.view.webContents;
+  const per = (wc && !wc.isDestroyed() && action.tabs[wc.id]) || {};
+  const val = (k) => (per[k] !== undefined ? per[k] : action[k]);
+  const icon = val('icon');
+  let src = null;
+  if (icon) {
+    const key = `${extId}:${per.icon ? wc.id : ''}:${val('iconModified') || 0}`;
+    if (iconCache.has(key)) src = iconCache.get(key);
+    else {
+      try {
+        const data = typeof icon.imageData === 'string' ? icon.imageData : pick(icon.imageData);
+        const file = !data && pick(icon.path);
+        const img = data ? nativeImage.createFromDataURL(data) : file && extPath ? nativeImage.createFromPath(path.join(extPath, String(file).replace(/^\/+/, ''))) : null;
+        src = img && !img.isEmpty() ? img.resize({ width: 32, height: 32, quality: 'best' }).toDataURL() : null;
+      } catch {
+        src = null;
+      }
+      if (iconCache.size > 300) iconCache.clear();
+      iconCache.set(key, src);
+    }
+  }
+  const text = val('text');
+  return { icon: src, badge: text ? String(text).slice(0, 4) : '', badgeColor: cssColor(val('color')) };
+}
+
+Object.assign(module.exports, { highlightForExtensions, setupChromeApi, actionState });
