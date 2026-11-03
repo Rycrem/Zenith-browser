@@ -54,6 +54,13 @@ if (!app.isPackaged) {
   app.setPath('userData', dev);
 }
 
+// « gpu off » : l'accélération matérielle se coupe avant le démarrage (elle ne se change qu'en relançant).
+try {
+  if (JSON.parse(fs.readFileSync(path.join(app.getPath('userData'), 'reglages.json'), 'utf8')).gpu === false) app.disableHardwareAcceleration();
+} catch {
+  // pas encore de réglages
+}
+
 // Sans les mentions Electron et du nom de l'appli, les sites voient un Chrome ordinaire.
 app.userAgentFallback = app.userAgentFallback
   .replace(/ Electron\/\S+/, '')

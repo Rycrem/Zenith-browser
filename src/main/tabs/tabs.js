@@ -204,7 +204,7 @@ function cycleKey(input) {
 function tabTitle(tab) {
   if (!tab.screen) return tab.title || shortUrl(tab.url) || t('nouvel onglet');
   const s = tab.screen;
-  return { home: t('accueil'), ai: `ia: ${s.question}`, results: `brows: ${s.query}`, fav: 'fav', hist: 'hist', ext: 'ext', dl: 'dl', tabs: 'tab', help: 'help', alias: 'alias', aiproviders: 'ia', tty: `tty: ${s.title || s.host}` }[s.kind] || s.kind;
+  return { home: t('accueil'), ai: `ia: ${s.question}`, results: `brows: ${s.query}`, fav: 'fav', hist: 'hist', ext: 'ext', dl: 'dl', tabs: 'tab', help: 'help', alias: 'alias', aiproviders: 'ia', settings: t('réglages'), tty: `tty: ${s.title || s.host}` }[s.kind] || s.kind;
 }
 
 function showTabs(tab) {

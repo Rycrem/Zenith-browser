@@ -34,7 +34,42 @@ function complete(line) {
   const done = options.length === 1;
   const word = done ? options[0] : C.commonPrefix(options) || last;
   const suffix = done && !word.endsWith('/') ? ' ' : '';
-  return { line: [...head, word].join(' ') + suffix, options: done ? [] : options.slice(0, 40) };
+  // base : ce qui précède le mot complété, pour que Tab fasse défiler les propositions.
+  return { line: [...head, word].join(' ') + suffix, base: head.length ? `${head.join(' ')} ` : '', options: done ? [] : options.slice(0, 40) };
 }
 
-Object.assign(module.exports, { complete });
+// Prédiction affichée en gris pendant la frappe : un alias, un favori, puis une page de l'historique
+// dont l'adresse commence par le texte (la plus visitée). L'historique des commandes est vu par l'interface.
+function predict(text) {
+  const q = String(text || '');
+  const low = q.toLowerCase();
+  if (!q.trim() || /\s$/.test(q)) return '';
+  const starts = (s) => s && s.length > q.length && s.toLowerCase().startsWith(low);
+  const tree = state.favorites.data.tree;
+  const found = Object.keys(state.settings.data.aliases).find(starts)
+    || fav.allLinks(tree).map((l) => l.name).find(starts)
+    || fav.allLinks(tree).map((l) => l.path).find(starts);
+  if (found) return q + found.slice(q.length);
+  if (/\s/.test(q)) return '';
+  const visits = new Map();
+  for (const e of state.history.data.entries) {
+    if (!e.url || e.query || !/^https?:/.test(e.url)) continue;
+    const bare = e.url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
+    if (starts(bare)) visits.set(bare, (visits.get(bare) || 0) + 1);
+  }
+  // Le site seul d'abord (« git » → « github.com »), puis l'adresse complète.
+  let best = '';
+  let score = -1;
+  for (const [bare, n] of visits) {
+    const site = bare.split('/')[0];
+    const cand = starts(site) ? site : bare;
+    const s = n + (cand === site ? 1000 : 0);
+    if (s > score) {
+      score = s;
+      best = cand;
+    }
+  }
+  return best ? q + best.slice(q.length) : '';
+}
+
+Object.assign(module.exports, { complete, predict });

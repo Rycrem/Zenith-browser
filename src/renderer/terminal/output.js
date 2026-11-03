@@ -76,17 +76,40 @@ function grow(ta) {
 function setInput(ta, value) {
   ta.value = value;
   grow(ta);
+  const col = cols.find((c) => c.input === ta);
+  if (col) showGhost(col, '');
+}
+
+// Prédiction en gris : d'abord l'historique des commandes (la plus récente), sinon alias,
+// favoris et pages visitées (processus principal). → l'accepte.
+function showGhost(col, full) {
+  const typed = col.input.value;
+  col.prediction = full && full.length > typed.length && full.toLowerCase().startsWith(typed.toLowerCase()) ? full : '';
+  col.ghost.replaceChildren(...(col.prediction ? [h('span', { class: 'typed' }, typed), col.prediction.slice(typed.length)] : []));
+}
+
+async function predict(col) {
+  const typed = col.input.value;
+  if (!typed.trim() || awaiting || col.input.selectionStart !== typed.length) return showGhost(col, '');
+  const low = typed.toLowerCase();
+  let full = '';
+  for (let i = cmdHistory.length - 1; i >= 0 && !full; i--) if (cmdHistory[i].length > typed.length && cmdHistory[i].toLowerCase().startsWith(low)) full = cmdHistory[i];
+  if (!full) full = await api.predict(typed);
+  if (col.input.value === typed) showGhost(col, full);
 }
 
 async function run(line, { echo = true, newTab = false } = {}) {
   const pane = state ? state.activePane : 0;
-  const el = term();
-  if (echo) print([{ t: `❯ ${masked(line)}`, c: 'cmd' }], el);
+  // Ctrl+Entrée : la commande et sa réponse vont dans le terminal du nouvel onglet.
+  const el = newTab ? null : term();
+  const echoLine = { t: `❯ ${masked(line)}`, c: 'cmd' };
+  if (echo && el) print([echoLine], el);
   awaiting = false;
   renderPs1();
   const res = await api.exec(line, { newTab, pane });
-  if (res.clear) el.replaceChildren();
-  print(res.lines, el.isConnected ? el : term());
+  const out = el && el.isConnected ? el : term();
+  if (res.clear) out.replaceChildren();
+  print(echo && !el ? [echoLine, ...res.lines] : res.lines, out);
   if (res.hideTerminal) setTerminalHidden(true);
   // Sauf si la commande a donné le clavier à la page (« clicks » sur un champ) ou à la réponse de l'IA.
   else if (document.hasFocus() && (!isField(document.activeElement) || document.activeElement.classList.contains('input'))) activeCol().input.focus();

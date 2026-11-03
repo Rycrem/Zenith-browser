@@ -156,4 +156,4 @@ function hostOf(url) {
   }
 }
 
-Object.assign(module.exports, { setHtmlFullscreen, layout, layoutAll, sendState, sendStateAll, hostOf });
+Object.assign(module.exports, { setHtmlFullscreen, layout, layoutAll, sendState, sendStateNow, sendStateAll, hostOf });
