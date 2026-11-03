@@ -37,6 +37,12 @@ function openFind() {
     labels: { placeholder: screen ? t('chercher dans l\'écran') : t('chercher dans la page'), next: t('Résultat suivant (Entrée)'), prev: t('Résultat précédent (Maj+Entrée)'), close: t('Fermer (Échap)') },
   }));
   fw.once('ready-to-show', () => fw.show());
+  // Échap ferme la barre, où que soit le curseur dans sa fenêtre (champ, boutons).
+  fw.webContents.on('before-input-event', (e, input) => {
+    if (input.type !== 'keyDown' || input.key !== 'Escape') return;
+    e.preventDefault();
+    closeFind();
+  });
   fw.on('closed', () => {
     if (state.findWin && state.findWin.win === fw) state.findWin = null;
   });

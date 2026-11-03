@@ -7,7 +7,8 @@ const ui = require('./ui');
 const THEMES = { ambre: '#F2A541', vert: '#7FD18B', cyan: '#6CC5D9', rose: '#E07AA8', violet: '#B48CF2' };
 
 const PRIVATE_ACCENT = '#E5484D';
-const accentColor = () => (state.privateMode ? PRIVATE_ACCENT : THEMES[state.settings.data.theme] || THEMES.ambre);
+const custom = (c) => (/^#[0-9a-f]{6}$/i.test(c || '') ? c : null);
+const accentColor = () => (state.privateMode ? PRIVATE_ACCENT : THEMES[state.settings.data.theme] || custom(state.settings.data.theme) || THEMES.ambre);
 
 // Mode nuit (par défaut) ou jour : l'interface, et les sites qui suivent prefers-color-scheme.
 const isLight = () => state.settings.data.mode === 'jour';

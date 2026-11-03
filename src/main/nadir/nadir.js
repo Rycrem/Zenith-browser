@@ -587,4 +587,4 @@ function leavePrivate() {
 
 const keepOpen = () => chat.acting;
 
-Object.assign(module.exports, { nadirCommand, panelInfo, panelAction, nadirState, stopWorker, leavePrivate, keepOpen });
+Object.assign(module.exports, { nadirCommand, panelInfo, panelAction, nadirState, stopWorker, leavePrivate, keepOpen, levels });

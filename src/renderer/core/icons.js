@@ -96,23 +96,15 @@ function puzzleIcon() {
 
 // Roue dentée du bouton des réglages.
 function gearIcon() {
+  // Roue dentée pleine (tracé de Bootstrap Icons, licence MIT), plus lisible qu'un trait fin à cette taille.
   const NS = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(NS, 'svg');
   svg.setAttribute('viewBox', '0 0 16 16');
   svg.setAttribute('class', 'mode-icon');
-  const ring = document.createElementNS(NS, 'circle');
-  ring.setAttribute('cx', '8');
-  ring.setAttribute('cy', '8');
-  ring.setAttribute('r', '2.2');
-  const teeth = document.createElementNS(NS, 'path');
-  teeth.setAttribute('d', 'M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4M8 4.2a3.8 3.8 0 1 0 0 7.6a3.8 3.8 0 1 0 0-7.6z');
-  for (const el of [ring, teeth]) {
-    el.setAttribute('fill', 'none');
-    el.setAttribute('stroke', 'currentColor');
-    el.setAttribute('stroke-width', '1.5');
-    el.setAttribute('stroke-linecap', 'round');
-    svg.append(el);
-  }
+  const p = document.createElementNS(NS, 'path');
+  p.setAttribute('fill', 'currentColor');
+  p.setAttribute('d', 'M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z');
+  svg.append(p);
   return svg;
 }
 

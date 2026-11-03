@@ -1,5 +1,12 @@
 'use strict';
 
+// La couleur passe par le style de l'élément : la CSP de l'interface refuse l'attribut style.
+function extBadge(e) {
+  const b = h('span', { class: 'ext-badge' }, e.badge);
+  if (e.badgeColor) b.style.background = e.badgeColor;
+  return b;
+}
+
 function renderStatus() {
   // Pendant qu'on fait glisser le volume, ne pas recréer la barre (le curseur serait lâché).
   if (volumeDragging) return;
@@ -11,7 +18,9 @@ function renderStatus() {
     class: `chip ext${e.enabled ? '' : ' off'}`,
     title: `${e.name}${e.enabled ? '' : t(' (désactivée)')}${e.error ? ` : ${e.error}` : ''} · Alt+${e.n}`,
     onclick: (ev) => api.extPopup(e.n, ev.currentTarget.getBoundingClientRect().right),
-  }, e.icon ? h('img', { class: 'ext-icon', src: e.icon, alt: e.alias }) : e.alias, e.enabled ? null : ' ⏸'));
+  }, e.icon ? h('img', { class: 'ext-icon', src: e.icon, alt: e.alias }) : e.alias, e.enabled ? null : ' ⏸',
+  // Pastille de l'extension (chrome.action.setBadgeText), à sa couleur.
+  e.badge && e.enabled ? extBadge(e) : null));
   fill($('#status'), [
     h('button', { type: 'button', id: 'fav-chip', class: 'chip', title: t('Favoris (Ctrl+Maj+B)'), onclick: () => openPanel('fav') }, t('★ favoris')),
     s.mode === 'TTY' ? h('span', {}, 'TTY') : null,

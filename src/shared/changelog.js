@@ -4,6 +4,29 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.53',
+    notes: [
+      'Les réglages ont un volet de pages à gauche : Général, puis une page par commande (ia, nadir, alias, extensions, autorisations, mises à jour) où tout se change directement.',
+      'Une couleur de thème au choix avec un sélecteur dans les réglages, ou « theme #3fa7ff ».',
+      'Les pastilles des extensions suivent l\'extension comme dans Chrome : logo qui change, nombre de pubs bloquées…',
+      'Ctrl+Tab marche de nouveau après un Ctrl+clic, un « Ouvrir dans un nouvel onglet » ou un autre Ctrl+Tab, et Ctrl+R répond ensuite.',
+      'Échap ferme la recherche Ctrl+F, même quand le curseur n\'est plus dans sa barre.',
+      'Ctrl+Maj+C ouvre les DevTools en mode sélection : un clic sur la page montre l\'élément dans le HTML.',
+      'Avec Tab, la proposition choisie est surlignée de la couleur du thème.',
+      'L\'icône des réglages est plus lisible.',
+    ],
+    en: [
+      'Settings have a page list on the left: General, then one page per command (ia, nadir, aliases, extensions, permissions, updates) where everything can be changed directly.',
+      'Any theme color you like with a picker in settings, or "theme #3fa7ff".',
+      'Extension badges follow the extension as in Chrome: changing logo, number of blocked ads…',
+      'Ctrl+Tab works again after a Ctrl+click, an "Open in new tab" or another Ctrl+Tab, and Ctrl+R answers afterwards.',
+      'Esc closes the Ctrl+F search, even when the cursor is no longer in its bar.',
+      'Ctrl+Shift+C opens DevTools in pick mode: a click on the page shows the element in the HTML.',
+      'With Tab, the chosen suggestion is highlighted in the theme color.',
+      'The settings icon is easier to read.',
+    ],
+  },
+  {
     version: '0.1.52',
     notes: [
       'Un bouton ⚙ remplace le bouton du thème : il ouvre la page des réglages (mode nuit/jour, couleur, langue, moteur, mises à jour, accélération matérielle…). « settings » l\'ouvre aussi.',

@@ -126,7 +126,11 @@ function sendStateNow() {
       devtools: tab.devOpen ? (tab.devWin ? 'detached' : 'docked') : null,
       zoom: tab.view && tab.view.webContents && !tab.screen ? Math.round(tab.view.webContents.getZoomFactor() * 100) : 100,
     },
-    exts: state.exts.summary(),
+    // Logo du moment et pastille (nombre de pubs bloquées, état connecté…) de chaque extension.
+    exts: state.exts.summary().map((e, i) => {
+      const a = state.exts.list[i].id && require('../extensions/chrome-api').actionState(tab, state.exts.list[i].id, state.exts.list[i].path);
+      return a ? { ...e, icon: a.icon || e.icon, badge: a.badge, badgeColor: a.badgeColor } : e;
+    }),
     downloads: state.downloads.filter((d) => d.state === 'progressing').length,
     lastDownload: lastDownload(),
     audio: audio.audioState(),

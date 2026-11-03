@@ -3,6 +3,11 @@
 // Ctrl+Entrée : la commande (adresse, recherche…) s'ouvre dans un nouvel onglet.
 let newTabNext = false;
 let cycle = null; // propositions de Tab en cours de défilement
+
+// La liste des propositions, celle choisie surlignée de la couleur du thème.
+function renderCycle() {
+  cycle.line.replaceChildren('  ', ...cycle.options.flatMap((o, i) => [i ? '   ' : '', h('span', { class: i === cycle.i ? 'tab-sel' : '' }, o)]));
+}
 cols.forEach((c, i) => {
   c.form.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -67,12 +72,17 @@ cols.forEach((c, i) => {
         const word = cycle.options[cycle.i];
         cycle.shown = cycle.base + word + (word.endsWith('/') ? '' : ' ');
         setInput(ta, cycle.shown);
+        renderCycle();
         return;
       }
       const res = await api.complete(ta.value);
       setInput(ta, res.line);
       cycle = res.options.length ? { ta, base: res.base, options: res.options, i: -1, shown: res.line } : null;
-      if (res.options.length) print([{ t: `  ${res.options.join('   ')}`, c: 'dim' }]);
+      if (cycle) {
+        print([{ t: '', c: 'dim' }]);
+        cycle.line = term().lastElementChild;
+        renderCycle();
+      }
     } else if (e.key === 'Escape') {
       e.preventDefault();
       setInput(ta, '');

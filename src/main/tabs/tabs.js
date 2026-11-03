@@ -68,6 +68,8 @@ function createTab({ url, background = false, pane = state.activePane, priv, ope
   else screens.showHome(tab);
   if (!background) split.showInPane(tab, pane);
   else ui.sendState();
+  // Ouvert en arrière-plan depuis une page (Ctrl+clic, menu) : la nouvelle page cachée ne garde pas le clavier.
+  if (background && opener) setTimeout(() => focusShown(), 0);
   lastSession.saveSession();
   return tab;
 }
@@ -188,11 +190,23 @@ function detachTab(tab, bounds, inactive = false) {
   return w;
 }
 
+// Le clavier va à l'onglet affiché : sa page, ou l'interface (terminal) s'il montre un écran.
+// Sinon il restait dans la page d'un onglet caché, et Ctrl+Tab, Ctrl+R… ne répondaient plus.
+function focusShown(preferUi = false) {
+  if (!state.win || state.win.isDestroyed()) return;
+  const tab = activeTab();
+  const wc = tab && tab.view && !tab.screen && tab.view.webContents;
+  if (!preferUi && wc && !wc.isDestroyed()) wc.focus();
+  else state.win.webContents.focus();
+}
+
 // Onglet suivant ou précédent, parmi ceux de l'écran actif.
 function cycleTab(dir) {
+  const inUi = !!state.win && state.win.webContents.isFocused();
   const same = sideTabs(state.activePane);
   const i = same.indexOf(activeTab());
   split.showInPane(same[(i + dir + same.length) % same.length], state.activePane);
+  focusShown(inUi);
 }
 
 // Ctrl+Tab ou Ctrl+Maj+Tab : 1 ou -1, sinon 0.
@@ -215,4 +229,4 @@ function showTabs(tab) {
   );
 }
 
-Object.assign(module.exports, { moveTabToWindow, detachTab, sesOf, apiOf, getTab, activeTab, paneOf, sideOf, sortSides, selectTab, replacement, createTab, reopenClosed, recentMenu, destroyTab, closeTab, cycleTab, cycleKey, tabTitle, showTabs });
+Object.assign(module.exports, { moveTabToWindow, detachTab, sesOf, apiOf, getTab, activeTab, paneOf, sideOf, sortSides, selectTab, replacement, createTab, reopenClosed, recentMenu, destroyTab, closeTab, cycleTab, cycleKey, focusShown, tabTitle, showTabs });

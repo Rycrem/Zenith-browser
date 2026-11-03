@@ -197,6 +197,8 @@ function wireWebContents(tab, wc) {
       if (p >= 0) state.activePane = p;
       return tabList.cycleTab(dir);
     }
+    // Échap ferme aussi la recherche Ctrl+F quand le clavier est revenu dans la page.
+    if (input.type === 'keyDown' && input.key === 'Escape' && state.findWin && state.findWin.tabId === tab.id) require('../search/find-in-page').closeFind(false);
     if (!output.isToggleKey(input)) return;
     e.preventDefault();
     output.toggleTerminal();
