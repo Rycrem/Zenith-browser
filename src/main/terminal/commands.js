@@ -29,6 +29,7 @@ const alias = require('../commands/alias');
 const defaultBrowser = require('../commands/default-browser');
 const configFile = require('../commands/config');
 const lang = require('../commands/lang');
+const settingsPage = require('../commands/settings');
 const aiCommands = require('../ai/ai-command');
 const nadir = require('../nadir/nadir');
 const updates = require('../updates/update-command');
@@ -330,6 +331,31 @@ async function exec(raw, depth = 0) {
         else theme.setMode(modes[args[0]]);
         break;
       }
+      case 'settings':
+      case 'reglages':
+      case 'réglages':
+        settingsPage.showSettings(tab);
+        break;
+      case 'gpu': {
+        const on = state.settings.data.gpu !== false;
+        if (!args.length) {
+          say(t('  accélération matérielle : {state} (gpu on | off)', { state: on ? t('activée') : t('désactivée') }));
+          break;
+        }
+        const want = args[0].toLowerCase() === 'on';
+        if (want === on) {
+          say(t('  l\'accélération matérielle est déjà {state}', { state: on ? t('activée') : t('désactivée') }), 'dim');
+          break;
+        }
+        state.settings.data.gpu = want;
+        state.settings.save();
+        say(want ? t('  ✓ accélération matérielle activée au prochain lancement') : t('  ✓ accélération matérielle désactivée au prochain lancement'), 'ok');
+        questions.ask(say, t('relancer Zenith maintenant ?'), () => {
+          app.relaunch();
+          setTimeout(() => app.quit(), 50);
+        });
+        break;
+      }
       case 'perm':
         permissions.permCommand(args, say);
         break;
@@ -391,6 +417,7 @@ async function exec(raw, depth = 0) {
   } catch (err) {
     say(`  ${err.message}`, 'err');
   }
+  if (name !== 'settings') settingsPage.refreshSettings(tabList.activeTab());
   return result;
 }
 

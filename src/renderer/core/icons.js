@@ -94,24 +94,24 @@ function puzzleIcon() {
   return svg;
 }
 
-// Lune en mode jour (passer en nuit), soleil en mode nuit (passer en jour).
-function modeIcon(light) {
+// Roue dentée du bouton des réglages.
+function gearIcon() {
   const NS = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(NS, 'svg');
   svg.setAttribute('viewBox', '0 0 16 16');
   svg.setAttribute('class', 'mode-icon');
-  const d = light
-    ? ['M13.2 9.6A5.6 5.6 0 1 1 6.4 2.8a4.4 4.4 0 0 0 6.8 6.8z']
-    : ['M8 5.2a2.8 2.8 0 1 0 0 5.6a2.8 2.8 0 1 0 0-5.6z', 'M8 1.2v1.4', 'M8 13.4v1.4', 'M1.2 8h1.4', 'M13.4 8h1.4', 'M3.2 3.2l1 1', 'M11.8 11.8l1 1', 'M3.2 12.8l1-1', 'M11.8 4.2l1-1'];
-  for (const x of d) {
-    const p = document.createElementNS(NS, 'path');
-    p.setAttribute('d', x);
-    p.setAttribute('fill', 'none');
-    p.setAttribute('stroke', 'currentColor');
-    p.setAttribute('stroke-width', '1.6');
-    p.setAttribute('stroke-linecap', 'round');
-    p.setAttribute('stroke-linejoin', 'round');
-    svg.append(p);
+  const ring = document.createElementNS(NS, 'circle');
+  ring.setAttribute('cx', '8');
+  ring.setAttribute('cy', '8');
+  ring.setAttribute('r', '2.2');
+  const teeth = document.createElementNS(NS, 'path');
+  teeth.setAttribute('d', 'M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4M8 4.2a3.8 3.8 0 1 0 0 7.6a3.8 3.8 0 1 0 0-7.6z');
+  for (const el of [ring, teeth]) {
+    el.setAttribute('fill', 'none');
+    el.setAttribute('stroke', 'currentColor');
+    el.setAttribute('stroke-width', '1.5');
+    el.setAttribute('stroke-linecap', 'round');
+    svg.append(el);
   }
   return svg;
 }

@@ -4,13 +4,14 @@ function renderStatus() {
   // Pendant qu'on fait glisser le volume, ne pas recréer la barre (le curseur serait lâché).
   if (volumeDragging) return;
   const s = state.status;
-  // Seules les extensions épinglées (★ dans la popup des extensions) ont leur pastille.
+  // Seules les extensions épinglées (★ dans la popup des extensions) ont leur pastille : leur logo,
+  // ou leur nom court si elles n'en ont pas. Le numéro (Alt+n) reste dans l'info-bulle.
   const chips = state.exts.filter((e) => e.pinned).map((e) => h('button', {
     type: 'button',
-    class: `chip${e.enabled ? '' : ' off'}`,
+    class: `chip ext${e.enabled ? '' : ' off'}`,
     title: `${e.name}${e.enabled ? '' : t(' (désactivée)')}${e.error ? ` : ${e.error}` : ''} · Alt+${e.n}`,
     onclick: (ev) => api.extPopup(e.n, ev.currentTarget.getBoundingClientRect().right),
-  }, `${e.n} ${e.alias}${e.enabled ? '' : ' ⏸'}`));
+  }, e.icon ? h('img', { class: 'ext-icon', src: e.icon, alt: e.alias }) : e.alias, e.enabled ? null : ' ⏸'));
   fill($('#status'), [
     h('button', { type: 'button', id: 'fav-chip', class: 'chip', title: t('Favoris (Ctrl+Maj+B)'), onclick: () => openPanel('fav') }, t('★ favoris')),
     s.mode === 'TTY' ? h('span', {}, 'TTY') : null,
@@ -36,14 +37,14 @@ function renderStatus() {
       onclick: () => openPanel('ext'),
     }, puzzleIcon()),
     dlChip(),
-    // Le bouton du thème est à la place de l'ancienne heure.
+    // Réglages (mode nuit/jour compris), à la place de l'ancien bouton du thème.
     h('button', {
       type: 'button',
-      id: 'mode-chip',
+      id: 'settings-chip',
       class: 'chip',
-      title: state.light ? t('Passer en mode nuit') : t('Passer en mode jour'),
-      onclick: () => api.toggleMode(),
-    }, modeIcon(state.light)),
+      title: t('Réglages (settings)'),
+      onclick: () => run('settings', { echo: false }),
+    }, gearIcon()),
     // Nadir, tout à droite : l'étoile tourne pendant qu'il réfléchit, le point vert dit que son modèle est en mémoire.
     h('button', {
       type: 'button',

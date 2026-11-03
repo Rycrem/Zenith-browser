@@ -76,7 +76,9 @@ const COMMANDS = [
   ['engine', '[ddg | google | bing | qwant]', 'moteur de recherche'],
   ['theme', '[ambre | vert | cyan | rose | violet]', 'couleur d\'accent'],
   ['private', '[on | off]', 'navigation privée (Ctrl+Maj+N) : onglets à part, rien n\'est retenu'],
-  ['mode', '[nuit | jour]', 'mode nuit (par défaut) ou jour ; aussi le bouton lune/soleil en bas'],
+  ['mode', '[nuit | jour]', 'mode nuit (par défaut) ou jour'],
+  ['gpu', '[on | off]', 'accélération matérielle (relance Zenith)'],
+  ['settings', '', 'page des réglages ; aussi le bouton ⚙ en bas à droite'],
   ['lang', '[fr | en]', 'langue de l\'interface (français ou anglais)'],
   ['default', '', 'faire de Zenith le navigateur par défaut'],
   ['config', '<export | import> [fichier]', 'enregistrer ou charger tes réglages, favoris et extensions (pour un autre ordinateur)'],
@@ -94,7 +96,7 @@ const COMMANDS = [
 const COMMAND_NAMES = [
   'brows', 'ia', 'nadir', 'go', 'clicks', 'back', 'fwd', 'reload', 'home', 'tab', 'close', 'split', 'focus',
   'fav', 'add', 'undo', 'hist', 'clean', 'find', 'ext', 'dl', 'alias', 'unalias', 'engine',
-  'theme', 'mode', 'private', 'prive', 'lang', 'tty', 'perm', 'update', 'devtools', 'term', 'fullscreen', 'quit', 'exit', 'help', 'clear', 'popback', 'config', 'default',
+  'theme', 'mode', 'gpu', 'settings', 'private', 'prive', 'lang', 'tty', 'perm', 'update', 'devtools', 'term', 'fullscreen', 'quit', 'exit', 'help', 'clear', 'popback', 'config', 'default',
 ];
 
 const SUBCOMMANDS = {
@@ -115,6 +117,7 @@ const SUBCOMMANDS = {
   lang: ['fr', 'en'],
   devtools: ['detach', 'close'],
   tty: ['on', 'off'],
+  gpu: ['on', 'off'],
   reload: ['hard'],
   config: ['export', 'import'],
 };
@@ -122,8 +125,8 @@ const SUBCOMMANDS = {
 // Commandes qui n'acceptent pas de texte libre : ce qu'elles acceptent après leur nom.
 const ARG_SHAPES = {
   help: null, '?': null, clear: null, home: null, accueil: null, back: null, b: null, fwd: null, f: null,
-  reload: /^hard$/i, r: /^hard$/i, n: null, next: null, p: null, prev: null, clicks: null, links: null, l: null, term: null, quit: null, exit: null, q: null, fullscreen: /^(on|off)$/i, fs: /^(on|off)$/i, tty: /^(on|off)$/i,
-  undo: null, focus: null, popback: null, default: null, config: /^(export|import)$/i, lang: /^(fr|en)$/i, langue: /^(fr|en)$/i, update: /^(install|electron|auto|-v|versions)$/i,
+  reload: /^hard$/i, r: /^hard$/i, n: null, next: null, p: null, prev: null, clicks: null, links: null, l: null, term: null, quit: null, exit: null, q: null, fullscreen: /^(on|off)$/i, fs: /^(on|off)$/i, tty: /^(on|off)$/i, gpu: /^(on|off)$/i,
+  undo: null, focus: null, settings: null, reglages: null, 'réglages': null, popback: null, default: null, config: /^(export|import)$/i, lang: /^(fr|en)$/i, langue: /^(fr|en)$/i, update: /^(install|electron|auto|-v|versions)$/i,
   tab: /^(\d+|new|save)$/i, tabs: /^(\d+|new|save)$/i, close: /^\d+$/, dl: /^(\d+|cancel|rm)$/i, split: /^(off|close)$/i,
   devtools: /^(detach|detacher|attach|rattacher|close|off)$/i, dev: /^(detach|detacher|attach|rattacher|close|off)$/i,
 };

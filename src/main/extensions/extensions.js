@@ -186,6 +186,37 @@ class Extensions {
     }
   }
 
+  // Logo de l'extension pour sa pastille, en data: (l'interface n'a pas accès à chrome-extension:).
+  // Gardé en mémoire par dossier : summary() est appelé à chaque état.
+  readIcon(dir) {
+    if (!dir) return null;
+    this.icons = this.icons || new Map();
+    if (this.icons.has(dir)) return this.icons.get(dir);
+    let icon = null;
+    try {
+      const m = this.readManifest(dir);
+      const action = m.action || m.browser_action || m.page_action || {};
+      const sets = [action.default_icon, m.icons].filter((x) => x);
+      for (const set of sets) {
+        const file = typeof set === 'string' ? set : (() => {
+          const sizes = Object.keys(set).map(Number).sort((a, b) => a - b);
+          return set[sizes.find((s) => s >= 32) || sizes[sizes.length - 1]];
+        })();
+        const full = file && path.join(dir, String(file).replace(/^\/+/, ''));
+        if (!full || !fs.existsSync(full)) continue;
+        const ext = path.extname(full).toLowerCase();
+        const mime = { '.png': 'image/png', '.svg': 'image/svg+xml', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.ico': 'image/x-icon' }[ext];
+        if (!mime) continue;
+        icon = `data:${mime};base64,${fs.readFileSync(full).toString('base64')}`;
+        break;
+      }
+    } catch {
+      // manifeste illisible : la pastille garde le nom
+    }
+    this.icons.set(dir, icon);
+    return icon;
+  }
+
   makeAlias(name) {
     const base = String(name || 'ext').toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '').slice(0, 8) || 'ext';
     let alias = base;
@@ -366,6 +397,7 @@ class Extensions {
       popup: !!e.popup,
       dnrOnly: !!e.dnrOnly,
       error: e.error || null,
+      icon: this.readIcon(e.path),
     }));
   }
 }

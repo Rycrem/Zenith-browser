@@ -4,7 +4,6 @@ const { ipcMain, clipboard, screen, Menu } = require('electron');
 const { t, getLang } = require('../../shared/i18n');
 const fav = require('../../shared/favorites');
 const state = require('../state');
-const theme = require('./theme');
 const ui = require('./ui');
 const tabList = require('../tabs/tabs');
 const extPopup = require('../extensions/popup');
@@ -59,7 +58,11 @@ function setupIpc() {
       ui.sendState();
     }
     // Ctrl+Entrée : un nouvel onglet d'abord, la commande s'y exécute (pas pour répondre à une question).
-    if (opts && opts.newTab && String(line).trim() && !state.prompts.length) tabList.createTab();
+    // L'interface connaît le nouvel onglet avant la réponse : celle-ci s'affiche dans son terminal.
+    if (opts && opts.newTab && String(line).trim() && !state.prompts.length) {
+      tabList.createTab();
+      ui.sendStateNow();
+    }
     return commands.exec(String(line));
   });
   onUi('ui:zoom-reset', () => navigation.zoom(0));
@@ -79,6 +82,7 @@ function setupIpc() {
     e.returnValue = getLang();
   });
   handleUi('ui:complete', (e, line) => completion.complete(String(line)));
+  handleUi('ui:predict', (e, line) => completion.predict(String(line)));
   handleUi('ui:clipboard-read', () => clipboard.readText());
   onUi('ui:clipboard-write', (e, text) => clipboard.writeText(String(text)));
   let started = false;
@@ -194,7 +198,13 @@ function setupIpc() {
       if (tabList.moveTabToWindow(tab, target, g ? g.gap : undefined, true, g ? g.side : undefined)) target.win.webContents.send('ui:tab-arrived', tab.id);
       return;
     }
-    if (drag) return void (own && own.win && own.win.focus());
+    if (drag) {
+      // Lâchée tout en haut de l'écran, la fenêtre glissée passe en plein écran, comme une fenêtre
+      // plaquée en haut par sa barre de titre (Windows ne le fait pas pour un déplacement programmé).
+      const top = screen.getDisplayNearestPoint({ x: Math.round(sx), y: Math.round(sy) }).workArea.y;
+      if (own && own.win && !own.win.isDestroyed() && sy <= top + 4) own.win.maximize();
+      return void (own && own.win && own.win.focus());
+    }
     // Lâché hors de toute fenêtre sans avoir été détaché (glissé de côté) : sa propre fenêtre, là.
     const b = state.win.getBounds();
     const w = tabList.detachTab(tab, { x: Math.round(sx - 60), y: Math.round(sy - 18), width: b.width, height: b.height });
@@ -265,7 +275,6 @@ function setupIpc() {
     if (tab) audio.setMuted(tab, !audio.isMuted(tab));
   });
   onUi('ui:volume', (e, v) => Number.isFinite(v) && audio.setGlobalVolume(v));
-  onUi('ui:mode', () => theme.setMode(!theme.isLight()));
   onUi('ui:media-toggle', () => audio.togglePlayAll().catch(() => {}));
   onUi('ui:mute-all', () => audio.setMuteAll(!state.settings.data.muteAll));
   onUi('ui:panel', (e, kind, x) => panelData.PANELS[kind] && panels.togglePanel(kind, Number.isFinite(x) ? x : undefined));

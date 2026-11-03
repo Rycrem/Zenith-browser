@@ -9,7 +9,7 @@ const app = $('#app');
 const content = $('#content');
 const panesEl = [...document.querySelectorAll('.pane')];
 // Un terminal sous chaque écran : en split, chacun a sa ligne de commande.
-const cols = [...document.querySelectorAll('.term-col')].map((el) => ({ el, scrollback: $('.scrollback', el), form: $('.prompt', el), input: $('.input', el), ps1: $('.ps1', el) }));
+const cols = [...document.querySelectorAll('.term-col')].map((el) => ({ el, scrollback: $('.scrollback', el), form: $('.prompt', el), input: $('.input', el), ghost: $('.ghost', el), ps1: $('.ps1', el) }));
 
 let state = null;
 const activeCol = () => cols[state && cols[state.activePane] ? state.activePane : 0];

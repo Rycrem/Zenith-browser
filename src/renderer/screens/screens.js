@@ -279,6 +279,23 @@ const screens = {
     ];
   },
 
+  // Réglages : un clic sur un choix lance sa commande (affichée dans le terminal), puis la page se met à jour.
+  settings(s) {
+    const choice = (o) => h('button', { type: 'button', class: `pill${o.on ? ' on' : ''}`, title: o.cmd, onclick: () => run(o.cmd) }, o.label);
+    return [
+      head(t('réglages'), 'settings'),
+      h('table', { class: 'settings' }, s.rows.map((r) => h(
+        'tr',
+        {},
+        h('td', {}, r.label, r.hint ? h('span', { class: 'dim' }, ` (${r.hint})`) : null),
+        h('td', {}, r.options.map(choice)),
+      ))),
+      h('h3', {}, t('Plus de réglages')),
+      h('div', { class: 'settings-actions' }, s.actions.map(choice)),
+      h('div', { class: 'hint' }, t('Chaque choix lance sa commande dans le terminal : survole-le pour la voir.')),
+    ];
+  },
+
   alias(s) {
     return [
       head('alias', `${s.rows.length} alias`),

@@ -4,6 +4,27 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.52',
+    notes: [
+      'Un bouton ⚙ remplace le bouton du thème : il ouvre la page des réglages (mode nuit/jour, couleur, langue, moteur, mises à jour, accélération matérielle…). « settings » l\'ouvre aussi.',
+      '« gpu on » ou « gpu off » active ou coupe l\'accélération matérielle ; Zenith propose de se relancer.',
+      'Le terminal propose en gris la suite de ce que tu tapes, tirée de tes commandes, alias, favoris et pages visitées : → l\'accepte.',
+      'Tab, appuyé encore, passe d\'une proposition à l\'autre comme dans un terminal (Maj+Tab en arrière).',
+      'Les pastilles des extensions montrent leur logo au lieu du numéro et du nom.',
+      'Ctrl+Entrée : la commande et sa réponse s\'affichent dans le terminal du nouvel onglet.',
+      'Une fenêtre glissée par un onglet et lâchée tout en haut de l\'écran passe en plein écran.',
+    ],
+    en: [
+      'A ⚙ button replaces the theme button: it opens the settings page (night/day mode, color, language, engine, updates, hardware acceleration…). "settings" opens it too.',
+      '"gpu on" or "gpu off" turns hardware acceleration on or off; Zenith offers to restart.',
+      'The terminal suggests in grey how to finish what you type, from your commands, aliases, bookmarks and visited pages: → accepts it.',
+      'Pressing Tab again goes from one suggestion to the next, as in a terminal (Shift+Tab backwards).',
+      'Extension badges show their logo instead of their number and name.',
+      'Ctrl+Enter: the command and its answer show in the new tab\'s terminal.',
+      'A window dragged by a tab and dropped at the very top of the screen is maximized.',
+    ],
+  },
+  {
     version: '0.1.51',
     notes: [
       'La barre d\'adresse lance une recherche quand ce qui est tapé n\'est pas une adresse, au lieu d\'ouvrir « https://… ». « go » fait pareil.',

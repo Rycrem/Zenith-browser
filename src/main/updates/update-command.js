@@ -237,4 +237,4 @@ function startupUpdateNotes() {
   }, 8000);
 }
 
-Object.assign(module.exports, { updateCommand, startupUpdateNotes });
+Object.assign(module.exports, { updateCommand, startupUpdateNotes, autoUpdateOn });

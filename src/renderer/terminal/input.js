@@ -2,6 +2,7 @@
 
 // Ctrl+Entrée : la commande (adresse, recherche…) s'ouvre dans un nouvel onglet.
 let newTabNext = false;
+let cycle = null; // propositions de Tab en cours de défilement
 cols.forEach((c, i) => {
   c.form.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -33,6 +34,7 @@ cols.forEach((c, i) => {
       c.input.setSelectionRange(pos, pos);
     }
     grow(c.input);
+    predict(c);
   });
   c.input.addEventListener('keydown', async (e) => {
     const ta = c.input;
@@ -48,14 +50,28 @@ cols.forEach((c, i) => {
       histIndex = cmdHistory.length;
     } else if (e.ctrlKey || e.altKey || e.metaKey) {
       // Les autres raccourcis (Ctrl+Tab, Alt+←…) restent ceux du navigateur.
+    } else if ((e.key === 'ArrowRight' || e.key === 'End') && c.prediction && ta.selectionStart === ta.value.length) {
+      // → (ou Fin) au bout de la ligne accepte la prédiction en gris.
+      e.preventDefault();
+      setInput(ta, c.prediction);
     } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
       e.preventDefault();
       histIndex = Math.max(0, Math.min(cmdHistory.length, histIndex + (e.key === 'ArrowUp' ? -1 : 1)));
       setInput(ta, cmdHistory[histIndex] || '');
     } else if (e.key === 'Tab') {
       e.preventDefault();
+      // Tab suivants (Maj+Tab : en arrière) : chaque proposition à son tour, comme dans un terminal.
+      if (cycle && cycle.ta === ta && ta.value === cycle.shown) {
+        const n = cycle.options.length;
+        cycle.i = cycle.i < 0 ? (e.shiftKey ? n - 1 : 0) : (cycle.i + (e.shiftKey ? -1 : 1) + n) % n;
+        const word = cycle.options[cycle.i];
+        cycle.shown = cycle.base + word + (word.endsWith('/') ? '' : ' ');
+        setInput(ta, cycle.shown);
+        return;
+      }
       const res = await api.complete(ta.value);
       setInput(ta, res.line);
+      cycle = res.options.length ? { ta, base: res.base, options: res.options, i: -1, shown: res.line } : null;
       if (res.options.length) print([{ t: `  ${res.options.join('   ')}`, c: 'dim' }]);
     } else if (e.key === 'Escape') {
       e.preventDefault();
