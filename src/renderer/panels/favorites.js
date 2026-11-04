@@ -42,7 +42,7 @@ function linkRow(l, sub, depth, path) {
   }, indent(depth), siteIcon(l.url), h('span', { class: 'label' }, l.name), h('span', { class: 'sub' }, sub)));
 }
 
-// ------------------------------------------------ clic droit : copier le lien, modifier, supprimer
+// ------------------------------------------------ clic droit : nouvel onglet, copier le lien, modifier, supprimer
 
 let editing = null; // chemin du favori en cours de modification
 
@@ -56,6 +56,7 @@ function showMenu(e, l, path) {
   closeMenu();
   const item = (label, fn, cls) => h('button', { type: 'button', class: `item${cls ? ` ${cls}` : ''}`, onclick: () => { closeMenu(); fn(); } }, label);
   const menu = h('div', { id: 'menu', role: 'menu' },
+    item(data.newTab, () => open(l.url, true)),
     item(data.copy, () => window.panel.act('copy', { path })),
     item(data.edit, () => { editing = path; render(); }),
     item(data.remove, () => window.panel.act('remove', { path }), 'danger'));
