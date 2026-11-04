@@ -70,7 +70,7 @@
     "Aucun favori : « add nom » ajoute la page, « fav import » ceux d'un autre navigateur.": "No bookmarks: “add name” adds the page, “fav import” brings them from another browser.",
     "Aucun favori ne correspond.": "No matching bookmark.",
     "filtrer…": "filter…",
-    "Ctrl+Maj+B · Ctrl+clic : nouvel onglet · glisser pour ranger · clic droit : copier, modifier": "Ctrl+Shift+B · Ctrl+click: new tab · drag to reorder · right-click: copy, edit",
+    "Ctrl+Maj+B · Ctrl+clic : nouvel onglet · glisser pour ranger · clic droit : nouvel onglet, copier, modifier": "Ctrl+Shift+B · Ctrl+click: new tab · drag to reorder · right-click: new tab, copy, edit",
     'Copier le lien': 'Copy link',
     Historique: 'History',
     'Ctrl+² (la touche sous Échap)': 'Ctrl+` (the key below Esc)',
@@ -186,6 +186,9 @@
     '  aucun résultat lisible, page DuckDuckGo ouverte (tape « clicks »)': '  no readable results, DuckDuckGo page opened (type “clicks”)',
     '  {count} résultats, page {page} · n page suivante · tape un numéro': '  {count} results, page {page} · n next page · type a number',
     'aucune page ouverte': 'no page open',
+    "{site} est bloqué par le bloqueur de pub (pistage ou lien d'affiliation). Y aller quand même ?": '{site} is blocked by the ad blocker (tracking or affiliate link). Go there anyway?',
+    'impossible de charger {url} : bloqué par le bloqueur de pub': 'could not load {url}: blocked by the ad blocker',
+    '  ✗ cette page ne mène pas à un autre site : elle reste bloquée (« ext off n » coupe le bloqueur)': '  ✗ this page does not lead to another site: it stays blocked ("ext off n" turns the blocker off)',
 
     // menu contextuel
     Précédent: 'Back',
