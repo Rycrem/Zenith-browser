@@ -4,6 +4,19 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.56',
+    notes: [
+      'Chaque favori a le logo de son site, dans la popup des favoris et dans « fav ».',
+      '« 3 t » (avec une espace) ouvre aussi le lien 3 dans un nouvel onglet, et « 3t » marche sur les liens dont le texte ou l\'image est cliquable ; un bouton sans adresse le dit au lieu de cliquer dans la page.',
+      'Ctrl+Tab et Ctrl+Maj+Tab répondent tout de suite après un Ctrl+clic, sans recliquer dans la page.',
+    ],
+    en: [
+      'Each bookmark shows its site\'s logo, in the bookmarks popup and in "fav".',
+      '"3 t" (with a space) also opens link 3 in a new tab, and "3t" works on links whose text or image is clickable; a button with no address says so instead of clicking in the page.',
+      'Ctrl+Tab and Ctrl+Shift+Tab respond right away after a Ctrl+click, without clicking in the page again.',
+    ],
+  },
+  {
     version: '0.1.55',
     notes: [
       'Netflix, Disney+, Prime Video et les autres vidéos protégées se lisent : Zenith passe à l\'Electron de castLabs, qui inclut Widevine (téléchargé au premier lancement).',

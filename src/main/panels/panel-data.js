@@ -1,7 +1,9 @@
 'use strict';
 
 const { t, getLang } = require('../../shared/i18n');
+const fav = require('../../shared/favorites');
 const state = require('../state');
+const icons = require('../favorites/icons');
 const ui = require('../window/ui');
 const tabList = require('../tabs/tabs');
 const audio = require('../audio/audio');
@@ -93,6 +95,7 @@ function favData() {
   return {
     title: t('favoris'),
     tree: state.favorites.data.tree,
+    icons: Object.fromEntries(fav.allLinks(state.favorites.data.tree).map((l) => [l.url, icons.iconFor(l.url)])),
     current: tab && !tab.screen ? tab.url : '',
     empty: t('Aucun favori : « add nom » ajoute la page, « fav import » ceux d\'un autre navigateur.'),
     none: t('Aucun favori ne correspond.'),

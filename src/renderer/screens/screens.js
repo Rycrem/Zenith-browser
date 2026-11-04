@@ -172,7 +172,7 @@ const screens = {
           'div',
           { class: 'item' },
           h('span', { class: 'branch' }, prefix),
-          h('button', { type: 'button', onclick: click(String(r.n)), onauxclick: click(String(r.n)) }, h('span', { class: 'num' }, `[${r.n}]`), r.name),
+          h('button', { type: 'button', onclick: click(String(r.n)), onauxclick: click(String(r.n)) }, h('span', { class: 'num' }, `[${r.n}]`), r.icon ? h('img', { class: 'site-icon', src: r.icon, alt: '' }) : null, r.name),
           h('span', { class: 'site' }, r.url.replace(/^https?:\/\/(www\.)?/, '')),
           h('button', { type: 'button', class: 'rm', 'aria-label': t('Supprimer {path}', { path: r.path }), title: t('Supprimer'), onclick: () => run(`fav rm ${r.path}`) }, '✕'),
         );
