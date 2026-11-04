@@ -14,7 +14,7 @@ const { popupWindow } = require('../panels/popup-window');
 // (messages vocaux, appels), seulement pour leurs propres adresses.
 const ALLOWED = new Set(['notifications', 'media', 'clipboard-sanitized-write', 'fullscreen']);
 const HEADER_H = 30; // barre du tiroir : nom de l'appli, recharger, fermer
-const WIDTH = 420;
+const HEIGHT = 540; // taille par défaut, en 16:9 ; ses bords se tirent pour la changer
 
 // Une vue par appli, commune à toutes les fenêtres (deux WhatsApp Web ouverts se gêneraient) :
 // { view, unread, w : la fenêtre Zenith où elle est affichée }.
@@ -85,14 +85,17 @@ function changed() {
 
 // ------------------------------------------------ le tiroir de discussion
 
-// Au-dessus de son icône, de sous les onglets jusqu'à la barre du bas.
+// Posée sur la barre du bas, au-dessus de son icône, sans dépasser sous les onglets.
+// Taille choisie à la souris (gardée dans les réglages), sinon 16:9.
 function drawerBounds(x) {
   const b = state.win.getContentBounds();
-  const width = Math.min(WIDTH, b.width - 16);
+  const size = state.settings.data.drawerSize || { width: Math.round((HEIGHT * 16) / 9), height: HEIGHT };
+  const width = Math.max(300, Math.min(size.width, b.width - 16));
+  const bottom = b.y + b.height - 32;
+  const height = Math.max(200, Math.min(size.height, bottom - (b.y + 48)));
   const right = Number.isFinite(x) ? b.x + Math.round(x) : b.x + b.width - 16;
   const left = Math.max(b.x + 8, Math.min(right - width, b.x + b.width - width - 8));
-  const top = b.y + 48;
-  return { x: left, y: top, width, height: Math.max(200, b.y + b.height - 32 - top) };
+  return { x: left, y: bottom - height, width, height };
 }
 
 function fitView(d) {
@@ -130,7 +133,7 @@ function open(id, x) {
   }
   if (Number.isFinite(x)) state.drawerX = x;
   if (!d) {
-    const win = popupWindow('drawer.html', { ...drawerBounds(state.drawerX), minWidth: 300 });
+    const win = popupWindow('drawer.html', { ...drawerBounds(state.drawerX), resizable: true, minWidth: 300, minHeight: 200 });
     d = { id, win };
     state.drawer = d;
     const own = state.current();
@@ -144,6 +147,11 @@ function open(id, x) {
       state.inWindow(own, ui.sendState);
     });
     win.on('resize', () => fitView(d));
+    // Seulement quand on tire un bord (pas pour les setBounds de Zenith) : la taille est gardée.
+    win.on('will-resize', (e, nb) => {
+      state.settings.data.drawerSize = { width: nb.width, height: nb.height };
+      state.settings.save();
+    });
   } else {
     d.win.setBounds(drawerBounds(state.drawerX));
     sendHeader(d);
