@@ -83,9 +83,10 @@ async function exec(raw, depth = 0) {
 
   try {
     // Un numéro ouvre l'élément correspondant de la dernière liste ; « 3t » dans un nouvel onglet.
-    const num = name.match(/^(\d+)(t?)$/);
-    if (num && !args.length) {
-      await select(tab, Number(num[1]), num[2] === 't', say);
+    const num = name.match(/^(\d+)(t?)$/i);
+    const spaced = num && !num[2] && args.length === 1 && /^t$/i.test(args[0]); // « 3 t » comme « 3t »
+    if (num && (!args.length || spaced)) {
+      await select(tab, Number(num[1]), !!num[2] || spaced, say);
       return result;
     }
     // Une commande suivie de mots qu'elle n'attend pas (« home depot », « close friends »)
@@ -444,7 +445,9 @@ async function select(tab, n, newTab, say, onlyKind) {
       for (const l of await search.runSearch(tab, item.query)) say(l.t, l.c);
       break;
     case 'link':
-      if (newTab && item.href) tabList.createTab({ url: item.href, background: true, opener: tab });
+      // Sans adresse (bouton, élément piloté par le site), « 3t » ne cliquerait que dans la page.
+      if (newTab && !item.href) throw new Error(t('l\'élément {n} n\'a pas d\'adresse : il ne peut pas s\'ouvrir dans un nouvel onglet (tape {n} pour le cliquer)', { n }));
+      if (newTab) tabList.createTab({ url: item.href, background: true, opener: tab });
       else if (!(await links.clickLink(tab, item.i))) throw new Error(t('ce lien n\'existe plus, relance « clicks »'));
       tab.numbered = [];
       break;

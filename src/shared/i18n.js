@@ -253,6 +253,7 @@
     'pas de numéro {n} ici (1 à {max})': 'no number {n} here (1 to {max})',
     'aucune liste numérotée ici (essaie « clicks »)': 'no numbered list here (try “clicks”)',
     "ce lien n'existe plus, relance « clicks »": 'this link no longer exists, run “clicks” again',
+    "l'élément {n} n'a pas d'adresse : il ne peut pas s'ouvrir dans un nouvel onglet (tape {n} pour le cliquer)": 'item {n} has no address: it cannot open in a new tab (type {n} to click it)',
     'onglet fermé': 'tab closed',
     'fichier pas encore enregistré': 'file not saved yet',
     '  ouvert dans un nouvel onglet': '  opened in a new tab',

@@ -8,10 +8,13 @@ const panels = require('../panels/panels');
 const screens = require('../terminal/screens');
 const questions = require('../terminal/questions');
 const favImport = require('./import');
+const icons = require('./icons');
 
 // Enregistre les favoris et met à jour ce qui les affiche : accueil, liste des favoris, popup.
 function saveFavorites() {
   state.favorites.save();
+  // Un favori ajouté depuis un onglet ouvert prend tout de suite le logo de cet onglet.
+  for (const tab of state.tabs) if (!tab.private && tab.favicon) icons.remember(tab.url, tab.favicon);
   for (const tab of state.tabs) {
     if (!tab.screen) continue;
     try {
@@ -25,6 +28,19 @@ function saveFavorites() {
   ui.sendState();
 }
 
+// Un logo de favori vient d'arriver : la liste « fav » affichée se redessine.
+function refreshFavScreens() {
+  for (const tab of state.tabs) {
+    if (tab.screen && tab.screen.kind === 'fav') {
+      try {
+        showFav(tab, tab.screen.folder);
+      } catch {
+        // dossier disparu : saveFavorites s'en occupe
+      }
+    }
+  }
+}
+
 function showFav(tab, folder) {
   const tree = state.favorites.data.tree;
   const node = folder ? fav.getNode(tree, folder) : tree;
@@ -36,6 +52,7 @@ function showFav(tab, folder) {
     if (r.type === 'link') {
       numbered.push({ kind: 'url', url: r.url, path: r.path });
       r.n = numbered.length;
+      r.icon = icons.iconFor(r.url);
     }
   });
   screens.setScreen(tab, { kind: 'fav', folder: prefix, rows, counts: fav.countAll(node) }, numbered);
@@ -83,4 +100,4 @@ async function favCommand(tab, args, say) {
   showFav(tab, folder);
 }
 
-Object.assign(module.exports, { saveFavorites, showFav, favCommand });
+Object.assign(module.exports, { saveFavorites, showFav, favCommand, refreshFavScreens });

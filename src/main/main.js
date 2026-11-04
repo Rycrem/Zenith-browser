@@ -109,6 +109,7 @@ app.whenReady().then(async () => {
   state.ses = session.defaultSession;
   const dir = app.getPath('userData');
   state.favorites = new JsonStore(path.join(dir, 'favoris.json'), { tree: fav.emptyTree() });
+  state.siteIcons = new JsonStore(path.join(dir, 'icones.json'), { hosts: {} });
   state.history = new JsonStore(path.join(dir, 'historique.json'), { entries: [] });
   state.sessionStore = new JsonStore(path.join(dir, 'session.json'), { tabs: [] });
   state.previousSession = state.sessionStore.data.tabs.slice();

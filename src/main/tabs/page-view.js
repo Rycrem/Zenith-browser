@@ -188,6 +188,11 @@ function wireWebContents(tab, wc) {
     state.activePane = p;
     navigation.mouseNav(Number(e.message.slice(NAV_MARK.length)) < 0 ? -1 : 1);
   });
+  // Chromium donne le clavier à une page qui vient de s'ouvrir, même cachée (Ctrl+clic) :
+  // il revient à l'onglet affiché, sinon Ctrl+Tab et les autres raccourcis ne répondaient plus.
+  wc.on('focus', () => {
+    if (tabList.paneOf(tab) < 0) setTimeout(() => tabList.paneOf(tab) < 0 && tabList.focusShown(), 0);
+  });
   // Ctrl+Tab passe avant la page : un site qui garde la touche (éditeur, jeu…) bloquait le raccourci du menu.
   wc.on('before-input-event', (e, input) => {
     const dir = tabList.cycleKey(input);

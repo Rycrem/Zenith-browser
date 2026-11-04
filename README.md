@@ -48,13 +48,13 @@ Logic tests (bookmarks, aliases, result parsing, extensions, translations): `npm
 | `nadir chats [n]` | list the saved conversations with Nadir, or reopen conversation n |
 | `<n>` / `<n>t` | opens item n of the list on screen, `t` for a new tab |
 | `go <url>` | opens an address (typing an address directly works too; anything that is not an address runs a search, as in the address bar) |
-| `clicks` | numbers the page's links, buttons and input fields; a number clicks the link or button, or puts the cursor in the field |
+| `clicks` | numbers the page's links, buttons and input fields; a number clicks the link or button, or puts the cursor in the field; `3t` (or `3 t`) opens link 3 in a new tab |
 | `tty [on\|off]` | shows pages as plain text, like a terminal: links are underlined in blue and numbered, type the number or click them (stays on while you browse) |
 | `back`, `fwd`, `reload`, `reload hard`, `home` | navigation (`reload hard` reloads without the cache; `back` goes through the search results the page came from) |
 | `tab`, `tab <n>`, `tab new [url…]`, `tab save <name>`, `close [n]` | tabs (`tab new` with several addresses opens a tab for each) |
 | `popback` | reopens the tabs from last time (those open when Zenith was closed) |
 | `split`, `split off [1\|2]`, `focus` | two panes side by side, close a pane (the other one by default, or the ✕ at the top of the pane), switch pane; each pane has its own terminal below it, and Ctrl+Shift+N makes only the active pane private |
-| `fav [folder]` | bookmarks as a tree |
+| `fav [folder]` | bookmarks as a tree, with each site's logo |
 | `add [folder/]name` | bookmarks the page, creating missing folders |
 | `<bookmark name>` | opens that bookmark (its name alone, or its path `folder/name`); Tab completes bookmark names |
 | `fav rm <path\|n>`, `fav mv <path> <dest>`, `fav rename <path> <name>`, `undo` | manage bookmarks |
@@ -184,7 +184,8 @@ Zenith collects no data about you and has no telemetry. Besides the websites you
 
 - GitHub (`github.com`, `api.github.com`), at every launch, to look for a new version of Zenith and of uBlock Origin;
 - the Chrome Web Store update service (`clients2.google.com`), at every launch, to look for new versions of the extensions installed from the store;
-- Google's component servers (`update.googleapis.com`, `dl.google.com`), to download Widevine and its updates (protected videos).
+- Google's component servers (`update.googleapis.com`, `dl.google.com`), to download Widevine and its updates (protected videos);
+- the websites in your bookmarks (`/favicon.ico`), once per site, to show their logo in the bookmarks when you have not visited them yet.
 
 Those automatic checks can be turned off in the Windows installer (the privacy page, shown during installation, has a checkbox for them) or at any time with `update auto off`; `update` still works on demand.
 

@@ -41,13 +41,13 @@ Tests de la logique (favoris, alias, lecture des résultats, extensions) : `npm 
 | `nadir discussions [n]` | lister les discussions enregistrées avec Nadir, ou rouvrir la discussion n |
 | `<n>` / `<n>t` | ouvre l'élément n de la liste affichée, `t` pour un nouvel onglet |
 | `go <url>` | ouvre une adresse (taper directement une adresse marche aussi ; ce qui n'est pas une adresse lance une recherche, comme dans la barre d'adresse) |
-| `clicks` | numérote les liens, boutons et champs de la page ; un numéro clique le lien ou le bouton, ou place le curseur dans le champ |
+| `clicks` | numérote les liens, boutons et champs de la page ; un numéro clique le lien ou le bouton, ou place le curseur dans le champ ; `3t` (ou `3 t`) ouvre le lien 3 dans un nouvel onglet |
 | `tty [on\|off]` | affiche les pages en texte simple, comme un terminal : liens soulignés en bleu et numérotés, tape le numéro ou clique dessus (reste actif pendant la navigation) |
 | `back`, `fwd`, `reload`, `reload hard`, `home` | navigation (`reload hard` recharge sans le cache ; `back` repasse par les résultats de recherche d'où venait la page) |
 | `tab`, `tab <n>`, `tab new [url…]`, `tab save <nom>`, `close [n]` | onglets (`tab new` avec plusieurs adresses ouvre un onglet pour chacune) |
 | `popback` | rouvre les onglets de la dernière fois (ceux ouverts quand Zenith a été fermé) |
 | `split`, `split off [1\|2]`, `focus` | deux écrans côte à côte, fermer un écran (l'autre par défaut, ou le ✕ en haut de l'écran), changer d'écran ; chaque écran a son terminal en dessous, et Ctrl+Maj+N ne passe en privé que l'écran actif |
-| `fav [dossier]` | favoris en arbre |
+| `fav [dossier]` | favoris en arbre, avec le logo de chaque site |
 | `add [dossier/]nom` | ajoute la page, crée les dossiers manquants |
 | `<nom d'un favori>` | ouvre ce favori (son nom seul, ou son chemin `dossier/nom`) ; Tab complète les noms des favoris |
 | `fav rm <chemin\|n>`, `fav mv <chemin> <dest>`, `fav rename <chemin> <nom>`, `undo` | gérer les favoris |
@@ -178,7 +178,8 @@ Zenith ne collecte aucune donnée sur toi et n'a pas de télémétrie. En dehors
 
 - GitHub (`github.com`, `api.github.com`), à chaque lancement, pour chercher une nouvelle version de Zenith et de uBlock Origin ;
 - le service de mise à jour du Chrome Web Store (`clients2.google.com`), à chaque lancement, pour les extensions installées depuis le store ;
-- les serveurs de composants de Google (`update.googleapis.com`, `dl.google.com`), pour télécharger Widevine et ses mises à jour (vidéos protégées).
+- les serveurs de composants de Google (`update.googleapis.com`, `dl.google.com`), pour télécharger Widevine et ses mises à jour (vidéos protégées) ;
+- les sites de tes favoris (`/favicon.ico`), une seule fois par site, pour afficher leur logo dans les favoris quand tu ne les as pas encore visités.
 
 Ces vérifications se coupent dans l'installateur Windows (case de la page Confidentialité, affichée pendant l'installation) ou à tout moment avec `update auto off` ; `update` marche toujours à la demande.
 

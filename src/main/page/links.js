@@ -29,7 +29,13 @@ const LINKS_SCRIPT = `(() => {
     h.style.cssText = 'position:absolute;z-index:2147483647;pointer-events:none;left:' + (r.left + scrollX) + 'px;top:' + (r.top + scrollY) + 'px;background:__ACCENT__;color:#0E1116;font:bold 11px/1.4 monospace;padding:0 4px;border-radius:3px;transform:translate(-70%,-45%);box-shadow:0 1px 3px rgba(0,0,0,.4)';
     document.documentElement.appendChild(h);
   });
-  return els.map((el) => ({ href: el.href || null, text: (el.innerText || el.value || el.getAttribute('aria-label') || '').trim().slice(0, 80) }));
+  // Adresse à ouvrir avec « 3t » : celle du lien, ou du lien qui l'entoure ou qu'il contient.
+  const hrefOf = (el) => {
+    const a = el.closest('a[href]') || el.querySelector('a[href]');
+    const h = a && typeof a.href === 'string' ? a.href : '';
+    return /^(https?|file|ftp):/i.test(h) ? h : null;
+  };
+  return els.map((el) => ({ href: hrefOf(el), text: (el.innerText || el.value || el.getAttribute('aria-label') || '').trim().slice(0, 80) }));
 })()`;
 
 async function numberLinks(tab) {

@@ -283,6 +283,7 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
 .tree .num { color: var(--dim); margin-right: 8px; }
 .tree .folder { color: var(--cyan); }
 .tree .site { color: var(--dim); margin-left: 16px; overflow: hidden; text-overflow: ellipsis; }
+.tree .site-icon { width: 14px; height: 14px; object-fit: contain; vertical-align: -2px; margin-right: 6px; }
 .tree .rm { margin-left: auto; padding: 0 6px; color: var(--dim); visibility: hidden; border-radius: 3px; }
 .tree .item:hover .rm { visibility: visible; }
 .tree .rm:hover { color: var(--red); background: var(--line); }

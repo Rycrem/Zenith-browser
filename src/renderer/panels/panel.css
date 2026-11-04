@@ -162,6 +162,7 @@ button.link { border: none; padding: 0; color: var(--accent); text-decoration: u
 .fav.drop-into { background: var(--bg-raised); outline: 1px solid var(--accent); outline-offset: -1px; }
 .fav .icon { color: var(--dim); flex: none; width: 1ch; }
 .fav.folder .icon { color: var(--accent); }
+.fav img.site-icon { width: 14px; height: 14px; object-fit: contain; align-self: center; }
 .fav.folder .label { color: var(--accent); }
 .fav .label { overflow: hidden; text-overflow: ellipsis; }
 .fav .sub { color: var(--dim); font-size: 12px; overflow: hidden; text-overflow: ellipsis; min-width: 0; }

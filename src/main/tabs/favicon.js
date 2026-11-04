@@ -36,6 +36,7 @@ async function setFavicon(tab, url) {
   }
   if (tab.faviconUrl !== url) return; // une autre page est arrivée entre-temps
   tab.favicon = data;
+  if (!tab.private && !state.privateMode) require('../favorites/icons').remember(tab.url, data);
   ui.sendState();
 }
 

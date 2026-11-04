@@ -18,6 +18,12 @@ const host = (url) => {
 };
 const clean = (u) => String(u || '').replace(/#.*$/, '').replace(/\/$/, '');
 
+// Logo du site (lu par le processus principal), sinon le point habituel.
+function siteIcon(url) {
+  const src = data.icons && data.icons[url];
+  return src ? h('img', { class: 'icon site-icon', src, alt: '' }) : h('span', { class: 'icon' }, '·');
+}
+
 function open(url, newTab) {
   window.panel.act('open', { url, newTab });
 }
@@ -33,7 +39,7 @@ function linkRow(l, sub, depth, path) {
     onclick: (e) => open(l.url, newTab(e)),
     onauxclick: (e) => e.button === 1 && open(l.url, true),
     oncontextmenu: (e) => showMenu(e, l, where),
-  }, indent(depth), h('span', { class: 'icon' }, '·'), h('span', { class: 'label' }, l.name), h('span', { class: 'sub' }, sub)));
+  }, indent(depth), siteIcon(l.url), h('span', { class: 'label' }, l.name), h('span', { class: 'sub' }, sub)));
 }
 
 // ------------------------------------------------ clic droit : copier le lien, modifier, supprimer
