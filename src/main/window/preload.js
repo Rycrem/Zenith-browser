@@ -9,6 +9,9 @@ contextBridge.exposeInMainWorld('brows', {
   predict: (line) => ipcRenderer.invoke('ui:predict', line),
   ready: () => ipcRenderer.send('ui:ready'),
   layout: (rects) => ipcRenderer.send('ui:layout', rects),
+  messenger: (id, x) => ipcRenderer.send('ui:messenger', id, x),
+  messengerMenu: (id) => ipcRenderer.send('ui:messenger-menu', id),
+  messengerPin: (id, index) => ipcRenderer.send('ui:messenger-pin', id, index),
   drag: (on) => ipcRenderer.send('ui:drag', on),
   focusPage: () => ipcRenderer.send('ui:focus-page'),
   tab: (id) => ipcRenderer.send('ui:tab', id),
@@ -42,7 +45,7 @@ contextBridge.exposeInMainWorld('brows', {
   recentMenu: () => ipcRenderer.send('ui:recent-menu'),
   findResult: (r) => ipcRenderer.send('ui:find-result', r),
   on: (channel, fn) => {
-    if (!['state', 'term:print', 'term:focus', 'term:toggle', 'term:clear', 'ui:panel', 'ui:find', 'suggest:done', 'ui:tab-hover', 'ui:tab-arrived'].includes(channel)) return;
+    if (!['state', 'term:print', 'term:focus', 'term:toggle', 'term:clear', 'ui:panel', 'ui:find', 'suggest:done', 'ui:tab-hover', 'ui:tab-arrived', 'ui:messenger', 'ui:apps-hover', 'ui:apps-drop'].includes(channel)) return;
     ipcRenderer.on(channel, (e, ...args) => fn(...args));
   },
 });

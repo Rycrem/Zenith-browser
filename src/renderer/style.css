@@ -458,3 +458,19 @@ table.settings .pill.on { background: var(--accent); color: var(--bg); }
 /* Ctrl+F sur un écran du terminal */
 ::highlight(find) { background-color: rgba(242, 165, 65, .3); }
 ::highlight(find-current) { background-color: var(--accent); color: var(--on-accent); }
+
+/* ------------------------------------------------ WhatsApp, Messages, Discord (barre du bas) */
+
+#apps-group { display: inline-flex; align-items: center; gap: 6px; }
+/* La flèche, dessinée directement sur la barre, sans pastille. */
+.apps-arrow { position: relative; width: 18px; height: 22px; display: grid; place-items: center; color: var(--on-accent); }
+.apps-arrow .chevron-icon { width: 14px; height: 14px; display: block; }
+.apps-arrow:hover { opacity: .7; }
+.apps-arrow.unread::after { content: ''; position: absolute; right: -3px; top: 3px; width: 7px; height: 7px; border-radius: 50%; background: #E5484D; }
+.chip.app { position: relative; padding: 0 5px; }
+.chip.app .app-icon { width: 16px; height: 16px; display: block; }
+.chip.app.open { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px #fff; }
+.app-badge { position: absolute; right: -5px; top: -6px; min-width: 13px; height: 13px; padding: 0 3px; border-radius: 7px; background: #E5484D; color: #fff; font: 700 9px/13px sans-serif; text-align: center; pointer-events: none; }
+.app-badge.dot { min-width: 8px; width: 8px; height: 8px; padding: 0; right: -3px; top: -3px; }
+.app-slot { width: 28px; height: 22px; border: 2px dashed var(--on-accent); border-radius: 4px; background: rgba(255, 255, 255, .35); }
+.apps-sep { width: 1px; height: 16px; margin: 0 2px; background: var(--on-accent); opacity: .35; }

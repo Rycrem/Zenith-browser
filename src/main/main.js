@@ -25,6 +25,7 @@ const permissions = require('./security/permissions');
 const menu = require('./window/menu');
 const ipc = require('./window/ipc');
 const mainWindow = require('./window/window');
+const messengers = require('./messengers/messengers');
 
 // Les données de l'ancien nom (dev-brows) passent dans le dossier Zenith au premier lancement.
 // Un dossier Zenith sans réglages (créé vide par Electron) ne compte pas. Si le déplacement
@@ -164,6 +165,7 @@ app.whenReady().then(async () => {
   const startUrls = defaultBrowser.urlsIn(process.argv.slice(1));
   if (startUrls.length) for (const url of startUrls) tabList.createTab({ url });
   else tabList.createTab();
+  messengers.preload();
   guard.step('en marche');
   if (safeNote) state.win.webContents.once('did-finish-load', () => setTimeout(() => output.print([{ t: safeNote, c: 'warn' }]), 500));
   // Stable après 20 s : un plantage plus tard ne viendra pas du démarrage.

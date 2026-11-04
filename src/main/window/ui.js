@@ -10,6 +10,7 @@ const findInPage = require('../search/find-in-page');
 const audio = require('../audio/audio');
 const mobile = require('../page/mobile');
 const nadir = require('../nadir/nadir');
+const messengers = require('../messengers/messengers');
 
 const tr = t; // là où une variable locale « t » (un onglet) cache t()
 
@@ -44,6 +45,7 @@ function layout() {
       if (tab.dev && !tab.devWin) tab.dev.setVisible(false);
     });
     state.fullTab.view.setBounds({ x: 0, y: 0, width, height });
+    messengers.layoutDrawer();
     return;
   }
   state.tabs.forEach((tab) => {
@@ -67,6 +69,7 @@ function layout() {
       mobile.applyMobile(tab);
     }
   });
+  messengers.layoutDrawer();
 }
 
 // Les événements des pages arrivent par rafales (chargement, titre, son…) : un seul envoi par
@@ -135,6 +138,7 @@ function sendStateNow() {
     lastDownload: lastDownload(),
     audio: audio.audioState(),
     nadir: nadir.nadirState(),
+    messengers: messengers.messengerState(),
   });
 }
 

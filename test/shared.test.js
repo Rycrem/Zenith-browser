@@ -350,3 +350,20 @@ test('castLabs : versions stables triées et choix de la mise à jour', () => {
   assert.deepStrictEqual(cl.pickCastlabs(list, '44.9.3'), { sameMajor: '44.10.1', latest: '45.1.0' });
   assert.strictEqual(cl.castlabsSpec('44.10.1'), 'electron@https://github.com/castlabs/electron-releases#v44.10.1+wvcus');
 });
+
+test('applis de discussion : non-lus du titre, adresses, épinglage', () => {
+  const M = require('../src/shared/messengers');
+  assert.strictEqual(M.unreadFromTitle('(3) WhatsApp'), 3);
+  assert.strictEqual(M.unreadFromTitle('(12) Discord | #général'), 12);
+  assert.strictEqual(M.unreadFromTitle('• Discord | #général'), -1);
+  assert.strictEqual(M.unreadFromTitle('WhatsApp'), 0);
+  assert.ok(M.isOwnUrl('whatsapp', 'https://web.whatsapp.com/'));
+  assert.ok(M.isOwnUrl('discord', 'https://canary.discord.com/channels/1'));
+  assert.ok(!M.isOwnUrl('discord', 'https://evil-discord.com/'));
+  assert.ok(!M.isOwnUrl('messages', 'https://www.google.com/'));
+  assert.ok(M.isMessenger('messages'));
+  assert.ok(!M.isMessenger('toString'));
+  assert.deepStrictEqual(M.pinAt(['discord'], 'whatsapp', 0), ['whatsapp', 'discord']);
+  assert.deepStrictEqual(M.pinAt(['whatsapp', 'discord'], 'whatsapp', 1), ['discord', 'whatsapp']);
+  assert.deepStrictEqual(M.pinAt(['whatsapp'], 'discord'), ['whatsapp', 'discord']);
+});

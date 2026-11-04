@@ -79,6 +79,7 @@ function createWindow(bounds, inactive = false) {
     if (maximized) state.win.maximize();
   });
   state.win.on('close', () => {
+    require('../messengers/messengers').windowClosing(own);
     if (state.allWindows()[0] !== own) return; // la position gardée est celle de la première fenêtre
     const b = state.win.getNormalBounds();
     state.settings.data.window = { x: b.x, y: b.y, width: b.width, height: b.height, maximized: state.win.isMaximized() };
