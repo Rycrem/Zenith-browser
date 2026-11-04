@@ -17,8 +17,38 @@ const tr = t; // là où une variable locale « t » (un onglet) cache t()
 const DEVTOOLS_RATIO = 0.4;
 const DEVBAR_H = 26; // barre de l'interface au-dessus des DevTools (détacher, fermer)
 
+// Passage d'une vidéo en plein écran et retour : la page glisse vers sa nouvelle place au lieu d'y sauter.
+// Pendant l'animation, layout() ne fait que changer la destination.
+const ANIM_MS = 200;
+const anims = new Map(); // vue -> { from, to, start }
+
+function place(view, bounds) {
+  const a = anims.get(view);
+  if (a) a.to = bounds;
+  else view.setBounds(bounds);
+}
+
+function animateView(view, from) {
+  const a = { from, to: view.getBounds(), start: Date.now() };
+  if (['x', 'y', 'width', 'height'].every((k) => a.from[k] === a.to[k])) return;
+  anims.set(view, a);
+  const step = () => {
+    if (view.webContents.isDestroyed()) return anims.delete(view);
+    const k = Math.min(1, (Date.now() - a.start) / ANIM_MS);
+    const e = 1 - (1 - k) ** 3;
+    const b = {};
+    for (const p of ['x', 'y', 'width', 'height']) b[p] = Math.round(a.from[p] + (a.to[p] - a.from[p]) * e);
+    view.setBounds(b);
+    if (k < 1) setTimeout(step, 16);
+    else anims.delete(view);
+  };
+  step();
+}
+
 function setHtmlFullscreen(tab, on) {
   if (!state.win || state.win.isDestroyed()) return;
+  const view = tab && tab.view;
+  const from = view && !anims.has(view) ? view.getBounds() : null;
   if (on) {
     state.fullTab = tab;
     if (!state.win.isFullScreen()) { state.fullSetWin = true; state.win.setFullScreen(true); }
@@ -27,6 +57,7 @@ function setHtmlFullscreen(tab, on) {
     if (state.fullSetWin) { state.fullSetWin = false; state.win.setFullScreen(false); }
   }
   layout();
+  if (from && !view.webContents.isDestroyed()) animateView(view, from);
 }
 
 function layout() {
@@ -44,7 +75,7 @@ function layout() {
       if (tab.view) tab.view.setVisible(tab === state.fullTab);
       if (tab.dev && !tab.devWin) tab.dev.setVisible(false);
     });
-    state.fullTab.view.setBounds({ x: 0, y: 0, width, height });
+    place(state.fullTab.view, { x: 0, y: 0, width, height });
     messengers.layoutDrawer();
     return;
   }
@@ -62,10 +93,10 @@ function layout() {
     // Mode mobile : la page à la taille de l'appareil, au milieu de son écran.
     if (state.mobile) {
       const m = mobile.fit(page);
-      tab.view.setBounds(m.bounds);
+      place(tab.view, m.bounds);
       mobile.applyMobile(tab, m.scale);
     } else {
-      tab.view.setBounds(page);
+      place(tab.view, page);
       mobile.applyMobile(tab);
     }
   });
