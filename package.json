@@ -1,7 +1,7 @@
 {
   "name": "zenith",
   "productName": "Zenith",
-  "version": "0.1.53",
+  "version": "0.1.54",
   "description": "Zenith, navigateur basé sur Chromium qui se pilote comme un terminal",
   "main": "src/main/main.js",
   "scripts": {
@@ -20,7 +20,7 @@
     "node-llama-cpp": "3.22.1"
   },
   "devDependencies": {
-    "electron": "^44.10.0",
+    "electron": "https://github.com/castlabs/electron-releases#v44.10.1+wvcus",
     "electron-builder": "^26.15.3"
   },
   "author": {
@@ -46,6 +46,11 @@
       "!node_modules/@node-llama-cpp/*-cuda*/**",
       "!node_modules/@node-llama-cpp/{linux,win}-{arm64,armv7l,riscv64}/**"
     ],
+    "electronDownload": {
+      "mirror": "https://github.com/castlabs/electron-releases/releases/download/"
+    },
+    "afterPack": "scripts/vmp-after-pack.js",
+    "afterSign": "scripts/vmp-after-sign.js",
     "asarUnpack": [
       "node_modules/node-llama-cpp/**",
       "node_modules/@node-llama-cpp/**"

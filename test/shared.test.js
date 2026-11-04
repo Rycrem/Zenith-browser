@@ -334,3 +334,19 @@ test('les consignes de Nadir listent les commandes et les raccourcis', () => {
   assert.match(s, /Réponds en français/);
   assert.match(N.systemPrompt({ lang: 'en', commands: [], shortcuts: [] }), /Réponds en anglais/);
 });
+
+test('castLabs : versions stables triées et choix de la mise à jour', () => {
+  const cl = require('../src/shared/castlabs');
+  const out = [
+    'abc\trefs/tags/v44.9.3+wvcus',
+    'abc\trefs/tags/v44.10.1+wvcus',
+    'abc\trefs/tags/v45.0.0-alpha.3+wvcus',
+    'abc\trefs/tags/v43.8.6+wvcus',
+    'abc\trefs/tags/v45.1.0+wvcus',
+    'abc\trefs/tags/v45.1.0+wvcus^{}',
+  ].join('\n');
+  const list = cl.castlabsVersions(out);
+  assert.deepStrictEqual(list, ['43.8.6', '44.9.3', '44.10.1', '45.1.0']);
+  assert.deepStrictEqual(cl.pickCastlabs(list, '44.9.3'), { sameMajor: '44.10.1', latest: '45.1.0' });
+  assert.strictEqual(cl.castlabsSpec('44.10.1'), 'electron@https://github.com/castlabs/electron-releases#v44.10.1+wvcus');
+});

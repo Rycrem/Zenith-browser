@@ -5,6 +5,7 @@ const { execFile, spawn } = require('child_process');
 const fs = require('fs');
 const { t } = require('../../shared/i18n');
 const path = require('path');
+const { CASTLABS_REPO, castlabsVersions, pickCastlabs, compare } = require('../../shared/castlabs');
 
 // Deux façons de se mettre à jour :
 // - appli installée (installateur des Releases GitHub) : electron-updater compare la version
@@ -46,21 +47,14 @@ async function checkRelease() {
   return { installed: true, current: app.getVersion(), latest, available: !!(result && result.isUpdateAvailable) };
 }
 
-// Code source : correctifs d'Electron dans la même version majeure, dernière majeure, commits en attente.
+// Code source : correctifs d'Electron (castLabs) dans la même version majeure, dernière majeure, commits en attente.
 async function checkSource() {
-  const current = process.versions.electron;
-  const [sameMajorJson, latest] = await Promise.all([
-    sh('npm', ['view', `electron@^${major(current)}`, 'version', '--json']),
-    sh('npm', ['view', 'electron', 'version']),
-  ]);
-  if (!latest) throw new Error(t('npm est introuvable ou hors ligne : impossible de vérifier'));
-  let sameMajor = current;
-  try {
-    const list = [].concat(JSON.parse(sameMajorJson));
-    sameMajor = list[list.length - 1] || current;
-  } catch {
-    // pas de version publiée dans cette série
-  }
+  const current = process.versions.electron.replace(/\+wvcus$/, '');
+  const tags = await sh('git', ['ls-remote', '--tags', CASTLABS_REPO]);
+  if (!tags) throw new Error(t('git est introuvable ou hors ligne : impossible de vérifier'));
+  const found = pickCastlabs(castlabsVersions(tags), current);
+  const sameMajor = found.sameMajor && compare(found.sameMajor, current) > 0 ? found.sameMajor : current;
+  const latest = found.latest || current;
   let behind = null;
   if (fs.existsSync(path.join(appDir, '.git')) && (await sh('git', ['fetch', '--quiet'])) !== null) {
     const n = await sh('git', ['rev-list', '--count', 'HEAD..@{u}']);

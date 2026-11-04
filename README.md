@@ -138,6 +138,10 @@ Pick the level at the top of the chat or with `nadir level <name>`. Each model i
 
 Each conversation is saved from the first question and stays after a restart: the ☰ button at the top of the chat lists them (pinned first, then the most recent), to reopen, rename, pin or delete one; ⟲ starts a new one. `nadir chats` lists them in the terminal. What Nadir saw in private browsing is never saved.
 
+## Protected videos (Netflix, Disney+…)
+
+Zenith is built on [castLabs' Electron](https://github.com/castlabs/electron-releases), which adds Widevine, Google's module that decrypts protected videos. On first launch, Widevine downloads itself (a few seconds); then Netflix, Disney+, Prime Video and the others play as in Chrome. Netflix also requires the app to be signed by castLabs (VMP signature): this is done when the Windows and macOS installers are built, not when the app runs from source (error M7701-1003). On Linux, services limit the quality (often 720p).
+
 ## Updates
 
 A check runs at every launch (`update auto off` turns it off); `update` runs it on demand. At the same time, extensions installed from the Chrome Web Store and uBlock Origin update themselves when a new version exists (the terminal says so). Extensions added from a folder are left alone.
@@ -151,9 +155,9 @@ A check runs at every launch (`update auto off` turns it off); `update` runs it 
 
 **Run from source** (`npm start`):
 
-- `update` checks the Electron (and so Chromium) version and new commits in the repository.
+- `update` checks the Electron (and so Chromium) version, against the versions published by castLabs, and new commits in the repository.
 - `update install` pulls the code (`git pull`), then updates dependencies without changing Electron's major version: security fixes, with no risk of breakage.
-- `update electron` moves to the very latest major Electron version, to be tested.
+- `update electron` moves to the very latest major castLabs Electron version, to be tested.
 
 The app closes, the update runs with the system's `node` (on Windows, Electron cannot be replaced while it runs), then it restarts and shows the report in the terminal.
 
@@ -179,7 +183,8 @@ Run from source, the app uses a separate folder, `Zenith-dev` (copied from `Zeni
 Zenith collects no data about you and has no telemetry. Besides the websites you open yourself, it connects on its own only to:
 
 - GitHub (`github.com`, `api.github.com`), at every launch, to look for a new version of Zenith and of uBlock Origin;
-- the Chrome Web Store update service (`clients2.google.com`), at every launch, to look for new versions of the extensions installed from the store.
+- the Chrome Web Store update service (`clients2.google.com`), at every launch, to look for new versions of the extensions installed from the store;
+- Google's component servers (`update.googleapis.com`, `dl.google.com`), to download Widevine and its updates (protected videos).
 
 Those automatic checks can be turned off in the Windows installer (the privacy page, shown during installation, has a checkbox for them) or at any time with `update auto off`; `update` still works on demand.
 
