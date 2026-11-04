@@ -4,7 +4,7 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
-    version: '0.1.54',
+    version: '0.1.55',
     notes: [
       'Netflix, Disney+, Prime Video et les autres vidéos protégées se lisent : Zenith passe à l\'Electron de castLabs, qui inclut Widevine (téléchargé au premier lancement).',
       '« update » suit désormais les versions d\'Electron publiées par castLabs quand l\'appli tourne depuis le code.',
