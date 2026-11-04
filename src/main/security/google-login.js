@@ -1,7 +1,6 @@
 'use strict';
 
 const { app } = require('electron');
-const state = require('../state');
 
 // La connexion Google refuse les navigateurs basés sur Electron (« Ce navigateur ou cette application
 // ne sont peut-être pas sécurisés »). Sur accounts.google.com seulement, on se présente comme Firefox :
@@ -24,27 +23,28 @@ const isGoogleLogin = (url) => {
   }
 };
 
-// Le filtre d'en-têtes n'est posé que pendant une connexion Google : tant qu'un filtre
-// session.webRequest existe, Electron ignore le
-// chrome.webRequest des extensions.
-const onGoogleLogin = new Set();
+// Le filtre d'en-têtes n'est posé que pendant une connexion Google, et seulement sur la session
+// concernée (onglets, navigation privée, applis de discussion) : tant qu'un filtre
+// session.webRequest existe, Electron ignore le chrome.webRequest des extensions.
+const onGoogleLogin = new Map(); // session -> ids des webContents sur accounts.google.com
 
-function setGoogleFilter(id, on) {
-  const before = onGoogleLogin.size;
-  if (on) onGoogleLogin.add(id);
-  else onGoogleLogin.delete(id);
-  if (!before && onGoogleLogin.size) {
+function setGoogleFilter(ses, id, on) {
+  const ids = onGoogleLogin.get(ses) || new Set();
+  const before = ids.size;
+  if (on) ids.add(id);
+  else ids.delete(id);
+  if (ids.size) onGoogleLogin.set(ses, ids);
+  else onGoogleLogin.delete(ses);
+  if (!before && ids.size) {
     const ua = firefoxUserAgent();
-    for (const s of [state.ses, state.privSes].filter(Boolean)) {
-      s.webRequest.onBeforeSendHeaders({ urls: [`https://${GOOGLE_LOGIN}/*`] }, (details, callback) => {
-        const headers = details.requestHeaders;
-        for (const name of Object.keys(headers)) if (/^sec-ch-ua/i.test(name)) delete headers[name];
-        headers['User-Agent'] = ua;
-        callback({ requestHeaders: headers });
-      });
-    }
-  } else if (before && !onGoogleLogin.size) {
-    for (const s of [state.ses, state.privSes].filter(Boolean)) s.webRequest.onBeforeSendHeaders(null);
+    ses.webRequest.onBeforeSendHeaders({ urls: [`https://${GOOGLE_LOGIN}/*`] }, (details, callback) => {
+      const headers = details.requestHeaders;
+      for (const name of Object.keys(headers)) if (/^sec-ch-ua/i.test(name)) delete headers[name];
+      headers['User-Agent'] = ua;
+      callback({ requestHeaders: headers });
+    });
+  } else if (before && !ids.size) {
+    ses.webRequest.onBeforeSendHeaders(null);
   }
 }
 
@@ -53,15 +53,19 @@ function matchUserAgent(wc, url) {
   if (wc.getUserAgent() !== ua) wc.setUserAgent(ua);
 }
 
-// Onglets et fenêtres de connexion (popups OAuth comprises).
+// Tous les webContents : onglets, popups de connexion OAuth, applis de discussion (Google Messages).
 function setupGoogleLogin() {
   app.on('web-contents-created', (e, wc) => {
     const id = wc.id;
-    const follow = (url) => setGoogleFilter(id, isGoogleLogin(url));
+    const ses = wc.session;
+    const follow = (url) => {
+      matchUserAgent(wc, url);
+      setGoogleFilter(ses, id, isGoogleLogin(url));
+    };
     wc.on('did-start-navigation', (d) => d.isMainFrame && follow(d.url));
     wc.on('will-redirect', (d) => d.isMainFrame && follow(d.url));
-    wc.once('destroyed', () => setGoogleFilter(id, false));
+    wc.once('destroyed', () => setGoogleFilter(ses, id, false));
   });
 }
 
-Object.assign(module.exports, { matchUserAgent, setupGoogleLogin });
+Object.assign(module.exports, { setupGoogleLogin });
