@@ -4,6 +4,19 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.57',
+    notes: [
+      'WhatsApp, Google Messages et Discord dans Zenith : la flèche ⌃ de la barre du bas ouvre le tiroir des applis, et un clic ouvre l\'appli au-dessus de la barre.',
+      'Clic droit « Épingler à la barre » ou glisser une appli jusqu\'à la barre pour garder son icône à côté de la flèche, avec ses messages non lus.',
+      'Commandes « whatsapp », « messages » et « discord » (pin, unpin, reload, close).',
+    ],
+    en: [
+      'WhatsApp, Google Messages and Discord in Zenith: the ⌃ arrow in the bottom bar opens the apps drawer, and a click opens the app above the bar.',
+      'Right-click "Pin to the bar" or drag an app to the bar to keep its icon next to the arrow, with its unread messages.',
+      '"whatsapp", "messages" and "discord" commands (pin, unpin, reload, close).',
+    ],
+  },
+  {
     version: '0.1.56',
     notes: [
       'Chaque favori a le logo de son site, dans la popup des favoris et dans « fav ».',

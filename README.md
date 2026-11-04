@@ -73,6 +73,7 @@ Logic tests (bookmarks, aliases, result parsing, extensions, translations): `npm
 | `default` | makes Zenith the default browser (on Windows, registers it then opens the default apps page to pick it) |
 | `perm`, `perm reset [site]` | permissions given to sites |
 | `update`, `update install`, `update -v [version]`, `update electron`, `update auto [on\|off]` | updates (see below) |
+| `whatsapp`, `messages`, `discord` `[pin\|unpin\|reload\|close]` | open or close the app above the bottom bar; `pin`/`unpin` pins it to the bar or removes it, `close` frees its memory (see [WhatsApp, Messages, Discord](#whatsapp-messages-discord)) |
 | `devtools [detach\|close]`, `term`, `fullscreen [on\|off]`, `quit` (or `exit`, `q`), `help`, `clear` | misc (DevTools: next to the page, in a window, or closed; also buttons in the status bar; `quit` closes the browser) |
 
 Anything that is not a command, an alias or an address runs a search; an address (`example.com`, `localhost:3000`) opens directly. A command followed by words it does not expect ("home depot", "close friends") is a search too.
@@ -137,6 +138,12 @@ Nadir is Zenith's assistant: an AI model that runs entirely on your computer, wi
 Pick the level at the top of the chat or with `nadir level <name>`. Each model is downloaded only once (from Hugging Face, after you agree), with the first message at that level, into the `nadir` folder of the data. The model is only loaded with the first message and leaves memory after 5 minutes without a message (or right away with `nadir stop`); a green dot on the star shows it is in memory, and it spins while it thinks. It uses the graphics card when it can (Vulkan, Metal on Mac), otherwise the processor.
 
 Each conversation is saved from the first question and stays after a restart: the ☰ button at the top of the chat lists them (pinned first, then the most recent), to reopen, rename, pin or delete one; ⟲ starts a new one. `nadir chats` lists them in the terminal. What Nadir saw in private browsing is never saved.
+
+## WhatsApp, Messages, Discord
+
+The ⌃ arrow in the bottom bar opens the apps drawer: WhatsApp, Google Messages and Discord, with their unread messages. A click opens the app above the bar, over the page; the same icon, ✕ or the command closes it. Right-click an app, "Pin to the bar", or drag it from the drawer to the bar: its icon stays next to the arrow, with its unread badge (a red dot on the arrow means something new in an unpinned app). Right-click a pinned icon to unpin, reload or close it.
+
+These are the real sites (web.whatsapp.com, messages.google.com, discord.com): you sign in once (QR code scanned from your phone for WhatsApp and Messages, which needs an Android phone), each in its own session, separate from the tabs. An app opened once loads in the background on later launches for notifications and badges; "Close the app" (or `whatsapp close`) stops it without signing out. Links to other sites open in a tab.
 
 ## Protected videos (Netflix, Disney+…)
 

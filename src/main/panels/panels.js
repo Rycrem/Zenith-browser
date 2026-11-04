@@ -15,6 +15,7 @@ const audio = require('../audio/audio');
 const panelData = require('./panel-data');
 const mobile = require('../page/mobile');
 const nadir = require('../nadir/nadir');
+const messengers = require('../messengers/messengers');
 const { popupWindow } = require('./popup-window');
 
 let panelClosed = { kind: null, at: 0 };
@@ -58,7 +59,9 @@ function togglePanel(kind, x) {
   pw.on('closed', () => {
     panelClosed = { kind, at: Date.now() };
     if (state.panel && state.panel.win === pw) state.panel = null;
+    if (kind === 'apps') ui.sendState(); // la flèche se retourne
   });
+  if (kind === 'apps') ui.sendState();
   pw.webContents.on('before-input-event', (e, input) => {
     if (input.key === 'Escape') pw.close();
   });
@@ -109,6 +112,8 @@ async function panelAction(kind, action, arg) {
     sendPanel('ext');
   } else if (kind === 'nadir') {
     await nadir.panelAction(action, arg);
+  } else if (kind === 'apps') {
+    await messengers.trayAction(action, arg);
   } else if (kind === 'mobile') {
     const list = mobile.allDevices();
     if (action === 'set' && arg && list[arg.i]) mobile.setMobile(list[arg.i]);

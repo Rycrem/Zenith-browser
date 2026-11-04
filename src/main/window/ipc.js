@@ -24,6 +24,7 @@ const aiCommands = require('../ai/ai-command');
 const updates = require('../updates/update-command');
 const completion = require('../terminal/completion');
 const favs = require('../favorites/favorites');
+const messengers = require('../messengers/messengers');
 const { fromInternal } = require('../panels/popup-window');
 
 function setupIpc() {
@@ -46,6 +47,10 @@ function setupIpc() {
     state.rects = r.map((x) => x && { x: Math.round(x.x), y: Math.round(x.y), width: Math.round(x.width), height: Math.round(x.height) });
     ui.layout();
   });
+  // WhatsApp, Messages, Discord : x est le bord droit de l'icône (ou de la flèche) au-dessus de laquelle s'ouvrir.
+  onUi('ui:messenger', (e, id, x) => messengers.toggle(String(id), Number.isFinite(x) ? x : undefined));
+  onUi('ui:messenger-menu', (e, id) => messengers.appMenu(String(id)));
+  onUi('ui:messenger-pin', (e, id, index) => messengers.pin(String(id), Number.isInteger(index) ? index : undefined));
   onUi('ui:drag', (e, on) => {
     state.dragging = !!on;
     ui.layout();
@@ -277,7 +282,11 @@ function setupIpc() {
   onUi('ui:volume', (e, v) => Number.isFinite(v) && audio.setGlobalVolume(v));
   onUi('ui:media-toggle', () => audio.togglePlayAll().catch(() => {}));
   onUi('ui:mute-all', () => audio.setMuteAll(!state.settings.data.muteAll));
-  onUi('ui:panel', (e, kind, x) => panelData.PANELS[kind] && panels.togglePanel(kind, Number.isFinite(x) ? x : undefined));
+  onUi('ui:panel', (e, kind, x) => {
+    if (!panelData.PANELS[kind]) return;
+    if (kind === 'apps' && Number.isFinite(x)) state.drawerX = x; // une appli ouverte du tiroir s'ouvre au-dessus de la flèche
+    panels.togglePanel(kind, Number.isFinite(x) ? x : undefined);
+  });
   const fromModal = (e) => !!state.modal && !state.modal.win.isDestroyed() && e.sender === state.modal.win.webContents;
   const fromPanel = (e) => (state.panel && !state.panel.win.isDestroyed() && e.sender === state.panel.win.webContents ? state.panel : null);
   handleUi('ui:suggest', (e, text, rect) => {
@@ -300,6 +309,7 @@ function setupIpc() {
     if (state.findWin && !state.findWin.win.isDestroyed() && e.sender === state.findWin.win.webContents) return findInPage.findAction(action, arg);
     if (state.suggest && !state.suggest.win.isDestroyed() && e.sender === state.suggest.win.webContents) return suggestions.suggestAction(action, arg);
     if (fromModal(e)) return modal.modalAction(action);
+    if (messengers.isDrawer(e.sender)) return messengers.drawerAction(action);
     const p = fromPanel(e);
     if (p) panels.panelAction(p.kind, action, arg).catch((err) => output.print([{ t: `  ${err.message}`, c: 'err' }]));
   });

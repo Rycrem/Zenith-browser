@@ -35,6 +35,7 @@ const nadir = require('../nadir/nadir');
 const updates = require('../updates/update-command');
 const permissions = require('../security/permissions');
 const menu = require('../window/menu');
+const messengers = require('../messengers/messengers');
 
 const tr = t; // là où une variable locale « t » (un onglet) cache t()
 
@@ -386,6 +387,11 @@ async function exec(raw, depth = 0) {
         break;
       case 'term':
         result.hideTerminal = true;
+        break;
+      case 'whatsapp':
+      case 'messages':
+      case 'discord':
+        messengers.messengerCommand(name, args, say);
         break;
       case 'fullscreen':
       case 'fs':

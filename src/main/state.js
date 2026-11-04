@@ -44,6 +44,8 @@ function newWindowState() {
     findWin: null, // Ctrl+F : { win, tabId, screen }
     modal: null, // question au milieu de la fenêtre : { win, place, answer }
     stateQueued: false, // un envoi de l'état à l'interface est prévu
+    drawerX: null, // bord droit de la flèche des applis
+    drawer: null, // appli de discussion ouverte au-dessus de la barre du bas : { id, win, x }
   };
 }
 const OWN = new Set(Object.keys(newWindowState()));
@@ -85,7 +87,7 @@ function windowOf(wc) {
   for (const w of windows) {
     if (w.win && !w.win.isDestroyed() && w.win.webContents === wc) return w;
     if (tabsOf(w).some((tb) => (tb.view && tb.view.webContents === wc) || (tb.dev && tb.dev.webContents === wc))) return w;
-    for (const p of [w.panel, w.suggest, w.findWin, w.modal]) if (p && p.win && !p.win.isDestroyed() && p.win.webContents === wc) return w;
+    for (const p of [w.panel, w.suggest, w.findWin, w.modal, w.drawer]) if (p && p.win && !p.win.isDestroyed() && p.win.webContents === wc) return w;
     if (w.popupWin && !w.popupWin.isDestroyed() && w.popupWin.webContents === wc) return w;
   }
   return null;

@@ -84,6 +84,7 @@ const COMMANDS = [
   ['config', '<export | import> [fichier]', 'enregistrer ou charger tes réglages, favoris et extensions (pour un autre ordinateur)'],
   ['perm', '[reset [site]]', 'autorisations accordées aux sites (caméra, micro, position…)'],
   ['devtools', '[detach | close]', 'outils de développement : ouvrir, détacher dans une fenêtre, fermer'],
+  ['whatsapp / messages / discord', '[pin | unpin | reload | close]', 'ouvrir ou fermer WhatsApp, Google Messages ou Discord au-dessus de la barre du bas (aussi la flèche ⌃ et leurs icônes) ; pin l\'épingle dans la barre, close libère la mémoire'],
   ['term', '', 'cacher le terminal (Ctrl+² pour le rappeler)'],
   ['fullscreen', '[on | off]', 'plein écran (F11)'],
   ['quit / exit', '', 'quitter le navigateur'],
@@ -96,7 +97,7 @@ const COMMANDS = [
 const COMMAND_NAMES = [
   'brows', 'ia', 'nadir', 'go', 'clicks', 'back', 'fwd', 'reload', 'home', 'tab', 'close', 'split', 'focus',
   'fav', 'add', 'undo', 'hist', 'clean', 'find', 'ext', 'dl', 'alias', 'unalias', 'engine',
-  'theme', 'mode', 'gpu', 'settings', 'private', 'prive', 'lang', 'tty', 'perm', 'update', 'devtools', 'term', 'fullscreen', 'quit', 'exit', 'help', 'clear', 'popback', 'config', 'default',
+  'theme', 'mode', 'gpu', 'settings', 'private', 'prive', 'lang', 'tty', 'perm', 'update', 'devtools', 'term', 'whatsapp', 'messages', 'discord', 'fullscreen', 'quit', 'exit', 'help', 'clear', 'popback', 'config', 'default',
 ];
 
 const SUBCOMMANDS = {
@@ -121,6 +122,9 @@ const SUBCOMMANDS = {
   settings: ['general', 'ia', 'nadir', 'alias', 'ext', 'perm', 'update'],
   reload: ['hard'],
   config: ['export', 'import'],
+  whatsapp: ['pin', 'unpin', 'reload', 'close'],
+  messages: ['pin', 'unpin', 'reload', 'close'],
+  discord: ['pin', 'unpin', 'reload', 'close'],
 };
 
 // Commandes qui n'acceptent pas de texte libre : ce qu'elles acceptent après leur nom.
@@ -128,6 +132,7 @@ const ARG_SHAPES = {
   help: null, '?': null, clear: null, home: null, accueil: null, back: null, b: null, fwd: null, f: null,
   reload: /^hard$/i, r: /^hard$/i, n: null, next: null, p: null, prev: null, clicks: null, links: null, l: null, term: null, quit: null, exit: null, q: null, fullscreen: /^(on|off)$/i, fs: /^(on|off)$/i, tty: /^(on|off)$/i, gpu: /^(on|off)$/i,
   undo: null, focus: null, settings: /^(general|ia|nadir|alias|ext|perm|update)$/i, reglages: /^(general|ia|nadir|alias|ext|perm|update)$/i, 'réglages': /^(general|ia|nadir|alias|ext|perm|update)$/i, popback: null, default: null, config: /^(export|import)$/i, lang: /^(fr|en)$/i, langue: /^(fr|en)$/i, update: /^(install|electron|auto|-v|versions)$/i,
+  whatsapp: /^(pin|unpin|reload|close)$/i, messages: /^(pin|unpin|reload|close)$/i, discord: /^(pin|unpin|reload|close)$/i,
   tab: /^(\d+|new|save)$/i, tabs: /^(\d+|new|save)$/i, close: /^\d+$/, dl: /^(\d+|cancel|rm)$/i, split: /^(off|close)$/i,
   devtools: /^(detach|detacher|attach|rattacher|close|off)$/i, dev: /^(detach|detacher|attach|rattacher|close|off)$/i,
 };
