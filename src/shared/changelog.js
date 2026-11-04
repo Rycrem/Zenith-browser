@@ -4,6 +4,15 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.60',
+    notes: [
+      'Google Messages : « Se connecter » ouvre enfin la fenêtre de connexion Google (elle était bloquée par le tiroir).',
+    ],
+    en: [
+      'Google Messages: "Sign in" now opens the Google sign-in window (the drawer was blocking it).',
+    ],
+  },
+  {
     version: '0.1.59',
     notes: [
       'Google Messages : la connexion avec un compte Google ne revient plus en boucle à la page « Se connecter ».',

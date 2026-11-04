@@ -60,7 +60,12 @@ function ensure(id) {
     changed();
   });
   wc.setWindowOpenHandler(({ url }) => {
-    if (M.isOwnUrl(id, url, wc.getURL())) return { action: 'allow' };
+    // La fenêtre de connexion Google s'ouvre vide (about:blank) puis va sur accounts.google.com :
+    // elle doit s'ouvrir, dans la session de l'appli, au-dessus du tiroir.
+    if (url === 'about:blank' || M.isOwnUrl(id, url, wc.getURL())) {
+      const parent = state.drawer && !state.drawer.win.isDestroyed() ? state.drawer.win : undefined;
+      return { action: 'allow', overrideBrowserWindowOptions: { parent, width: 520, height: 680, autoHideMenuBar: true } };
+    }
     openInTab(entry, url);
     return { action: 'deny' };
   });
