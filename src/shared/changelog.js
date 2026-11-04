@@ -4,6 +4,15 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.59',
+    notes: [
+      'Google Messages : la connexion avec un compte Google ne revient plus en boucle à la page « Se connecter ».',
+    ],
+    en: [
+      'Google Messages: signing in with a Google account no longer loops back to the "Sign in" page.',
+    ],
+  },
+  {
     version: '0.1.58',
     notes: [
       'Google Meet (et les autres sites d\'appel) demande le micro et la caméra dans le terminal au lieu de se croire bloqué.',

@@ -361,6 +361,12 @@ test('applis de discussion : non-lus du titre, adresses, épinglage', () => {
   assert.ok(M.isOwnUrl('discord', 'https://canary.discord.com/channels/1'));
   assert.ok(!M.isOwnUrl('discord', 'https://evil-discord.com/'));
   assert.ok(!M.isOwnUrl('messages', 'https://www.google.com/'));
+  assert.ok(!M.isOwnUrl('messages', 'https://www.google.com/', 'https://messages.google.com/web/conversations'));
+  assert.ok(M.isOwnUrl('messages', 'https://www.google.com/accounts/SetSID', 'https://accounts.google.com/CheckCookie'));
+  assert.ok(M.isOwnUrl('messages', 'https://accounts.youtube.com/accounts/SetSID', 'https://www.google.fr/'));
+  assert.ok(!M.isOwnUrl('messages', 'https://evil.com/', 'https://accounts.google.com/'));
+  assert.ok(!M.isOwnUrl('messages', 'https://google.evil.com/', 'https://accounts.google.com/'));
+  assert.ok(!M.isOwnUrl('discord', 'https://www.google.com/', 'https://accounts.google.com/'));
   assert.ok(M.isMessenger('messages'));
   assert.ok(!M.isMessenger('toString'));
   assert.deepStrictEqual(M.pinAt(['discord'], 'whatsapp', 0), ['whatsapp', 'discord']);

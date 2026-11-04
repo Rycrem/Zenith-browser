@@ -10,14 +10,25 @@ const MESSENGERS = {
 
 const isMessenger = (id) => typeof id === 'string' && Object.hasOwn(MESSENGERS, id);
 
-// Adresse qui reste dans l'appli ; les autres s'ouvrent dans un onglet.
-function isOwnUrl(id, url) {
-  let host;
+const hostOf = (url) => {
   try {
-    host = new URL(url).hostname;
+    return new URL(url).hostname;
   } catch {
-    return false;
+    return '';
   }
+};
+
+// Pendant la connexion Google, la page passe par www.google.com, accounts.youtube.com, google.fr…
+// pour poser ses cookies : ces étapes restent dans l'appli, sinon la connexion repart de zéro.
+const GOOGLE = /(^|\.)(google\.com|youtube\.com|google\.[a-z]{2,3}|google\.co\.[a-z]{2})$/;
+const inGoogleLogin = (from, to) => GOOGLE.test(from) && from !== 'messages.google.com' && GOOGLE.test(to);
+
+// Adresse qui reste dans l'appli ; les autres s'ouvrent dans un onglet.
+// from : adresse de la page d'où part la navigation.
+function isOwnUrl(id, url, from) {
+  const host = hostOf(url);
+  if (!host) return false;
+  if (id === 'messages' && from && inGoogleLogin(hostOf(from), host)) return true;
   return MESSENGERS[id].hosts.some((h) => host === h || host.endsWith(`.${h}`));
 }
 
