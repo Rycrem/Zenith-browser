@@ -83,7 +83,11 @@ function setupPermissions(s = state.ses) {
     const origin = originOf(requestingOrigin);
     const key = permission === 'media' ? (details.mediaType === 'video' ? 'camera' : 'microphone') : permission;
     const saved = store();
-    return !!(saved[origin] && saved[origin][key] === true);
+    const v = saved[origin] && saved[origin][key];
+    // Micro et caméra : « refusé » à la vérification, Google Meet n'ose même pas demander.
+    // Sauf « jamais », on laisse le site faire sa demande, posée alors dans le terminal.
+    if (key === 'microphone' || key === 'camera' || key === 'speaker-selection') return v !== false;
+    return v === true;
   });
 }
 
