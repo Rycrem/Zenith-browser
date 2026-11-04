@@ -8,6 +8,7 @@
 const { spawnSync, spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { CASTLABS_REPO, castlabsVersions, pickCastlabs, castlabsSpec, compare } = require('../src/shared/castlabs');
 
 const [appDir, pid, mode, reportFile] = process.argv.slice(2);
 const win = process.platform === 'win32';
@@ -24,7 +25,7 @@ function alive(p) {
 
 function electronVersion() {
   try {
-    return JSON.parse(fs.readFileSync(path.join(appDir, 'node_modules', 'electron', 'package.json'), 'utf8')).version;
+    return JSON.parse(fs.readFileSync(path.join(appDir, 'node_modules', 'electron', 'package.json'), 'utf8')).version.replace(/\+wvcus$/, '');
   } catch {
     return null;
   }
@@ -48,8 +49,12 @@ const before = electronVersion();
 let ok = true;
 if (fs.existsSync(path.join(appDir, '.git'))) ok = run('git', ['pull', '--ff-only']) && ok;
 ok = run('npm', ['install']) && ok;
-if (mode === 'electron') ok = run('npm', ['install', '--save-dev', 'electron@latest']) && ok;
-else ok = run('npm', ['update']) && ok;
+ok = run('npm', ['update']) && ok;
+// Electron vient de castLabs (Widevine pour Netflix), pas de npm : on suit ses tags git.
+const tags = spawnSync('git', ['ls-remote', '--tags', CASTLABS_REPO], { cwd: appDir, shell: win, encoding: 'utf8' });
+const found = pickCastlabs(castlabsVersions(tags.stdout || ''), electronVersion() || '0.0.0');
+const target = mode === 'electron' ? found.latest : found.sameMajor;
+if (target && compare(target, electronVersion() || '0.0.0') > 0) ok = run('npm', ['install', '--save-dev', castlabsSpec(target)]) && ok;
 const after = electronVersion();
 
 fs.writeFileSync(reportFile, JSON.stringify({ ok, mode, before, after, steps, time: Date.now() }, null, 2));

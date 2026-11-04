@@ -4,6 +4,17 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.54',
+    notes: [
+      'Netflix, Disney+, Prime Video et les autres vidéos protégées se lisent : Zenith passe à l\'Electron de castLabs, qui inclut Widevine (téléchargé au premier lancement).',
+      '« update » suit désormais les versions d\'Electron publiées par castLabs quand l\'appli tourne depuis le code.',
+    ],
+    en: [
+      'Netflix, Disney+, Prime Video and other protected videos now play: Zenith moves to castLabs\' Electron, which includes Widevine (downloaded on first launch).',
+      '"update" now follows the Electron versions published by castLabs when the app runs from source.',
+    ],
+  },
+  {
     version: '0.1.53',
     notes: [
       'Les réglages ont un volet de pages à gauche : Général, puis une page par commande (ia, nadir, alias, extensions, autorisations, mises à jour) où tout se change directement.',

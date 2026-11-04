@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, session, nativeTheme, crashReporter } = require('electron');
+const { app, session, nativeTheme, crashReporter, components } = require('electron');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -97,6 +97,15 @@ app.on('child-process-gone', (e, d) => journal.log(`processus ${d.type}${d.name 
 const guard = journal.startupGuard(app.getPath('userData'));
 
 app.whenReady().then(async () => {
+  // Electron de castLabs : attendre le module Widevine (Netflix, Disney+…) avant d'ouvrir des pages.
+  if (components) {
+    try {
+      // Le premier lancement télécharge Widevine : sans réseau, on n'attend pas plus de 15 s.
+      await Promise.race([components.whenReady(), new Promise((r) => setTimeout(r, 15000))]);
+    } catch (err) {
+      journal.log(`Widevine indisponible : ${err.message}`);
+    }
+  }
   state.ses = session.defaultSession;
   const dir = app.getPath('userData');
   state.favorites = new JsonStore(path.join(dir, 'favoris.json'), { tree: fav.emptyTree() });

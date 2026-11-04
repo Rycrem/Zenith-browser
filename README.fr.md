@@ -132,6 +132,10 @@ Le niveau se choisit en haut de la discussion ou avec `nadir niveau <nom>`. Chaq
 
 Chaque discussion est enregistrée dès la première question et reste après un redémarrage : le bouton ☰ en haut de la discussion les liste (les épinglées d'abord, puis les plus récentes), pour en rouvrir, renommer, épingler ou supprimer une ; ⟲ en commence une nouvelle. `nadir discussions` les liste dans le terminal. Ce que Nadir a vu en navigation privée n'est jamais enregistré.
 
+## Vidéos protégées (Netflix, Disney+…)
+
+Zenith est construit sur l'[Electron de castLabs](https://github.com/castlabs/electron-releases), qui ajoute Widevine, le module de Google qui déchiffre les vidéos protégées. Au premier lancement, Widevine se télécharge (quelques secondes) ; ensuite Netflix, Disney+, Prime Video et les autres se lisent comme dans Chrome. Netflix exige en plus que l'appli soit signée par castLabs (signature VMP) : c'est fait à la construction de l'installateur Windows et macOS, pas quand l'appli tourne depuis le code (erreur M7701-1003). Sous Linux, la qualité est limitée par les services (souvent 720p).
+
 ## Mises à jour
 
 Une vérification se fait à chaque lancement (`update auto off` la coupe) ; `update` la lance à la demande. Au même moment, les extensions installées depuis le Chrome Web Store et uBlock Origin sont mises à jour toutes seules quand une nouvelle version existe (le terminal l'affiche). Les extensions ajoutées depuis un dossier ne sont pas touchées.
@@ -145,9 +149,9 @@ Une vérification se fait à chaque lancement (`update auto off` la coupe) ; `up
 
 **Lancée depuis le code** (`npm start`) :
 
-- `update` vérifie la version d'Electron (et donc de Chromium) et les nouveaux commits du dépôt.
+- `update` vérifie la version d'Electron (et donc de Chromium), d'après les versions publiées par castLabs, et les nouveaux commits du dépôt.
 - `update install` récupère le code (`git pull`), puis met à jour les dépendances sans changer de version majeure d'Electron : ce sont les correctifs de sécurité, sans risque de casse.
-- `update electron` passe à la toute dernière version majeure d'Electron, à tester.
+- `update electron` passe à la toute dernière version majeure d'Electron de castLabs, à tester.
 
 L'appli se ferme, la mise à jour se fait avec le `node` du système (sous Windows, Electron ne peut pas être remplacé pendant qu'il tourne), puis elle se relance et affiche le compte rendu dans le terminal.
 
@@ -173,7 +177,8 @@ Lancée depuis le code, l'appli utilise un dossier à part, `Zenith-dev` (copié
 Zenith ne collecte aucune donnée sur toi et n'a pas de télémétrie. En dehors des sites que tu ouvres, il ne se connecte tout seul qu'à :
 
 - GitHub (`github.com`, `api.github.com`), à chaque lancement, pour chercher une nouvelle version de Zenith et de uBlock Origin ;
-- le service de mise à jour du Chrome Web Store (`clients2.google.com`), à chaque lancement, pour les extensions installées depuis le store.
+- le service de mise à jour du Chrome Web Store (`clients2.google.com`), à chaque lancement, pour les extensions installées depuis le store ;
+- les serveurs de composants de Google (`update.googleapis.com`, `dl.google.com`), pour télécharger Widevine et ses mises à jour (vidéos protégées).
 
 Ces vérifications se coupent dans l'installateur Windows (case de la page Confidentialité, affichée pendant l'installation) ou à tout moment avec `update auto off` ; `update` marche toujours à la demande.
 

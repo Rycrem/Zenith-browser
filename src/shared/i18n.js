@@ -324,7 +324,7 @@
     '  ✓ Zenith mis à jour en {version}': '  ✓ Zenith updated to {version}',
     '  ✓ extension {name} mise à jour : {from} → {to}': '  ✓ extension {name} updated: {from} → {to}',
     '  mise à jour impossible pour {names} ({error})': '  update failed for {names} ({error})',
-    'npm est introuvable ou hors ligne : impossible de vérifier': 'npm not found or offline: cannot check',
+    'git est introuvable ou hors ligne : impossible de vérifier': 'git not found or offline: cannot check',
     'node est introuvable : mets à jour à la main avec « npm update »': 'node not found: update by hand with “npm update”',
 
     // clés de sécurité et autorisations
