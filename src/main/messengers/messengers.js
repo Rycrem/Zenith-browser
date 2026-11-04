@@ -60,12 +60,12 @@ function ensure(id) {
     changed();
   });
   wc.setWindowOpenHandler(({ url }) => {
-    if (M.isOwnUrl(id, url)) return { action: 'allow' };
+    if (M.isOwnUrl(id, url, wc.getURL())) return { action: 'allow' };
     openInTab(entry, url);
     return { action: 'deny' };
   });
   wc.on('will-navigate', (e) => {
-    if (M.isOwnUrl(id, e.url)) return;
+    if (M.isOwnUrl(id, e.url, wc.getURL())) return;
     e.preventDefault();
     openInTab(entry, e.url);
   });
