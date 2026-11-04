@@ -4,6 +4,25 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.58',
+    notes: [
+      'Google Meet (et les autres sites d\'appel) demande le micro et la caméra dans le terminal au lieu de se croire bloqué.',
+      'La connexion Google marche dans Google Messages et dans les fenêtres de connexion ouvertes par un site.',
+      'WhatsApp, Messages et Discord s\'ouvrent en 16:9 ; tire un bord du tiroir pour changer sa taille, elle est gardée.',
+      'Clic droit sur un favori de la popup : « Ouvrir le lien dans un nouvel onglet ».',
+      'Une page arrêtée par le bloqueur de pub (lien d\'affiliation, pistage) propose d\'y aller quand même, vers le site d\'arrivée.',
+      'Animations : les onglets changent de largeur en douceur, le terminal se replie et se déplie, et une vidéo glisse vers le plein écran.',
+    ],
+    en: [
+      'Google Meet (and other calling sites) asks for the microphone and camera in the terminal instead of thinking it is blocked.',
+      'Google sign-in works in Google Messages and in sign-in windows opened by a site.',
+      'WhatsApp, Messages and Discord open in 16:9; drag an edge of the drawer to resize it, the size is kept.',
+      'Right-click a bookmark in the popup: "Open link in new tab".',
+      'A page stopped by the ad blocker (affiliate link, tracking) offers to go there anyway, to the destination site.',
+      'Animations: tabs change width smoothly, the terminal folds and unfolds, and a video slides into fullscreen.',
+    ],
+  },
+  {
     version: '0.1.57',
     notes: [
       'WhatsApp, Google Messages et Discord dans Zenith : la flèche ⌃ de la barre du bas ouvre le tiroir des applis, et un clic ouvre l\'appli au-dessus de la barre.',

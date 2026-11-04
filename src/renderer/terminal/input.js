@@ -99,6 +99,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 function setTerminalHidden(hidden) {
+  animateLayout();
   app.classList.toggle('term-hidden', hidden);
   persist('termHidden', hidden);
   if (hidden) api.focusPage();

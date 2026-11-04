@@ -42,8 +42,8 @@ function alignTabGroups() {
 
 // Un onglet rétréci au plus petit (min-width) n'affiche que l'icône de son site.
 // On mesure sans la classe, puisque cacher le titre change la largeur voulue.
-function fitTabs() {
-  if (tabDrag) return;
+function fitTabs(force) {
+  if (tabDrag || (tabAnims && !force)) return;
   const els = [...document.querySelectorAll('#tabbar .tab')];
   els.forEach((el) => el.classList.remove('mini'));
   const mini = els.filter((el) => !el.classList.contains('active') && el.getBoundingClientRect().width <= parseFloat(getComputedStyle(el).minWidth) + 0.5);
@@ -234,6 +234,7 @@ function tabEl(tb, shown) {
     'div',
     {
       class: `tab${shown ? ' active' : ''}${tb.private ? ' private' : ''}${tb.id === arrivedId ? ' arrived' : ''}`,
+      'data-id': tb.id,
       // Clic molette : ferme l'onglet.
       onmousedown: (e) => { if (e.button === 1) e.preventDefault(); },
       onauxclick: (e) => { if (e.button === 1) api.closeTab(tb.id); },
@@ -259,8 +260,31 @@ function tabEl(tb, shown) {
   );
 }
 
+// Onglet ouvert, fermé, affiché ou rétréci : les largeurs changent en douceur (FLIP),
+// le nouvel onglet part de rien.
+// Pendant l'animation, les largeurs ne sont pas les vraies : fitTabs attend la fin.
+const TAB_RESIZE_MS = 180;
+let tabAnims = 0;
+function animateTabWidths(before) {
+  const list = [];
+  for (const el of document.querySelectorAll('#tabbar .tab')) {
+    if (el.classList.contains('arrived')) continue;
+    const from = before.has(el.dataset.id) ? before.get(el.dataset.id) : 0;
+    const to = el.getBoundingClientRect().width;
+    if (Math.abs(from - to) < 1) continue;
+    list.push(el.animate([{ flex: `0 0 ${from}px`, minWidth: 0 }, { flex: `0 0 ${to}px`, minWidth: 0 }], { duration: TAB_RESIZE_MS, easing: 'ease-out' }).finished.catch(() => {}));
+  }
+  if (!list.length) return;
+  tabAnims++;
+  Promise.all(list).then(() => {
+    tabAnims--;
+    fitTabs();
+  });
+}
+
 function renderTabs() {
   if (tabDrag && tabDrag.moved) return; // rendu à la fin du glissement
+  const before = new Map([...document.querySelectorAll('#tabbar .tab')].map((el) => [el.dataset.id, el.getBoundingClientRect().width]));
   const split = state.panes.length > 1;
   groups.forEach((g, i) => {
     g.el.classList.toggle('active', split && i === state.activePane);
@@ -279,7 +303,9 @@ function renderTabs() {
       if (el) el.scrollIntoView({ inline: 'nearest', block: 'nearest' });
     }
   });
-  fitTabs();
+  fitTabs(true);
+  // Au premier rendu (lancement), rien à animer.
+  if (before.size) animateTabWidths(before);
   // Pas pendant qu'on la modifie.
   if (document.activeElement !== urlInput) urlInput.value = siteOf(state.status.url);
   renderFavButton();

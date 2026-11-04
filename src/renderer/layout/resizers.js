@@ -43,7 +43,17 @@ dragger($('#resizer'), (e) => {
   document.documentElement.style.setProperty('--term-h', `${termH}px`);
 }, () => persist('termH', termH));
 
+// Terminal caché, montré ou remis à sa taille : la ligne du terminal change de hauteur en douceur.
+// Pas pendant un glissement, où elle doit suivre la souris.
+let animTimer = null;
+function animateLayout() {
+  app.classList.add('anim');
+  clearTimeout(animTimer);
+  animTimer = setTimeout(() => app.classList.remove('anim'), 250);
+}
+
 $('#resizer').addEventListener('dblclick', () => {
+  animateLayout();
   termH = 220;
   document.documentElement.style.setProperty('--term-h', '220px');
   persist('termH', termH);

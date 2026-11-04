@@ -1,10 +1,9 @@
 'use strict';
 
 const crypto = require('crypto');
-const { WebContentsView } = require('electron');
+const { WebContentsView, session } = require('electron');
 const { t } = require('../../shared/i18n');
 const state = require('../state');
-const googleLogin = require('../security/google-login');
 const hist = require('../history/history');
 const ui = require('../window/ui');
 const tabList = require('./tabs');
@@ -14,6 +13,7 @@ const webStore = require('../extensions/web-store');
 const navigation = require('./navigation');
 const screens = require('../terminal/screens');
 const output = require('../terminal/output');
+const questions = require('../terminal/questions');
 const tty = require('../page/tty');
 const contextMenu = require('./context-menu');
 const audio = require('../audio/audio');
@@ -58,12 +58,52 @@ const NAV_SCRIPT = `if (!window.__zenithNav) {
   }, true);
 }`;
 
+// ERR_BLOCKED_BY_CLIENT : le bloqueur de pub a arrêté la page elle-même, souvent un lien d'affiliation
+// (awin1.com…) qui redirige vers le vrai site. On propose de suivre ses redirections hors du bloqueur,
+// dans une session vide jetée ensuite, puis d'ouvrir la page d'arrivée normalement.
+const unblocked = new Set(); // adresses déjà débloquées : pas de deuxième question si l'arrivée est bloquée aussi
+
+function offerUnblock(tab, url) {
+  if (unblocked.has(url)) {
+    output.print([{ t: t('impossible de charger {url} : bloqué par le bloqueur de pub', { url }), c: 'err' }]);
+    return;
+  }
+  let host = url;
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    // adresse illisible : affichée telle quelle
+  }
+  const lines = questions.confirm(t('{site} est bloqué par le bloqueur de pub (pistage ou lien d\'affiliation). Y aller quand même ?', { site: host }), async (say) => {
+    unblocked.add(url);
+    let dest = url;
+    try {
+      const res = await session.fromPartition('zenith-sans-bloqueur').fetch(url, { redirect: 'follow' });
+      dest = res.url || url;
+      if (res.body) res.body.cancel().catch(() => {});
+    } catch {
+      // site injoignable : la page d'erreur habituelle le dira
+    }
+    unblocked.add(dest);
+    if (dest === url) {
+      say(t('  ✗ cette page ne mène pas à un autre site : elle reste bloquée (« ext off n » coupe le bloqueur)'), 'dim');
+      return;
+    }
+    if (!tab.view || tab.view.webContents.isDestroyed()) return;
+    say(`  → ${dest}`, 'dim');
+    navigation.navigate(tab, dest);
+  });
+  if (lines.length) {
+    output.print(lines);
+    output.focusTerminal();
+  }
+}
+
 function wireWebContents(tab, wc) {
   // Ses événements se traitent dans la fenêtre où se trouve l'onglet à ce moment-là.
   state.bindEmitter(wc, () => state.windowOfTab(tab));
   wc.on('did-start-navigation', (details) => {
     if (!details.isMainFrame) return;
-    googleLogin.matchUserAgent(wc, details.url);
     mobile.applyMobile(tab);
   });
   wc.on('did-start-loading', () => {
@@ -154,6 +194,7 @@ function wireWebContents(tab, wc) {
   });
   wc.on('did-fail-load', (e, code, desc, url, isMainFrame) => {
     if (isMainFrame) navigation.unblank(tab);
+    if (isMainFrame && code === -20) return offerUnblock(tab, url);
     if (isMainFrame && code !== -3) output.print([{ t: t('impossible de charger {url} : {desc}', { url, desc }), c: 'err' }]);
   });
   wc.on('focus', () => {
