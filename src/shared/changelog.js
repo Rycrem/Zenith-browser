@@ -4,6 +4,17 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.62',
+    notes: [
+      'Connexion Google : le bouton « Se connecter avec Google » ne revient plus aussitôt à la page du site (Google Messages compris).',
+      'Applis de discussion : un clic ailleurs dans la fenêtre referme le tiroir.',
+    ],
+    en: [
+      'Google sign-in: the "Sign in with Google" button no longer bounces straight back to the site (Google Messages included).',
+      'Chat apps: clicking elsewhere in the window closes the drawer.',
+    ],
+  },
+  {
     version: '0.1.61',
     notes: [
       'Discord et Google Messages : la fenêtre Sécurité Windows (clé d\'accès) ne s\'ouvre plus toute seule à chaque lancement.',

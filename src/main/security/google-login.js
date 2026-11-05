@@ -58,11 +58,15 @@ function setupGoogleLogin() {
   app.on('web-contents-created', (e, wc) => {
     const id = wc.id;
     const ses = wc.session;
-    const follow = (url) => {
-      matchUserAgent(wc, url);
-      setGoogleFilter(ses, id, isGoogleLogin(url));
-    };
-    wc.on('did-start-navigation', (d) => d.isMainFrame && follow(d.url));
+    const follow = (url) => setGoogleFilter(ses, id, isGoogleLogin(url));
+    wc.on('did-start-navigation', (d) => {
+      if (!d.isMainFrame) return;
+      matchUserAgent(wc, d.url);
+      follow(d.url);
+    });
+    // Pas de setUserAgent pendant une redirection (site -> accounts.google.com) : Chromium rechargerait
+    // la page de départ et la connexion reviendrait aussitôt au bouton « Se connecter avec Google ».
+    // Le filtre d'en-têtes suffit à présenter Firefox à Google.
     wc.on('will-redirect', (d) => d.isMainFrame && follow(d.url));
     wc.once('destroyed', () => setGoogleFilter(ses, id, false));
   });

@@ -152,6 +152,16 @@ function open(id, x) {
       if (own.drawer === d) own.drawer = null;
       state.inWindow(own, ui.sendState);
     });
+    // Clic ailleurs dans la fenêtre Zenith : le tiroir se ferme. Le clic sur l'icône qui suit
+    // ne doit pas le rouvrir aussitôt (voir toggle).
+    const outside = () => {
+      // Juste après l'ouverture, la fenêtre peut reprendre la main (popup des applis refermé) : pas un clic.
+      if (own.drawer !== d || !win.isVisible() || Date.now() - d.openedAt < 600) return;
+      closedByClick = { id: d.id, at: Date.now() };
+      state.inWindow(own, close);
+    };
+    own.win.on('focus', outside);
+    win.on('closed', () => !own.win.isDestroyed() && own.win.removeListener('focus', outside));
     win.on('resize', () => fitView(d));
     // Seulement quand on tire un bord (pas pour les setBounds de Zenith) : la taille est gardée.
     win.on('will-resize', (e, nb) => {
@@ -162,6 +172,7 @@ function open(id, x) {
     d.win.setBounds(drawerBounds(state.drawerX));
     sendHeader(d);
   }
+  d.openedAt = Date.now();
   entry.w = state.current();
   d.win.contentView.addChildView(entry.view);
   fitView(d);
@@ -187,8 +198,14 @@ function close() {
   ui.sendState();
 }
 
+// Dernier tiroir fermé par un clic dans la fenêtre : { id, at }.
+let closedByClick = null;
+
 function toggle(id, x) {
   if (!M.isMessenger(id)) return;
+  const c = closedByClick;
+  closedByClick = null;
+  if (c && c.id === id && Date.now() - c.at < 500) return;
   if (state.drawer && state.drawer.id === id) close();
   else open(id, x);
 }
