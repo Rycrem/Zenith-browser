@@ -4,6 +4,15 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.63',
+    notes: [
+      'Google Messages : la connexion Google n\'affiche plus « Ce navigateur ou cette application ne sont peut-être pas sécurisés ».',
+    ],
+    en: [
+      'Google Messages: Google sign-in no longer says "This browser or app may not be secure".',
+    ],
+  },
+  {
     version: '0.1.62',
     notes: [
       'Connexion Google : le bouton « Se connecter avec Google » ne revient plus aussitôt à la page du site (Google Messages compris).',

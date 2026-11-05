@@ -72,4 +72,4 @@ function setupGoogleLogin() {
   });
 }
 
-Object.assign(module.exports, { setupGoogleLogin });
+Object.assign(module.exports, { setupGoogleLogin, isGoogleLogin, firefoxUserAgent });
