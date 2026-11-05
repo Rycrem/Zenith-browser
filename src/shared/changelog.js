@@ -7,9 +7,11 @@ const CHANGELOG = [
     version: '0.1.61',
     notes: [
       'Discord et Google Messages : la fenêtre Sécurité Windows (clé d\'accès) ne s\'ouvre plus toute seule à chaque lancement.',
+      '« Se connecter avec Google » sur les sites : le bouton ouvre de nouveau la fenêtre de connexion Google.',
     ],
     en: [
       'Discord and Google Messages: the Windows Security (passkey) window no longer pops up on every launch.',
+      '"Sign in with Google" on websites: the button opens the Google sign-in window again.',
     ],
   },
   {

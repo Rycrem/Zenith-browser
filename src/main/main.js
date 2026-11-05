@@ -62,6 +62,10 @@ try {
   // pas encore de réglages
 }
 
+// « Se connecter avec Google » passe par FedCM sur un Chrome récent, mais Electron n'a pas la fenêtre
+// de choix du compte : la demande échoue et le bouton ne fait rien. Sans FedCM, Google ouvre sa popup.
+app.commandLine.appendSwitch('disable-blink-features', 'FedCm');
+
 // Sans les mentions Electron et du nom de l'appli, les sites voient un Chrome ordinaire.
 app.userAgentFallback = app.userAgentFallback
   .replace(/ Electron\/\S+/, '')
