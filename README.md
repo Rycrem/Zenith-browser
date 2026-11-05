@@ -141,7 +141,7 @@ Each conversation is saved from the first question and stays after a restart: th
 
 ## WhatsApp, Messages, Discord
 
-The ⌃ arrow in the bottom bar opens the apps drawer: WhatsApp, Google Messages and Discord, with their unread messages. A click opens the app above the bar, over the page, in 16:9 (drag its edges to resize it; the size is kept); the same icon, ✕ or the command closes it. Right-click an app, "Pin to the bar", or drag it from the drawer to the bar: its icon stays next to the arrow, with its unread badge (a red dot on the arrow means something new in an unpinned app). Right-click a pinned icon to unpin, reload or close it.
+The ⌃ arrow in the bottom bar opens the apps drawer: WhatsApp, Google Messages and Discord, with their unread messages. A click opens the app above the bar, over the page, in 16:9 (drag its edges to resize it; the size is kept); the same icon, ✕, the command or a click elsewhere in the window closes it. Right-click an app, "Pin to the bar", or drag it from the drawer to the bar: its icon stays next to the arrow, with its unread badge (a red dot on the arrow means something new in an unpinned app). Right-click a pinned icon to unpin, reload or close it.
 
 These are the real sites (web.whatsapp.com, messages.google.com, discord.com): you sign in once (QR code scanned from your phone for WhatsApp and Messages, which needs an Android phone), each in its own session, separate from the tabs. An app opened once loads in the background on later launches for notifications and badges; "Close the app" (or `whatsapp close`) stops it without signing out. Links to other sites open in a tab.
 
