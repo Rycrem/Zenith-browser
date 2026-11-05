@@ -10,6 +10,7 @@ const tabList = require('../tabs/tabs');
 const output = require('../terminal/output');
 const dl = require('../downloads/downloads');
 const { popupWindow } = require('../panels/popup-window');
+const googleLogin = require('../security/google-login');
 
 // Ce que les applis obtiennent sans question : les notifications, le micro et la caméra
 // (messages vocaux, appels), seulement pour leurs propres adresses.
@@ -69,6 +70,24 @@ function ensure(id) {
     }
     openInTab(entry, url);
     return { action: 'deny' };
+  });
+  // Fenêtre de connexion Google (Messages) : ouverte par la page puis envoyée vers accounts.google.com.
+  // Chromium garde alors l'user-agent Chrome dans la page (navigator.userAgent) alors que l'en-tête dit
+  // Firefox : Google répond « Ce navigateur ou cette application ne sont peut-être pas sécurisés ».
+  // On relance ce chargement depuis Zenith, avec l'user-agent Firefox, sans perdre le lien avec Messages.
+  wc.on('did-create-window', (win, { url }) => {
+    const pw = win.webContents;
+    let relaunched = false;
+    const relaunch = (target) => {
+      relaunched = true;
+      pw.loadURL(target, { userAgent: googleLogin.firefoxUserAgent(), httpReferrer: wc.getURL() });
+    };
+    if (googleLogin.isGoogleLogin(url)) relaunch(url);
+    pw.on('will-navigate', (e) => {
+      if (relaunched || !googleLogin.isGoogleLogin(e.url)) return;
+      e.preventDefault();
+      relaunch(e.url);
+    });
   });
   wc.on('will-navigate', (e) => {
     if (M.isOwnUrl(id, e.url, wc.getURL())) return;
