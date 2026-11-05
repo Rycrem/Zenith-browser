@@ -1,5 +1,6 @@
 'use strict';
 
+const path = require('path');
 const { app, session, WebContentsView, Menu } = require('electron');
 const M = require('../../shared/messengers');
 const { t } = require('../../shared/i18n');
@@ -48,7 +49,7 @@ function openInTab(entry, url) {
 
 function ensure(id) {
   if (apps[id]) return apps[id];
-  const view = new WebContentsView({ webPreferences: { session: setupSession(id), sandbox: true, contextIsolation: true, backgroundThrottling: false } });
+  const view = new WebContentsView({ webPreferences: { session: setupSession(id), preload: path.join(__dirname, 'messenger-preload.js'), sandbox: true, contextIsolation: true, backgroundThrottling: false } });
   view.setBackgroundColor('#ffffff');
   const entry = { view, unread: 0, w: null };
   apps[id] = entry;
