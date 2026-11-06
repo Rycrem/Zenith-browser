@@ -4,6 +4,25 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.64',
+    notes: [
+      'Gmail et Google Chat rejoignent WhatsApp, Messages et Discord dans le tiroir des applis (commandes « gmail » et « chat »).',
+      'Applis de discussion : un clic ailleurs ferme l\'appli et fait aussi son effet (onglet, lien, bouton) du premier coup.',
+      'Tiroir des applis : même fond et mêmes bordures que celui des extensions, sans le message d\'aide.',
+      'Onglets : une bordure à droite et en bas pour mieux les distinguer, et une marge en haut pour déplacer la fenêtre.',
+      'Fermer un onglet ne fait plus réapparaître le terminal caché.',
+      'Réglages : hors de l\'écran d\'accueil, ils s\'ouvrent dans un nouvel onglet.',
+    ],
+    en: [
+      'Gmail and Google Chat join WhatsApp, Messages and Discord in the apps drawer ("gmail" and "chat" commands).',
+      'Chat apps: clicking elsewhere closes the app and also does its job (tab, link, button) on the first click.',
+      'Apps drawer: same background and borders as the extensions one, without the help text.',
+      'Tabs: a border on the right and bottom to tell them apart, and a margin on top to move the window.',
+      'Closing a tab no longer brings back the hidden terminal.',
+      'Settings: away from the home screen, they open in a new tab.',
+    ],
+  },
+  {
     version: '0.1.63',
     notes: [
       'Google Messages : la connexion Google n\'affiche plus « Ce navigateur ou cette application ne sont peut-être pas sécurisés ».',

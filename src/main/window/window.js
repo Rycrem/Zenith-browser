@@ -36,7 +36,7 @@ function createWindow(bounds, inactive = false) {
     backgroundColor: theme.isLight() ? '#F6F7F9' : '#0E1116',
     title: 'Zenith',
     titleBarStyle: 'hidden',
-    ...(mac ? { trafficLightPosition: { x: 12, y: 13 } } : { titleBarOverlay: { color: '#000000', symbolColor: '#D6DEE8', height: 40 } }),
+    ...(mac ? { trafficLightPosition: { x: 12, y: 17 } } : { titleBarOverlay: { color: '#000000', symbolColor: '#D6DEE8', height: 48 } }),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), sandbox: true, contextIsolation: true },
   });
   // Ses événements se traitent dans son propre état.

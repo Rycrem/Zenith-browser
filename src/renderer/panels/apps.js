@@ -10,7 +10,6 @@ function render(d) {
   if (dragging) return;
   $('#title').textContent = d.title;
   $('#total').textContent = d.total;
-  $('#hint').textContent = d.hint;
   $('#tiles').replaceChildren(...d.list.map((a) => {
     const tile = h('button', { type: 'button', class: `tile${a.open ? ' open' : ''}`, title: a.name, 'data-id': a.id },
       messengerIcon(a.id),

@@ -117,7 +117,7 @@ function drawerBounds(x) {
   const size = state.settings.data.drawerSize || { width: Math.round((HEIGHT * 16) / 9), height: HEIGHT };
   const width = Math.max(300, Math.min(size.width, b.width - 16));
   const bottom = b.y + b.height - 32;
-  const height = Math.max(200, Math.min(size.height, bottom - (b.y + 48)));
+  const height = Math.max(200, Math.min(size.height, bottom - (b.y + 56)));
   const right = Number.isFinite(x) ? b.x + Math.round(x) : b.x + b.width - 16;
   const left = Math.max(b.x + 8, Math.min(right - width, b.x + b.width - width - 8));
   return { x: left, y: bottom - height, width, height };
@@ -176,8 +176,13 @@ function open(id, x) {
     const outside = () => {
       // Juste après l'ouverture, la fenêtre peut reprendre la main (popup des applis refermé) : pas un clic.
       if (own.drawer !== d || !win.isVisible() || Date.now() - d.openedAt < 600) return;
-      closedByClick = { id: d.id, at: Date.now() };
-      state.inWindow(own, close);
+      const id = d.id;
+      closedByClick = { id, at: Date.now() };
+      // Fermé un peu après : le clic va au bout (onglet, lien, bouton) sans que l'interface
+      // soit redessinée ni le clavier déplacé entre l'appui et le relâchement.
+      setTimeout(() => {
+        if (own.drawer === d && d.id === id) state.inWindow(own, () => close(false));
+      }, 250);
     };
     own.win.on('focus', outside);
     win.on('closed', () => !own.win.isDestroyed() && own.win.removeListener('focus', outside));
@@ -205,14 +210,16 @@ function open(id, x) {
   ui.sendState();
 }
 
-function close() {
+// refocus : le clavier revient à la page ou au terminal (pas après un clic ailleurs, qui l'a déjà placé).
+function close(refocus = true) {
   const d = state.drawer;
   if (!d) return;
   if (apps[d.id]) detach(apps[d.id]);
   state.drawer = null;
   if (!d.win.isDestroyed()) d.win.close();
   const tab = tabList.activeTab();
-  if (tab && tab.view && !tab.screen) tab.view.webContents.focus();
+  if (!refocus);
+  else if (tab && tab.view && !tab.screen) tab.view.webContents.focus();
   else output.focusTerminal();
   ui.sendState();
 }
@@ -311,7 +318,6 @@ function trayData() {
   return {
     title: t('applis'),
     total: total ? t('{n} non lus', { n: total }) : '',
-    hint: t('Clic droit ou glisser vers la barre pour épingler.'),
     pinnedLabel: t('épinglée'),
     list,
   };

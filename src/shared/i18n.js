@@ -505,16 +505,15 @@
     'Désépingler': 'Unpin',
     'Fermer l\'appli (libère la mémoire)': 'Close the app (frees memory)',
     'applis': 'apps',
-    'Clic droit ou glisser vers la barre pour épingler.': 'Right-click or drag to the bar to pin.',
     'épinglée': 'pinned',
     '  ✓ {name} épinglé dans la barre du bas': '  ✓ {name} pinned to the bottom bar',
     '  ✓ {name} retiré de la barre du bas (toujours dans le tiroir des applis, flèche ⌃)': '  ✓ {name} removed from the bottom bar (still in the apps drawer, ⌃ arrow)',
     '  {name} rechargé': '  {name} reloaded',
     '  {name} fermé : il ne se charge plus au lancement, « {cmd} » le rouvre': '  {name} closed: it no longer loads at startup, "{cmd}" opens it again',
     '  {name} ouvert ; « {cmd} » ou son icône le referme': '  {name} opened; "{cmd}" or its icon closes it',
-    'Applis : WhatsApp, Messages, Discord': 'Apps: WhatsApp, Messages, Discord',
+    'Applis : WhatsApp, Messages, Gmail, Chat, Discord': 'Apps: WhatsApp, Messages, Gmail, Chat, Discord',
     '[pin | unpin | reload | close]': '[pin | unpin | reload | close]',
-    'ouvrir ou fermer WhatsApp, Google Messages ou Discord au-dessus de la barre du bas (aussi la flèche ⌃ et leurs icônes) ; pin l\'épingle dans la barre, close libère la mémoire': 'open or close WhatsApp, Google Messages or Discord above the bottom bar (also the ⌃ arrow and their icons); pin pins it to the bar, close frees memory',
+    'ouvrir ou fermer WhatsApp, Google Messages, Gmail, Google Chat ou Discord au-dessus de la barre du bas (aussi la flèche ⌃ et leurs icônes) ; pin l\'épingle dans la barre, close libère la mémoire': 'open or close WhatsApp, Google Messages, Gmail, Google Chat or Discord above the bottom bar (also the ⌃ arrow and their icons); pin pins it to the bar, close frees memory',
     'Glisser pour redimensionner le terminal (double-clic : taille par défaut)': 'Drag to resize the terminal (double-click: default size)',
 
     // favoris et fichiers

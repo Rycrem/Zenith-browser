@@ -285,8 +285,7 @@ button.link { border: none; padding: 0; color: var(--accent); text-decoration: u
 .nadir footer { border-top: 1px solid var(--line); }
 
 /* Tiroir des applis (flèche ⌃) : une tuile par appli. */
-#pop.apps { border-color: var(--line); border-radius: 8px; }
-.apps header { display: flex; justify-content: space-between; font-weight: 400; color: var(--dim); border-bottom: none; padding-bottom: 2px; }
+.apps header { display: flex; justify-content: space-between; font-weight: 400; color: var(--dim); }
 #tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 6px 8px; }
 .tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 2px 6px; border: none; border-radius: 6px; color: var(--text); font-size: 12px; cursor: pointer; touch-action: none; }
 .tile:hover, .tile.open { background: var(--bg-raised); }
@@ -297,7 +296,6 @@ button.link { border: none; padding: 0; color: var(--accent); text-decoration: u
 body.dragging, body.dragging .tile { cursor: grabbing; }
 .app-badge { position: absolute; right: 18px; top: 4px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #E5484D; color: #fff; font: 700 10px/16px sans-serif; text-align: center; pointer-events: none; }
 .app-badge.dot { min-width: 10px; width: 10px; height: 10px; padding: 0; right: 22px; top: 6px; }
-.apps footer { border-top: none; color: var(--dim); font-size: 11px; padding-top: 2px; }
 
 /* Barre du tiroir de discussion, au-dessus de l'appli. */
 body.drawer { height: 100vh; border: 1px solid var(--line); }

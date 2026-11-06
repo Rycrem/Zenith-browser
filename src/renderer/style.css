@@ -62,13 +62,13 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
 
 #app {
   display: grid;
-  grid-template-rows: 40px minmax(0, 1fr) 6px var(--term-h) 28px;
+  grid-template-rows: 48px minmax(0, 1fr) 6px var(--term-h) 28px;
   height: 100vh;
 }
 
 /* Caché, le terminal garde sa ligne à 0 de haut : il se replie et se déplie en douceur (classe anim),
    et la page le suit. */
-#app.term-hidden { grid-template-rows: 40px minmax(0, 1fr) 0 0 28px; }
+#app.term-hidden { grid-template-rows: 48px minmax(0, 1fr) 0 0 28px; }
 #app.term-hidden #terminal, #app.term-hidden #resizer { visibility: hidden; overflow: hidden; border: 0; }
 #app.anim { transition: grid-template-rows .2s ease-out; }
 #app.anim.term-hidden #terminal, #app.anim.term-hidden #resizer { transition: visibility 0s .2s; }
@@ -99,10 +99,12 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
   --text: #D6DEE8;
   --dim: #8A96A6;
   --green: #7FD18B;
+  --tab-border: #4A5565;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 12px;
+  /* En haut, une bande vide (8 px) pour attraper la fenêtre et la déplacer. */
+  padding: 8px 12px 0;
   /* Les boutons de la fenêtre (réduire, agrandir, fermer) sont dessinés à droite par le système. */
   padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 12px);
   background: #000;
@@ -117,7 +119,7 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
 
 :root[data-platform="darwin"] #tabbar { padding-left: 84px; }
 #tabbar button, #tabbar .tab, #tabbar .url { -webkit-app-region: no-drag; }
-:root[data-private] #tabbar { background: #1B0F26; border-bottom-color: #1B0F26; --bg-raised: #231531; --chip: #2C1B3D; --line: #36234B; }
+:root[data-private] #tabbar { background: #1B0F26; border-bottom-color: #1B0F26; --bg-raised: #231531; --chip: #2C1B3D; --line: #36234B; --tab-border: #4A3363; }
 
 #tabs { flex: 1 1 auto; display: flex; align-items: center; min-width: 0; align-self: stretch; }
 .tab-group { flex: 1 1 0; display: flex; align-items: center; gap: 4px; min-width: 0; }
@@ -139,6 +141,9 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
   min-width: 74px;
   padding: 4px 6px 4px 10px;
   border-radius: 4px;
+  /* Bordure à droite et en bas : chaque onglet se détache nettement de ses voisins. */
+  border-right: 1px solid var(--tab-border);
+  border-bottom: 1px solid var(--tab-border);
   color: var(--dim);
   white-space: nowrap;
 }

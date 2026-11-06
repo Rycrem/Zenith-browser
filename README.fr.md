@@ -60,13 +60,13 @@ Tests de la logique (favoris, alias, lecture des résultats, extensions) : `npm 
 | `dl cancel n` / `dl rm n` | arrête le téléchargement n (fichier partiel supprimé) / le retire de la liste (le fichier reste) |
 | `alias nom = commande [; commande…]`, `unalias nom` | raccourcis perso, qui peuvent enchaîner des commandes |
 | `engine ddg\|google\|bing\|qwant`, `theme ambre\|vert\|cyan\|rose\|violet\|#rrggbb`, `lang [fr\|en]` | réglages |
-| `settings [page]` | page des réglages, avec un volet de pages à gauche : Général (mode nuit/jour, couleur avec un sélecteur pour une couleur à soi, langue, moteur, accélération matérielle, navigateur par défaut, sauvegarde), puis une page par commande qui a des réglages : `ia`, `nadir`, `alias`, `ext`, `perm`, `update` ; aussi le bouton ⚙ tout à droite de la barre d'état, à côté de Nadir |
+| `settings [page]` | page des réglages, avec un volet de pages à gauche : Général (mode nuit/jour, couleur avec un sélecteur pour une couleur à soi, langue, moteur, accélération matérielle, navigateur par défaut, sauvegarde), puis une page par commande qui a des réglages : `ia`, `nadir`, `alias`, `ext`, `perm`, `update` ; aussi le bouton ⚙ tout à droite de la barre d'état, à côté de Nadir. Hors de l'accueil, les réglages s'ouvrent dans un nouvel onglet |
 | `gpu [on\|off]` | active ou coupe l'accélération matérielle (Zenith propose de se relancer) |
 | `config export [fichier]`, `config import [fichier]` | enregistre ou charge tes réglages, favoris et extensions dans un fichier, pour passer à un autre ordinateur (sans les clés des IA) |
 | `default` | fait de Zenith le navigateur par défaut (sous Windows, l'inscrit puis ouvre la page des applications par défaut où le choisir) |
 | `perm`, `perm reset [site]` | autorisations données aux sites |
 | `update`, `update install`, `update -v [version]`, `update electron`, `update auto [on\|off]` | mises à jour (voir plus bas) |
-| `whatsapp`, `messages`, `discord` `[pin\|unpin\|reload\|close]` | ouvrir ou fermer l'appli au-dessus de la barre du bas ; `pin`/`unpin` l'épingle ou la retire de la barre, `close` libère sa mémoire (voir [WhatsApp, Messages, Discord](#whatsapp-messages-discord)) |
+| `whatsapp`, `messages`, `gmail`, `chat`, `discord` `[pin\|unpin\|reload\|close]` | ouvrir ou fermer l'appli au-dessus de la barre du bas ; `pin`/`unpin` l'épingle ou la retire de la barre, `close` libère sa mémoire (voir [WhatsApp, Messages, Discord](#whatsapp-messages-gmail-chat-discord)) |
 | `devtools [detach\|close]`, `term`, `fullscreen [on\|off]`, `quit` (ou `exit`, `q`), `help`, `clear` | divers (DevTools : à côté de la page, dans une fenêtre, ou fermées ; boutons aussi dans la barre d'état ; `quit` ferme le navigateur) |
 
 Tout ce qui n'est ni une commande, ni un alias, ni une adresse lance une recherche ; une adresse (`exemple.fr`, `localhost:3000`) s'ouvre directement. Une commande suivie de mots qu'elle n'attend pas (« home depot », « close friends ») est aussi une recherche.
@@ -133,11 +133,11 @@ Le niveau se choisit en haut de la discussion ou avec `nadir niveau <nom>`. Chaq
 
 Chaque discussion est enregistrée dès la première question et reste après un redémarrage : le bouton ☰ en haut de la discussion les liste (les épinglées d'abord, puis les plus récentes), pour en rouvrir, renommer, épingler ou supprimer une ; ⟲ en commence une nouvelle. `nadir discussions` les liste dans le terminal. Ce que Nadir a vu en navigation privée n'est jamais enregistré.
 
-## WhatsApp, Messages, Discord
+## WhatsApp, Messages, Gmail, Chat, Discord
 
-La flèche ⌃ de la barre du bas ouvre le tiroir des applis : WhatsApp, Google Messages et Discord, avec leurs messages non lus. Un clic ouvre l'appli au-dessus de la barre, par-dessus la page, en 16:9 (ses bords se tirent pour changer sa taille, gardée ensuite) ; la même icône, ✕, la commande ou un clic ailleurs dans la fenêtre la referme. Clic droit sur une appli, « Épingler à la barre », ou glisser-la du tiroir jusqu'à la barre : son icône reste à côté de la flèche, avec sa pastille de non-lus (un point rouge sur la flèche signale du nouveau dans une appli non épinglée). Clic droit sur une icône épinglée pour la désépingler, la recharger ou la fermer.
+La flèche ⌃ de la barre du bas ouvre le tiroir des applis : WhatsApp, Google Messages, Gmail, Google Chat et Discord, avec leurs messages non lus. Un clic ouvre l'appli au-dessus de la barre, par-dessus la page, en 16:9 (ses bords se tirent pour changer sa taille, gardée ensuite) ; la même icône, ✕, la commande ou un clic ailleurs dans la fenêtre la referme. Clic droit sur une appli, « Épingler à la barre », ou glisser-la du tiroir jusqu'à la barre : son icône reste à côté de la flèche, avec sa pastille de non-lus (un point rouge sur la flèche signale du nouveau dans une appli non épinglée). Clic droit sur une icône épinglée pour la désépingler, la recharger ou la fermer.
 
-Ce sont les vrais sites (web.whatsapp.com, messages.google.com, discord.com) : on s'y connecte une fois (QR code à scanner depuis le téléphone pour WhatsApp et Messages, qui demande un téléphone Android), chacun dans sa propre session, à part des onglets. Une appli ouverte une fois se charge en fond aux lancements suivants pour les notifications et les pastilles ; « Fermer l'appli » (ou `whatsapp close`) l'arrête sans la déconnecter. Les liens vers d'autres sites s'ouvrent dans un onglet.
+Ce sont les vrais sites (web.whatsapp.com, messages.google.com, mail.google.com, chat.google.com, discord.com) : on s'y connecte une fois (QR code à scanner depuis le téléphone pour WhatsApp et Messages, qui demande un téléphone Android), chacun dans sa propre session, à part des onglets. Une appli ouverte une fois se charge en fond aux lancements suivants pour les notifications et les pastilles ; « Fermer l'appli » (ou `whatsapp close`) l'arrête sans la déconnecter. Les liens vers d'autres sites s'ouvrent dans un onglet.
 
 ## Vidéos protégées (Netflix, Disney+…)
 

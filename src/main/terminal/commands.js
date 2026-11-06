@@ -337,7 +337,8 @@ async function exec(raw, depth = 0) {
       case 'settings':
       case 'reglages':
       case 'réglages':
-        settingsPage.showSettings(tab, (args[0] || 'general').toLowerCase());
+        // Depuis l'accueil (ou déjà dans les réglages) : sur place ; sinon dans un nouvel onglet, la page reste.
+        settingsPage.showSettings(tab.screen && ['home', 'settings'].includes(tab.screen.kind) ? tab : tabList.createTab(), (args[0] || 'general').toLowerCase());
         break;
       case 'gpu': {
         const on = state.settings.data.gpu !== false;
@@ -390,6 +391,8 @@ async function exec(raw, depth = 0) {
         break;
       case 'whatsapp':
       case 'messages':
+      case 'gmail':
+      case 'chat':
       case 'discord':
         messengers.messengerCommand(name, args, say);
         break;

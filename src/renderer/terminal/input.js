@@ -118,7 +118,8 @@ function openPanel(kind) {
 api.on('ui:panel', openPanel);
 api.on('term:clear', () => term().replaceChildren());
 api.on('term:toggle', () => setTerminalHidden(!app.classList.contains('term-hidden')));
-api.on('term:focus', (prefill) => {
+api.on('term:focus', (prefill, soft) => {
+  if (soft && app.classList.contains('term-hidden')) return api.focusPage();
   if (app.classList.contains('term-hidden')) setTerminalHidden(false);
   const ta = activeCol().input;
   if (prefill) setInput(ta, prefill);
