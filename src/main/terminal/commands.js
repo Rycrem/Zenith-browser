@@ -340,6 +340,18 @@ async function exec(raw, depth = 0) {
         // Depuis l'accueil (ou déjà dans les réglages) : sur place ; sinon dans un nouvel onglet, la page reste.
         settingsPage.showSettings(tab.screen && ['home', 'settings'].includes(tab.screen.kind) ? tab : tabList.createTab(), (args[0] || 'general').toLowerCase());
         break;
+      case 'lasttab': {
+        const sub = (args[0] || '').toLowerCase();
+        if (sub === 'quit' || sub === 'keep') {
+          state.settings.data.quitOnLastTab = sub === 'quit';
+          state.settings.save();
+          settingsPage.refreshSettings(tab);
+        }
+        say(state.settings.data.quitOnLastTab !== false
+          ? t('  fermer le dernier onglet ferme la fenêtre (et Zenith si c\'est la dernière) ; « lasttab keep » garde un onglet d\'accueil')
+          : t('  fermer le dernier onglet laisse un onglet d\'accueil ; « lasttab quit » ferme la fenêtre'), sub ? 'ok' : 'dim');
+        break;
+      }
       case 'gpu': {
         const on = state.settings.data.gpu !== false;
         if (!args.length) {

@@ -78,6 +78,7 @@ const COMMANDS = [
   ['private', '[on | off]', 'navigation privée (Ctrl+Maj+N) : onglets à part, rien n\'est retenu'],
   ['mode', '[nuit | jour]', 'mode nuit (par défaut) ou jour'],
   ['gpu', '[on | off]', 'accélération matérielle (relance Zenith)'],
+  ['lasttab', '[quit | keep]', 'fermer le dernier onglet : quitter (par défaut) ou garder un onglet d\'accueil'],
   ['settings', '[page]', 'page des réglages ; aussi le bouton ⚙ en bas à droite'],
   ['lang', '[fr | en]', 'langue de l\'interface (français ou anglais)'],
   ['default', '', 'faire de Zenith le navigateur par défaut'],
@@ -97,7 +98,7 @@ const COMMANDS = [
 const COMMAND_NAMES = [
   'brows', 'ia', 'nadir', 'go', 'clicks', 'back', 'fwd', 'reload', 'home', 'tab', 'close', 'split', 'focus',
   'fav', 'add', 'undo', 'hist', 'clean', 'find', 'ext', 'dl', 'alias', 'unalias', 'engine',
-  'theme', 'mode', 'gpu', 'settings', 'private', 'prive', 'lang', 'tty', 'perm', 'update', 'devtools', 'term', 'whatsapp', 'messages', 'gmail', 'chat', 'discord', 'fullscreen', 'quit', 'exit', 'help', 'clear', 'popback', 'config', 'default',
+  'theme', 'mode', 'gpu', 'lasttab', 'settings', 'private', 'prive', 'lang', 'tty', 'perm', 'update', 'devtools', 'term', 'whatsapp', 'messages', 'gmail', 'chat', 'discord', 'fullscreen', 'quit', 'exit', 'help', 'clear', 'popback', 'config', 'default',
 ];
 
 const SUBCOMMANDS = {
@@ -119,6 +120,7 @@ const SUBCOMMANDS = {
   devtools: ['detach', 'close'],
   tty: ['on', 'off'],
   gpu: ['on', 'off'],
+  lasttab: ['quit', 'keep'],
   settings: ['general', 'ia', 'nadir', 'alias', 'ext', 'perm', 'update'],
   reload: ['hard'],
   config: ['export', 'import'],
@@ -132,7 +134,7 @@ const SUBCOMMANDS = {
 // Commandes qui n'acceptent pas de texte libre : ce qu'elles acceptent après leur nom.
 const ARG_SHAPES = {
   help: null, '?': null, clear: null, home: null, accueil: null, back: null, b: null, fwd: null, f: null,
-  reload: /^hard$/i, r: /^hard$/i, n: null, next: null, p: null, prev: null, clicks: null, links: null, l: null, term: null, quit: null, exit: null, q: null, fullscreen: /^(on|off)$/i, fs: /^(on|off)$/i, tty: /^(on|off)$/i, gpu: /^(on|off)$/i,
+  reload: /^hard$/i, r: /^hard$/i, n: null, next: null, p: null, prev: null, clicks: null, links: null, l: null, term: null, quit: null, exit: null, q: null, fullscreen: /^(on|off)$/i, fs: /^(on|off)$/i, tty: /^(on|off)$/i, gpu: /^(on|off)$/i, lasttab: /^(quit|keep)$/i,
   undo: null, focus: null, settings: /^(general|ia|nadir|alias|ext|perm|update)$/i, reglages: /^(general|ia|nadir|alias|ext|perm|update)$/i, 'réglages': /^(general|ia|nadir|alias|ext|perm|update)$/i, popback: null, default: null, config: /^(export|import)$/i, lang: /^(fr|en)$/i, langue: /^(fr|en)$/i, update: /^(install|electron|auto|-v|versions)$/i,
   whatsapp: /^(pin|unpin|reload|close)$/i, messages: /^(pin|unpin|reload|close)$/i, gmail: /^(pin|unpin|reload|close)$/i, chat: /^(pin|unpin|reload|close)$/i, discord: /^(pin|unpin|reload|close)$/i,
   tab: /^(\d+|new|save)$/i, tabs: /^(\d+|new|save)$/i, close: /^\d+$/, dl: /^(\d+|cancel|rm)$/i, split: /^(off|close)$/i,

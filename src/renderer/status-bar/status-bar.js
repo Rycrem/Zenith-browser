@@ -97,7 +97,7 @@ function appsGroup() {
   const m = state.messengers;
   if (!m) return null;
   const byId = Object.fromEntries(m.apps.map((a) => [a.id, a]));
-  const hidden = m.apps.some((a) => !m.pinned.includes(a.id) && a.unread);
+  const hidden = m.apps.some((a) => a.unread);
   const pinned = m.pinned.filter((id) => byId[id] && !(appsHover && appsHover.id === id));
   const items = pinned.map((id) => appChip(byId[id], m.open === id));
   if (appsHover) items.splice(appsHover.index, 0, h('span', { class: 'app-slot' }));
