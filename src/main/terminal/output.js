@@ -6,10 +6,11 @@ function print(lines) {
   if (state.win && !state.win.isDestroyed()) state.win.webContents.send('term:print', lines);
 }
 
-function focusTerminal(prefill) {
+// soft : le terminal caché le reste (la page garde le clavier), par exemple après la fermeture d'un onglet.
+function focusTerminal(prefill, soft = false) {
   if (!state.win) return;
   state.win.webContents.focus();
-  state.win.webContents.send('term:focus', prefill);
+  state.win.webContents.send('term:focus', prefill, soft);
 }
 
 // Ctrl+² (la touche sous Échap) : cache ou montre le terminal.

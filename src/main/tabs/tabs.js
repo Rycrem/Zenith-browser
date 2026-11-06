@@ -116,14 +116,14 @@ function closeTab(tab) {
   // Dernier onglet d'un écran du split : l'autre écran reprend toute la place.
   if (state.panes.length > 1 && !sideTabs(side).length) {
     split.closePane(side);
-    output.focusTerminal();
+    output.focusTerminal(undefined, true);
     return;
   }
   state.panes.forEach((p, pi) => {
     if (p.tabId !== tab.id) return;
     const same = sideTabs(side);
     p.tabId = (same[Math.min(si, same.length - 1)] || createTab({ background: true, pane: pi })).id;
-    if (pi === state.activePane) output.focusTerminal();
+    if (pi === state.activePane) output.focusTerminal(undefined, true);
   });
   ui.layout();
   ui.sendState();

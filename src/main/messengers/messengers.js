@@ -112,12 +112,14 @@ function changed() {
 
 // Posée sur la barre du bas, au-dessus de son icône, sans dépasser sous les onglets.
 // Taille choisie à la souris (gardée dans les réglages), sinon 16:9.
+// Plein écran (bouton ⛶ du tiroir) : toute la fenêtre entre la barre des onglets et la barre du bas.
 function drawerBounds(x) {
   const b = state.win.getContentBounds();
+  if (state.settings.data.drawerFull) return { x: b.x, y: b.y + 48, width: b.width, height: Math.max(200, b.height - 48 - 28) };
   const size = state.settings.data.drawerSize || { width: Math.round((HEIGHT * 16) / 9), height: HEIGHT };
   const width = Math.max(300, Math.min(size.width, b.width - 16));
   const bottom = b.y + b.height - 32;
-  const height = Math.max(200, Math.min(size.height, bottom - (b.y + 48)));
+  const height = Math.max(200, Math.min(size.height, bottom - (b.y + 56)));
   const right = Number.isFinite(x) ? b.x + Math.round(x) : b.x + b.width - 16;
   const left = Math.max(b.x + 8, Math.min(right - width, b.x + b.width - width - 8));
   return { x: left, y: bottom - height, width, height };
@@ -132,7 +134,8 @@ function fitView(d) {
 
 function sendHeader(d) {
   if (d.win.isDestroyed()) return;
-  d.win.webContents.send('panel:data', { id: d.id, name: M.MESSENGERS[d.id].name, reload: t('Recharger'), close: t('Fermer (même icône ou « {cmd} »)', { cmd: d.id }) });
+  const full = !!state.settings.data.drawerFull;
+  d.win.webContents.send('panel:data', { id: d.id, name: M.MESSENGERS[d.id].name, full, fullLabel: full ? t('Réduire') : t('Plein écran'), reload: t('Recharger'), close: t('Fermer (même icône ou « {cmd} »)', { cmd: d.id }) });
 }
 
 // Retire la vue de la fenêtre où elle est affichée, sans la détruire : l'appli reste connectée.
@@ -158,7 +161,7 @@ function open(id, x) {
   }
   if (Number.isFinite(x)) state.drawerX = x;
   if (!d) {
-    const win = popupWindow('drawer.html', { ...drawerBounds(state.drawerX), resizable: true, minWidth: 300, minHeight: 200 });
+    const win = popupWindow('drawer.html', { ...drawerBounds(state.drawerX), resizable: !state.settings.data.drawerFull, minWidth: 300, minHeight: 200 });
     d = { id, win };
     state.drawer = d;
     const own = state.current();
@@ -176,14 +179,20 @@ function open(id, x) {
     const outside = () => {
       // Juste après l'ouverture, la fenêtre peut reprendre la main (popup des applis refermé) : pas un clic.
       if (own.drawer !== d || !win.isVisible() || Date.now() - d.openedAt < 600) return;
-      closedByClick = { id: d.id, at: Date.now() };
-      state.inWindow(own, close);
+      const id = d.id;
+      closedByClick = { id, at: Date.now() };
+      // Fermé un peu après : le clic va au bout (onglet, lien, bouton) sans que l'interface
+      // soit redessinée ni le clavier déplacé entre l'appui et le relâchement.
+      setTimeout(() => {
+        if (own.drawer === d && d.id === id) state.inWindow(own, () => close(false));
+      }, 250);
     };
     own.win.on('focus', outside);
     win.on('closed', () => !own.win.isDestroyed() && own.win.removeListener('focus', outside));
     win.on('resize', () => fitView(d));
     // Seulement quand on tire un bord (pas pour les setBounds de Zenith) : la taille est gardée.
     win.on('will-resize', (e, nb) => {
+      if (state.settings.data.drawerFull) return;
       state.settings.data.drawerSize = { width: nb.width, height: nb.height };
       state.settings.save();
     });
@@ -205,14 +214,16 @@ function open(id, x) {
   ui.sendState();
 }
 
-function close() {
+// refocus : le clavier revient à la page ou au terminal (pas après un clic ailleurs, qui l'a déjà placé).
+function close(refocus = true) {
   const d = state.drawer;
   if (!d) return;
   if (apps[d.id]) detach(apps[d.id]);
   state.drawer = null;
   if (!d.win.isDestroyed()) d.win.close();
   const tab = tabList.activeTab();
-  if (tab && tab.view && !tab.screen) tab.view.webContents.focus();
+  if (!refocus);
+  else if (tab && tab.view && !tab.screen) tab.view.webContents.focus();
   else output.focusTerminal();
   ui.sendState();
 }
@@ -249,6 +260,14 @@ function drawerAction(action) {
   if (!d) return;
   if (action === 'close') close();
   else if (action === 'reload' && apps[d.id]) apps[d.id].view.webContents.reload();
+  else if (action === 'full') {
+    state.settings.data.drawerFull = !state.settings.data.drawerFull;
+    state.settings.save();
+    d.win.setResizable(!state.settings.data.drawerFull);
+    d.win.setBounds(drawerBounds(state.drawerX));
+    fitView(d);
+    sendHeader(d);
+  }
 }
 
 // ------------------------------------------------ épingler, recharger, fermer
@@ -305,13 +324,18 @@ function appMenu(id, popupWin) {
 
 // ------------------------------------------------ le tiroir des applis (flèche de la barre du bas)
 
+// Ordre des applis dans le tiroir : celui choisi en les glissant, les nouvelles à la fin.
+function appOrder() {
+  const saved = (state.settings.data.appOrder || []).filter(M.isMessenger);
+  return [...saved, ...Object.keys(M.MESSENGERS).filter((id) => !saved.includes(id))];
+}
+
 function trayData() {
-  const list = Object.keys(M.MESSENGERS).map((id) => ({ id, name: M.MESSENGERS[id].name, unread: apps[id] ? apps[id].unread : 0, pinned: pinned().includes(id), open: !!(state.drawer && state.drawer.id === id) }));
+  const list = appOrder().map((id) => ({ id, name: M.MESSENGERS[id].name, unread: apps[id] ? apps[id].unread : 0, pinned: pinned().includes(id), open: !!(state.drawer && state.drawer.id === id) }));
   const total = list.reduce((n, a) => n + Math.max(0, a.unread), 0);
   return {
     title: t('applis'),
     total: total ? t('{n} non lus', { n: total }) : '',
-    hint: t('Clic droit ou glisser vers la barre pour épingler.'),
     pinnedLabel: t('épinglée'),
     list,
   };
@@ -333,6 +357,12 @@ async function trayAction(action, arg) {
     return toggle(id, state.drawerX);
   }
   if (action === 'menu') return appMenu(id, state.panel && state.panel.win);
+  // Tuiles glissées entre elles : le nouvel ordre est gardé.
+  if (action === 'order' && Array.isArray(arg.ids)) {
+    state.settings.data.appOrder = arg.ids.filter(M.isMessenger);
+    state.settings.save();
+    return changed();
+  }
   if (action === 'drag' || action === 'drop') {
     const x = Number.isFinite(arg.sx) && Number.isFinite(arg.sy) ? overBar(arg.sx, arg.sy) : null;
     const wc = state.win.webContents;

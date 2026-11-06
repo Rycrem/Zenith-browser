@@ -1,6 +1,6 @@
 'use strict';
 
-// Icônes de WhatsApp, Messages et Discord (barre du bas, tiroir des applis, tiroir de discussion).
+// Icônes de WhatsApp, Messages, Gmail, Google Chat et Discord (barre du bas, tiroir des applis, tiroir de discussion).
 const MESSENGER_ICONS = {
   // Bulle verte avec un combiné.
   whatsapp: [
@@ -11,6 +11,16 @@ const MESSENGER_ICONS = {
   messages: [
     ['M4 3h16a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z', '#1A73E8'],
     ['M6.5 7h11a1 1 0 0 1 0 2h-11a1 1 0 0 1 0-2zM6.5 10.5h7a1 1 0 0 1 0 2h-7a1 1 0 0 1 0-2z', '#fff'],
+  ],
+  // Enveloppe rouge avec son rabat.
+  gmail: [
+    ['M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z', '#EA4335'],
+    ['M4.6 7.4a.9.9 0 0 1 1.2-.3L12 11l6.2-3.9a.9.9 0 1 1 1 1.5l-6.7 4.2a.9.9 0 0 1-1 0L4.8 8.6a.9.9 0 0 1-.2-1.2z', '#fff'],
+  ],
+  // Bulle verte avec trois points.
+  chat: [
+    ['M5 3h14a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-7l-5 4v-4H5a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3z', '#00AC47'],
+    ['M7.5 9.3a1.3 1.3 0 1 0 0 2.6a1.3 1.3 0 1 0 0-2.6zM12 9.3a1.3 1.3 0 1 0 0 2.6a1.3 1.3 0 1 0 0-2.6zM16.5 9.3a1.3 1.3 0 1 0 0 2.6a1.3 1.3 0 1 0 0-2.6z', '#fff'],
   ],
   // Carré arrondi bleu-violet avec un visage.
   discord: [

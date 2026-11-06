@@ -67,13 +67,13 @@ Logic tests (bookmarks, aliases, result parsing, extensions, translations): `npm
 | `dl cancel n` / `dl rm n` | stops download n (partial file deleted) / removes it from the list (the file stays) |
 | `alias name = command [; command…]`, `unalias name` | your own shortcuts, which can chain commands |
 | `engine ddg\|google\|bing\|qwant`, `theme ambre\|vert\|cyan\|rose\|violet\|#rrggbb`, `lang [en\|fr]` | settings |
-| `settings [page]` | settings page, with a page list on the left: General (night/day mode, color with a picker for your own color, language, engine, hardware acceleration, default browser, backup), then one page per command that has settings: `ia`, `nadir`, `alias`, `ext`, `perm`, `update`; also the ⚙ button at the far right of the status bar, next to Nadir |
+| `settings [page]` | settings page, with a page list on the left: General (night/day mode, color with a picker for your own color, language, engine, hardware acceleration, default browser, backup), then one page per command that has settings: `ia`, `nadir`, `alias`, `ext`, `perm`, `update`; also the ⚙ button at the far right of the status bar, next to Nadir. Away from the home screen, settings open in a new tab |
 | `gpu [on\|off]` | turns hardware acceleration on or off (Zenith offers to restart) |
 | `config export [file]`, `config import [file]` | saves or loads your settings, bookmarks and extensions in a file, to move to another computer (without the AI keys) |
 | `default` | makes Zenith the default browser (on Windows, registers it then opens the default apps page to pick it) |
 | `perm`, `perm reset [site]` | permissions given to sites |
 | `update`, `update install`, `update -v [version]`, `update electron`, `update auto [on\|off]` | updates (see below) |
-| `whatsapp`, `messages`, `discord` `[pin\|unpin\|reload\|close]` | open or close the app above the bottom bar; `pin`/`unpin` pins it to the bar or removes it, `close` frees its memory (see [WhatsApp, Messages, Discord](#whatsapp-messages-discord)) |
+| `whatsapp`, `messages`, `gmail`, `chat`, `discord` `[pin\|unpin\|reload\|close]` | open or close the app above the bottom bar; `pin`/`unpin` pins it to the bar or removes it, `close` frees its memory (see [WhatsApp, Messages, Discord](#whatsapp-messages-gmail-chat-discord)) |
 | `devtools [detach\|close]`, `term`, `fullscreen [on\|off]`, `quit` (or `exit`, `q`), `help`, `clear` | misc (DevTools: next to the page, in a window, or closed; also buttons in the status bar; `quit` closes the browser) |
 
 Anything that is not a command, an alias or an address runs a search; an address (`example.com`, `localhost:3000`) opens directly. A command followed by words it does not expect ("home depot", "close friends") is a search too.
@@ -139,11 +139,11 @@ Pick the level at the top of the chat or with `nadir level <name>`. Each model i
 
 Each conversation is saved from the first question and stays after a restart: the ☰ button at the top of the chat lists them (pinned first, then the most recent), to reopen, rename, pin or delete one; ⟲ starts a new one. `nadir chats` lists them in the terminal. What Nadir saw in private browsing is never saved.
 
-## WhatsApp, Messages, Discord
+## WhatsApp, Messages, Gmail, Chat, Discord
 
-The ⌃ arrow in the bottom bar opens the apps drawer: WhatsApp, Google Messages and Discord, with their unread messages. A click opens the app above the bar, over the page, in 16:9 (drag its edges to resize it; the size is kept); the same icon, ✕, the command or a click elsewhere in the window closes it. Right-click an app, "Pin to the bar", or drag it from the drawer to the bar: its icon stays next to the arrow, with its unread badge (a red dot on the arrow means something new in an unpinned app). Right-click a pinned icon to unpin, reload or close it.
+The ⌃ arrow in the bottom bar opens the apps drawer: WhatsApp, Google Messages, Gmail, Google Chat and Discord, with their unread messages. A click opens the app above the bar, over the page, in 16:9 (drag its edges to resize it; the size is kept; ⛶ makes it full screen); the same icon, ✕, the command or a click elsewhere in the window closes it. In the drawer, drag an app onto another to change their order. Right-click an app, "Pin to the bar", or drag it from the drawer to the bar: its icon stays next to the arrow, with its unread badge (a red dot on the arrow means something new in an unpinned app). Right-click a pinned icon to unpin, reload or close it.
 
-These are the real sites (web.whatsapp.com, messages.google.com, discord.com): you sign in once (QR code scanned from your phone for WhatsApp and Messages, which needs an Android phone), each in its own session, separate from the tabs. An app opened once loads in the background on later launches for notifications and badges; "Close the app" (or `whatsapp close`) stops it without signing out. Links to other sites open in a tab.
+These are the real sites (web.whatsapp.com, messages.google.com, mail.google.com, chat.google.com, discord.com): you sign in once (QR code scanned from your phone for WhatsApp and Messages, which needs an Android phone), each in its own session, separate from the tabs. An app opened once loads in the background on later launches for notifications and badges; "Close the app" (or `whatsapp close`) stops it without signing out. Links to other sites open in a tab.
 
 ## Protected videos (Netflix, Disney+…)
 

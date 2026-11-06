@@ -367,6 +367,13 @@ test('applis de discussion : non-lus du titre, adresses, épinglage', () => {
   assert.ok(!M.isOwnUrl('messages', 'https://evil.com/', 'https://accounts.google.com/'));
   assert.ok(!M.isOwnUrl('messages', 'https://google.evil.com/', 'https://accounts.google.com/'));
   assert.ok(!M.isOwnUrl('discord', 'https://www.google.com/', 'https://accounts.google.com/'));
+  assert.ok(M.isOwnUrl('gmail', 'https://www.google.com/accounts/SetSID', 'https://accounts.google.com/CheckCookie'));
+  assert.ok(!M.isOwnUrl('gmail', 'https://www.google.com/', 'https://mail.google.com/mail/u/0/'));
+  assert.ok(M.isOwnUrl('chat', 'https://accounts.google.com/', 'https://chat.google.com/'));
+  assert.ok(!M.isOwnUrl('discord', 'https://www.google.com/', 'https://accounts.google.com/'));
+  assert.equal(M.unreadFromTitle('Boîte de réception (5) - moi@gmail.com - Gmail'), 5);
+  assert.equal(M.unreadFromTitle('Chat (2)'), 2);
+  assert.equal(M.unreadFromTitle('Boîte de réception - moi@gmail.com - Gmail'), 0);
   assert.ok(M.isMessenger('messages'));
   assert.ok(!M.isMessenger('toString'));
   assert.deepStrictEqual(M.pinAt(['discord'], 'whatsapp', 0), ['whatsapp', 'discord']);
