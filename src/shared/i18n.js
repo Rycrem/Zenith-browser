@@ -377,6 +377,7 @@
     'historique des commandes / autocomplétion': 'command history / completion',
     'Cacher le terminal': 'Hide terminal',
     'Plein écran': 'Full screen',
+    'Réduire': 'Restore size',
     'Nouvel onglet': 'New tab',
     "Fermer l'onglet": 'Close tab',
     'Onglet suivant': 'Next tab',

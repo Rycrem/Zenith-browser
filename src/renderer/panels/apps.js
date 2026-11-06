@@ -1,7 +1,7 @@
 'use strict';
 
 // Tiroir des applis (flèche ⌃ de la barre du bas) : clic pour ouvrir, clic droit pour le menu,
-// glisser vers la barre pour épingler.
+// glisser entre les tuiles pour les réordonner, ou vers la barre pour épingler.
 
 const act = (action, arg) => window.panel.act(action, arg);
 let dragging = null; // { id, el, x, y, moved }
@@ -37,6 +37,14 @@ document.addEventListener('pointermove', (e) => {
   dragging.moved = true;
   dragging.el.classList.add('dragged');
   document.body.classList.add('dragging');
+  // Au-dessus d'une autre tuile : la tuile glissée prend sa place.
+  const over = document.elementFromPoint(e.clientX, e.clientY);
+  const target = over && over.closest('.tile');
+  if (target && target !== dragging.el) {
+    const tiles = [...$('#tiles').children];
+    target[tiles.indexOf(target) > tiles.indexOf(dragging.el) ? 'after' : 'before'](dragging.el);
+    dragging.reordered = true;
+  }
   act('drag', { id: dragging.id, sx: e.screenX, sy: e.screenY });
 });
 
@@ -46,7 +54,11 @@ document.addEventListener('pointerup', (e) => {
   dragging = null;
   d.el.classList.remove('dragged');
   document.body.classList.remove('dragging');
-  if (d.moved) act('drop', { id: d.id, sx: e.screenX, sy: e.screenY });
+  const inside = e.clientX >= 0 && e.clientY >= 0 && e.clientX <= innerWidth && e.clientY <= innerHeight;
+  if (d.moved && inside) {
+    act('drag', { id: d.id });
+    if (d.reordered) act('order', { id: d.id, ids: [...$('#tiles').children].map((el) => el.dataset.id) });
+  } else if (d.moved) act('drop', { id: d.id, sx: e.screenX, sy: e.screenY });
   else act('open', { id: d.id });
 });
 

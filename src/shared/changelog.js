@@ -12,6 +12,8 @@ const CHANGELOG = [
       'Onglets : une bordure à droite et en bas pour mieux les distinguer, et une marge en haut pour déplacer la fenêtre.',
       'Fermer un onglet ne fait plus réapparaître le terminal caché.',
       'Réglages : hors de l\'écran d\'accueil, ils s\'ouvrent dans un nouvel onglet.',
+      'Tiroir des applis : glisser une appli sur une autre change leur ordre.',
+      'Applis de discussion : le bouton ⛶ les ouvre en plein écran (et ❐ les remet à leur taille).',
     ],
     en: [
       'Gmail and Google Chat join WhatsApp, Messages and Discord in the apps drawer ("gmail" and "chat" commands).',
@@ -20,6 +22,8 @@ const CHANGELOG = [
       'Tabs: a border on the right and bottom to tell them apart, and a margin on top to move the window.',
       'Closing a tab no longer brings back the hidden terminal.',
       'Settings: away from the home screen, they open in a new tab.',
+      'Apps drawer: drag an app onto another to change their order.',
+      'Chat apps: the ⛶ button opens them full screen (and ❐ restores their size).',
     ],
   },
   {
