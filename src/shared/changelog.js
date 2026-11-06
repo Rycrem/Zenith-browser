@@ -4,6 +4,21 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.65',
+    notes: [
+      'Fermer le dernier onglet ferme la fenêtre, et Zenith si c\'est la dernière (réglage « lasttab », activé par défaut).',
+      'Applis de discussion : plus de notifications à l\'écran, seulement un point rouge sur la flèche et sur l\'appli.',
+      'Onglets rétrécis : juste l\'icône et ×, à la largeur de ce contenu.',
+      'Fenêtre agrandie ou en plein écran : son dernier onglet se glisse de nouveau pour la déplacer.',
+    ],
+    en: [
+      'Closing the last tab closes the window, and Zenith if it is the last one ("lasttab" setting, on by default).',
+      'Chat apps: no more on-screen notifications, just a red dot on the arrow and on the app.',
+      'Shrunk tabs: just the icon and ×, as narrow as that content.',
+      'Maximized or full-screen window: dragging its last tab moves it again.',
+    ],
+  },
+  {
     version: '0.1.64',
     notes: [
       'Gmail et Google Chat rejoignent WhatsApp, Messages et Discord dans le tiroir des applis (commandes « gmail » et « chat »).',

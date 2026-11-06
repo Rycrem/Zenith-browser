@@ -113,6 +113,12 @@ function closeTab(tab) {
     if (closedTabs.length > 25) closedTabs.pop();
   }
   destroyTab(tab);
+  // Dernier onglet de la fenêtre fermé : elle se ferme (et Zenith avec, si c'était la dernière),
+  // sauf si « lasttab keep » demande de garder un onglet d'accueil.
+  if (!state.tabs.length && state.settings.data.quitOnLastTab !== false) {
+    state.win.close();
+    return;
+  }
   // Dernier onglet d'un écran du split : l'autre écran reprend toute la place.
   if (state.panes.length > 1 && !sideTabs(side).length) {
     split.closePane(side);

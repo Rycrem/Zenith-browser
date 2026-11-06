@@ -34,6 +34,7 @@ function general() {
     },
     { label: t('Langue'), options: [opt('français', 'lang fr', getLang() === 'fr'), opt('English', 'lang en', getLang() === 'en')] },
     { label: t('Moteur de recherche'), options: Object.entries(C.ENGINES).map(([k, e]) => opt(e.label, `engine ${k}`, d.engine === k)) },
+    { label: t('Fermer le dernier onglet'), options: [opt(t('quitte Zenith'), 'lasttab quit', d.quitOnLastTab !== false), opt(t('garde un onglet d\'accueil'), 'lasttab keep', d.quitOnLastTab === false)] },
     { label: t('Accélération matérielle'), hint: t('relance Zenith'), options: [opt(t('activée'), 'gpu on', gpu), opt(t('désactivée'), 'gpu off', !gpu)] },
     { label: t('Navigateur par défaut'), options: [opt(t('faire de Zenith le navigateur par défaut'), 'default')] },
     { label: t('Sauvegarde'), hint: t('réglages, favoris et extensions'), options: [opt(t('exporter'), 'config export'), opt(t('importer'), 'config import')] },
