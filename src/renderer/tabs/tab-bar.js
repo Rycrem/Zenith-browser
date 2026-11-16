@@ -30,6 +30,7 @@ document.addEventListener('mouseup', (e) => {
 
 // La séparation des deux barres tombe sur celle des écrans.
 function alignTabGroups() {
+  fitTabs();
   const g = groups[0].el;
   if (!state || state.panes.length < 2) {
     g.style.flex = '';
@@ -37,6 +38,14 @@ function alignTabGroups() {
   }
   const edge = $('.pane-resizer').getBoundingClientRect().left;
   g.style.flex = `0 0 ${Math.max(80, Math.round(edge - g.getBoundingClientRect().left))}px`;
+}
+
+// Un onglet trop étroit pour son titre (sous MINI_W) n'affiche que l'icône de son site et ×.
+// Sa largeur vient de la place dans la barre, pas de son contenu : on peut la mesurer telle quelle.
+const MINI_W = 90;
+function fitTabs() {
+  if (tabDrag) return;
+  for (const el of document.querySelectorAll('#tabbar .tab')) el.classList.toggle('mini', !el.classList.contains('active') && el.getBoundingClientRect().width < MINI_W);
 }
 
 // Glisser un onglet : il suit la souris de gauche à droite, et ses voisins s'écartent doucement
@@ -249,7 +258,8 @@ function tabEl(tb, shown) {
   );
 }
 
-// Onglet ouvert : il s'élargit en douceur (FLIP) depuis rien.
+// Onglet ouvert, fermé ou affiché : les largeurs changent en douceur (FLIP), le nouvel onglet
+// part de rien. Les onglets rétrécis sont choisis une fois l'animation finie.
 const TAB_RESIZE_MS = 180;
 function animateTabWidths(before) {
   for (const el of document.querySelectorAll('#tabbar .tab')) {
@@ -257,8 +267,9 @@ function animateTabWidths(before) {
     const from = before.has(el.dataset.id) ? before.get(el.dataset.id) : 0;
     const to = el.getBoundingClientRect().width;
     if (Math.abs(from - to) < 1) continue;
-    el.animate([{ flex: `0 0 ${from}px` }, { flex: `0 0 ${to}px` }], { duration: TAB_RESIZE_MS, easing: 'ease-out' });
+    el.animate([{ flex: `0 0 ${from}px`, minWidth: 0 }, { flex: `0 0 ${to}px`, minWidth: 0 }], { duration: TAB_RESIZE_MS, easing: 'ease-out' });
   }
+  setTimeout(fitTabs, TAB_RESIZE_MS + 20);
 }
 
 function renderTabs() {
@@ -287,6 +298,7 @@ function renderTabs() {
       setTimeout(show, TAB_RESIZE_MS + 20);
     }
   });
+  fitTabs();
   // Au premier rendu (lancement), rien à animer.
   if (before.size) animateTabWidths(before);
   // Pas pendant qu'on la modifie.
