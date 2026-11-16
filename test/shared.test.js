@@ -380,3 +380,57 @@ test('applis de discussion : non-lus du titre, adresses, épinglage', () => {
   assert.deepStrictEqual(M.pinAt(['whatsapp', 'discord'], 'whatsapp', 1), ['discord', 'whatsapp']);
   assert.deepStrictEqual(M.pinAt(['whatsapp'], 'discord'), ['whatsapp', 'discord']);
 });
+
+const keys = require('../src/shared/shortcuts');
+
+test('raccourcis : touches tapées ou écrites, affichage', () => {
+  assert.strictEqual(keys.normalize('ctrl+maj+o'), 'CmdOrCtrl+Shift+O');
+  assert.strictEqual(keys.normalize('Shift+Ctrl+Tab'), 'CmdOrCtrl+Shift+Tab');
+  assert.strictEqual(keys.normalize('alt+←'), 'Alt+Left');
+  assert.strictEqual(keys.normalize('f9'), 'F9');
+  assert.strictEqual(keys.normalize('Ctrl++'), 'CmdOrCtrl+Plus');
+  assert.strictEqual(keys.normalize('o'), null);
+  assert.strictEqual(keys.normalize('ctrl+truc'), null);
+  assert.strictEqual(keys.display('CmdOrCtrl+Shift+Left'), 'Ctrl+Maj+←');
+  assert.strictEqual(keys.display('CmdOrCtrl+`', 'Shift'), 'Ctrl+²');
+});
+
+test('raccourcis : ceux choisis remplacent ceux par défaut, sans doublon', () => {
+  const ids = keys.SHORTCUTS.map((s) => s.id);
+  assert.strictEqual(new Set(ids).size, ids.length);
+  const all = keys.SHORTCUTS.flatMap((s) => s.keys.map(keys.normalize));
+  assert.ok(all.every(Boolean));
+  assert.strictEqual(new Set(all).size, all.length);
+  const custom = { 'new-tab': ['CmdOrCtrl+Shift+O'], clear: [] };
+  const eff = keys.effective(custom);
+  assert.deepStrictEqual(eff['new-tab'], ['CmdOrCtrl+Shift+O']);
+  assert.deepStrictEqual(eff.clear, []);
+  assert.deepStrictEqual(eff.reload, ['F5', 'CmdOrCtrl+R']);
+  assert.strictEqual(keys.conflict(custom, 'find', 'ctrl+maj+o').id, 'new-tab');
+  assert.strictEqual(keys.conflict(custom, 'find', 'ctrl+t'), null);
+  assert.strictEqual(keys.conflict({}, 'new-tab', 'ctrl+t'), null);
+});
+
+test('raccourcis : touche reçue', () => {
+  const k = (key, mods = {}) => ({ type: 'keyDown', key, code: '', ...mods });
+  assert.ok(keys.matches(k('Tab', { control: true }), 'Ctrl+Tab'));
+  assert.ok(!keys.matches(k('Tab', { control: true, shift: true }), 'Ctrl+Tab'));
+  assert.ok(keys.matches(k('Tab', { control: true, shift: true }), 'Ctrl+Shift+Tab'));
+  assert.ok(keys.matches({ type: 'keyDown', key: '²', code: 'Backquote', control: true }, 'CmdOrCtrl+`'));
+  assert.ok(keys.matches({ type: 'keyDown', key: '&', code: 'Digit1', alt: true }, 'Alt+1'));
+  assert.ok(keys.matches(k('ArrowLeft', { alt: true }), 'Alt+Left'));
+  assert.ok(!keys.matches({ ...k('Tab', { control: true }), type: 'keyUp' }, 'Ctrl+Tab'));
+});
+
+// Tout raccourci doit passer par src/shared/shortcuts.js pour apparaître dans « settings keys ».
+test('raccourcis : aucun écrit en dur dans le code', () => {
+  const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
+  const bad = walk(path.join(__dirname, '../src/main')).filter((f) => f.endsWith('.js') && /accelerator:\s*['"`]/.test(fs.readFileSync(f, 'utf8')));
+  assert.deepStrictEqual(bad, []);
+});
+
+test('config : raccourcis importés seulement s\'ils sont valides', () => {
+  const { parseConfig } = require('../src/shared/config');
+  const r = parseConfig(JSON.stringify({ format: 1, settings: { shortcuts: { 'new-tab': ['CmdOrCtrl+Shift+O'], clear: [], find: ['n importe quoi'], x: 'y' } } }));
+  assert.deepStrictEqual(r.settings.shortcuts, { 'new-tab': ['CmdOrCtrl+Shift+O'], clear: [] });
+});

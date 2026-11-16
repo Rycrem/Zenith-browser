@@ -172,6 +172,10 @@ function setupIpc() {
     const b = state.win.getBounds();
     const w = tabList.detachTab(tab, { x: Math.round(sx - ox), y: Math.round(sy - oy), width: b.width, height: b.height }, true);
     if (!w || !w.win) return;
+    // Fenêtre agrandie ou en plein écran (F11) : elle reprend sa taille normale pour suivre la souris,
+    // sinon le dernier onglet ne pouvait pas l'emmener.
+    const full = w.win.getBounds().width;
+    if (w.win.isFullScreen()) w.win.setFullScreen(false);
     if (w.win.isMaximized()) w.win.unmaximize();
     const d = { tab, w, ox, oy, over: null, gap: undefined, last: null };
     // La fenêtre suit la souris que signale l'interface, ou à défaut (souris au-dessus d'une
@@ -179,7 +183,10 @@ function setupIpc() {
     d.timer = setInterval(() => {
       if (!w.win || w.win.isDestroyed()) return void endDrag();
       const p = d.last && Date.now() - d.last.at < 100 ? d.last : screen.getCursorScreenPoint();
-      w.win.setPosition(Math.round(p.x - ox), Math.round(p.y - oy));
+      // Revenue plus étroite : la souris reste au même endroit, en proportion, de la barre des onglets.
+      const width = w.win.getBounds().width;
+      const x = width < full ? (ox * width) / full : ox;
+      w.win.setPosition(Math.round(p.x - x), Math.round(p.y - oy));
       const under = windowUnder(w, p.x, p.y);
       if (under !== d.over || under) hover(d, under || null, p.x);
     }, 16);

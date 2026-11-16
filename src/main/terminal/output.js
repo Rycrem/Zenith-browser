@@ -1,6 +1,7 @@
 'use strict';
 
 const state = require('../state');
+const K = require('../../shared/shortcuts');
 
 function print(lines) {
   if (state.win && !state.win.isDestroyed()) state.win.webContents.send('term:print', lines);
@@ -20,10 +21,11 @@ function toggleTerminal() {
   state.win.webContents.send('term:toggle');
 }
 
-// La touche sous Échap a un caractère différent selon le clavier (² en AZERTY, ` en QWERTY) :
-// on la reconnaît à sa place, dans l'interface comme dans les pages.
+// Cacher / montrer le terminal (Ctrl+² par défaut), lu à la main dans l'interface comme dans les
+// pages : la touche sous Échap a un caractère différent selon le clavier (² en AZERTY, ` en QWERTY).
 function isToggleKey(input) {
-  return input.type === 'keyDown' && input.code === 'Backquote' && (input.control || input.meta) && !input.alt && !input.shift;
+  if (input.type !== 'keyDown') return false;
+  return K.effective(state.settings.data.shortcuts)['toggle-terminal'].some((k) => K.matches(input, k));
 }
 
 Object.assign(module.exports, { print, focusTerminal, toggleTerminal, isToggleKey });

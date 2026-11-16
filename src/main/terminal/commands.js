@@ -30,6 +30,7 @@ const defaultBrowser = require('../commands/default-browser');
 const configFile = require('../commands/config');
 const lang = require('../commands/lang');
 const settingsPage = require('../commands/settings');
+const keys = require('../commands/keys');
 const aiCommands = require('../ai/ai-command');
 const nadir = require('../nadir/nadir');
 const updates = require('../updates/update-command');
@@ -101,7 +102,7 @@ async function exec(raw, depth = 0) {
     switch (name) {
       case 'help':
       case '?':
-        screens.setScreen(tab, { kind: 'help', commands: C.COMMANDS, shortcuts: menu.SHORTCUTS });
+        screens.setScreen(tab, { kind: 'help', commands: C.COMMANDS, shortcuts: menu.shortcutList() });
         break;
       case 'clear':
         result.clear = true;
@@ -340,6 +341,21 @@ async function exec(raw, depth = 0) {
         // Depuis l'accueil (ou déjà dans les réglages) : sur place ; sinon dans un nouvel onglet, la page reste.
         settingsPage.showSettings(tab.screen && ['home', 'settings'].includes(tab.screen.kind) ? tab : tabList.createTab(), (args[0] || 'general').toLowerCase());
         break;
+      case 'keys':
+        keys.keysCommand(args, say);
+        break;
+      case 'lasttab': {
+        const sub = (args[0] || '').toLowerCase();
+        if (sub === 'quit' || sub === 'keep') {
+          state.settings.data.quitOnLastTab = sub === 'quit';
+          state.settings.save();
+          settingsPage.refreshSettings(tab);
+        }
+        say(state.settings.data.quitOnLastTab !== false
+          ? t('  fermer le dernier onglet ferme la fenêtre (et Zenith si c\'est la dernière) ; « lasttab keep » garde un onglet d\'accueil')
+          : t('  fermer le dernier onglet laisse un onglet d\'accueil ; « lasttab quit » ferme la fenêtre'), sub ? 'ok' : 'dim');
+        break;
+      }
       case 'gpu': {
         const on = state.settings.data.gpu !== false;
         if (!args.length) {
