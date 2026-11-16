@@ -2,3 +2,7 @@ node_modules/
 dist/
 out/
 vendor/
+
+# Claude Code : configuration locale (peut contenir des secrets)
+.claude/settings.local.json
+.mcp.json
