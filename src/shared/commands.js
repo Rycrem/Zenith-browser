@@ -73,7 +73,7 @@ const COMMANDS = [
   ['clean', '[all]', 'vider l\'historique ; « all » vide aussi les cookies et le cache'],
   ['find', '[texte]', 'chercher dans la page ; « find » seul ouvre la barre de recherche (Ctrl+F)'],
   ['ext', '[add | on | off | pin | rm | alias | log | n]', 'gérer les extensions ; « ext pin n » l\'épingle dans la barre du bas, « ext log n » montre ses erreurs'],
-  ['dl', '[n | cancel n | rm n]', 'téléchargements ; n ouvre le fichier, cancel arrête, rm retire de la liste'],
+  ['dl', '[n | cancel n | rm n | del n]', 'téléchargements ; n ouvre le fichier, cancel arrête, rm retire de la liste, del met le fichier à la corbeille'],
   ['alias', '[nom = commande]', 'créer un raccourci ; « unalias nom » le supprime'],
   ['engine', '[ddg | google | bing | qwant]', 'moteur de recherche'],
   ['theme', '[ambre | vert | cyan | rose | violet | #rrggbb]', 'couleur d\'accent'],
@@ -107,7 +107,7 @@ const COMMAND_NAMES = [
 const SUBCOMMANDS = {
   fav: ['rm', 'mv', 'rename', 'import'],
   ext: ['add', 'on', 'off', 'pin', 'rm', 'alias', 'log'],
-  dl: ['cancel', 'rm'],
+  dl: ['cancel', 'rm', 'del'],
   tab: ['new', 'save'],
   split: ['off'],
   clean: ['all'],
@@ -125,7 +125,7 @@ const SUBCOMMANDS = {
   gpu: ['on', 'off'],
   lasttab: ['quit', 'keep'],
   keys: ['reset', ...SHORTCUTS.map((s) => s.id)],
-  settings: ['general', 'ia', 'nadir', 'alias', 'ext', 'perm', 'update', 'keys'],
+  settings: ['general', 'ia', 'nadir', 'alias', 'ext', 'perm', 'update', 'keys', 'keys-terminal', 'keys-tabs', 'keys-nav', 'keys-window', 'keys-panels', 'keys-dev'],
   reload: ['hard'],
   config: ['export', 'import'],
   whatsapp: ['pin', 'unpin', 'reload', 'close'],
@@ -140,9 +140,9 @@ const ARG_SHAPES = {
   help: null, '?': null, clear: null, home: null, accueil: null, back: null, b: null, fwd: null, f: null,
   reload: /^hard$/i, r: /^hard$/i, n: null, next: null, p: null, prev: null, clicks: null, links: null, l: null, term: null, quit: null, exit: null, q: null, fullscreen: /^(on|off)$/i, fs: /^(on|off)$/i, tty: /^(on|off)$/i, gpu: /^(on|off)$/i, lasttab: /^(quit|keep)$/i,
   keys: new RegExp(`^(reset|${SHORTCUTS.map((s) => s.id).join('|')})$`, 'i'),
-  undo: null, focus: null, settings: /^(general|ia|nadir|alias|ext|perm|update|keys)$/i, reglages: /^(general|ia|nadir|alias|ext|perm|update|keys)$/i, 'réglages': /^(general|ia|nadir|alias|ext|perm|update|keys)$/i, popback: null, default: null, config: /^(export|import)$/i, lang: /^(fr|en)$/i, langue: /^(fr|en)$/i, update: /^(install|electron|auto|-v|versions)$/i,
+  undo: null, focus: null, settings: /^(general|ia|nadir|alias|ext|perm|update|keys(-(terminal|tabs|nav|window|panels|dev))?)$/i, reglages: /^(general|ia|nadir|alias|ext|perm|update|keys(-(terminal|tabs|nav|window|panels|dev))?)$/i, 'réglages': /^(general|ia|nadir|alias|ext|perm|update|keys(-(terminal|tabs|nav|window|panels|dev))?)$/i, popback: null, default: null, config: /^(export|import)$/i, lang: /^(fr|en)$/i, langue: /^(fr|en)$/i, update: /^(install|electron|auto|-v|versions)$/i,
   whatsapp: /^(pin|unpin|reload|close)$/i, messages: /^(pin|unpin|reload|close)$/i, gmail: /^(pin|unpin|reload|close)$/i, chat: /^(pin|unpin|reload|close)$/i, discord: /^(pin|unpin|reload|close)$/i,
-  tab: /^(\d+|new|save)$/i, tabs: /^(\d+|new|save)$/i, close: /^\d+$/, dl: /^(\d+|cancel|rm)$/i, split: /^(off|close)$/i,
+  tab: /^(\d+|new|save)$/i, tabs: /^(\d+|new|save)$/i, close: /^\d+$/, dl: /^(\d+|cancel|rm|del)$/i, split: /^(off|close)$/i,
   devtools: /^(detach|detacher|attach|rattacher|close|off)$/i, dev: /^(detach|detacher|attach|rattacher|close|off)$/i,
 };
 

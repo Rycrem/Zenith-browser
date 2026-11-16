@@ -79,6 +79,13 @@ async function panelAction(kind, action, arg) {
     }
     else if (action === 'cancel' && d.state === 'progressing') dl.cancelDownload(d);
     else if (action === 'remove' && d.state !== 'progressing') dl.removeDownload(d);
+    else if (action === 'trash' && d.state !== 'progressing') {
+      try {
+        await dl.trashDownload(d);
+      } catch (err) {
+        output.print([{ t: `  ${err.message}`, c: 'err' }]);
+      }
+    }
     else if (action === 'open' && d.state === 'completed') {
       const err = await shell.openPath(d.path);
       if (err) output.print([{ t: `  ${err}`, c: 'err' }]);

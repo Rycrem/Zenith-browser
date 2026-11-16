@@ -87,6 +87,7 @@ function dlData() {
     openTitle: t('Ouvrir le fichier'),
     cancelTitle: t('Annuler le téléchargement'),
     removeTitle: t('Retirer de la liste (le fichier reste)'),
+    trashTitle: t('Supprimer le fichier de l\'ordinateur (corbeille)'),
   };
 }
 

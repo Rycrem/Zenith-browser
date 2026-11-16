@@ -42,11 +42,14 @@ function showSuggest(rect, selected) {
   if (!state.win || state.win.isDestroyed() || !state.suggestList.length || !rect) return hideSuggest();
   const b = state.win.getContentBounds();
   const width = Math.max(340, Math.round(rect.width));
+  const height = state.suggestList.length * 26 + 8;
+  // En split, la barre est en bas : sans place dessous, la liste s'ouvre au-dessus.
+  const below = Math.round(rect.y + rect.height) + 2;
   const bounds = {
     x: Math.max(b.x, Math.min(b.x + Math.round(rect.x), b.x + b.width - width)),
-    y: b.y + Math.round(rect.y + rect.height) + 2,
+    y: b.y + (below + height > b.height ? Math.max(0, Math.round(rect.y) - height - 2) : below),
     width,
-    height: state.suggestList.length * 26 + 8,
+    height,
   };
   const key = `${theme.accentColor()}|${theme.isLight()}|${!!state.privateMode}`;
   if (state.suggest && (state.suggest.win.isDestroyed() || state.suggest.key !== key)) {

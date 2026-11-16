@@ -422,6 +422,16 @@ test('raccourcis : touche reçue', () => {
   assert.ok(!keys.matches({ ...k('Tab', { control: true }), type: 'keyUp' }, 'Ctrl+Tab'));
 });
 
+test('raccourcis : chacun dans une catégorie de « settings keys »', () => {
+  const groups = keys.GROUPS.map((g) => g.id);
+  assert.deepStrictEqual(keys.SHORTCUTS.filter((s) => !groups.includes(s.group)).map((s) => s.id), []);
+  for (const g of groups) {
+    assert.ok(cmd.SUBCOMMANDS.settings.includes(`keys-${g}`), g);
+    assert.strictEqual(cmd.acceptsArgs('settings', [`keys-${g}`]), true);
+  }
+  assert.strictEqual(cmd.acceptsArgs('dl', ['del', '2']), true);
+});
+
 // Tout raccourci doit passer par src/shared/shortcuts.js pour apparaître dans « settings keys ».
 test('raccourcis : aucun écrit en dur dans le code', () => {
   const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));

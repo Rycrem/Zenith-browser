@@ -89,6 +89,14 @@ function buildMenu() {
     extensions: panel('ext'),
     nadir: panel('nadir'),
     mobile: () => panels.togglePanel('mobile'),
+    // Déjà ouverts dans un onglet : on y va ; sinon la commande settings.
+    settings: act(() => {
+      const open = state.tabs.find((tb) => tb.screen && tb.screen.kind === 'settings');
+      if (open) tabList.selectTab(open);
+      else commands.runCommand('settings');
+    }),
+    'settings-next': act(() => require('../commands/settings').cyclePage(tabList.activeTab(), 1) || tabList.cycleTab(1)),
+    'settings-prev': act(() => require('../commands/settings').cyclePage(tabList.activeTab(), -1) || tabList.cycleTab(-1)),
     private: () => privateBrowsing.togglePrivate().catch((err) => output.print([{ t: `  ${err.message}`, c: 'err' }])),
     'zoom-in': () => navigation.zoom(0.5),
     'zoom-out': () => navigation.zoom(-0.5),

@@ -5,38 +5,51 @@
 // des réglages sont construits à partir de cette liste (un test refuse un raccourci écrit en dur).
 // keys : raccourcis par défaut, au format des accélérateurs d'Electron ; le premier est affiché.
 // menu: false : raccourci lu à la main (before-input-event), pas par le menu.
+// group : sa catégorie dans « settings keys » (GROUPS, dans cet ordre).
+const GROUPS = [
+  { id: 'terminal', label: 'Terminal' },
+  { id: 'tabs', label: 'Onglets' },
+  { id: 'nav', label: 'Navigation' },
+  { id: 'window', label: 'Fenêtre et affichage' },
+  { id: 'panels', label: 'Popups et réglages' },
+  { id: 'dev', label: 'Développement' },
+];
+
 const SHORTCUTS = [
-  { id: 'terminal', label: 'aller au terminal', keys: ['CmdOrCtrl+K'] },
-  { id: 'history', label: 'historique', keys: ['CmdOrCtrl+H'] },
-  { id: 'clear', label: 'vider le terminal', keys: ['CmdOrCtrl+L'] },
-  { id: 'toggle-terminal', label: 'cacher / montrer le terminal', keys: ['CmdOrCtrl+`'], menu: false },
-  { id: 'fullscreen', label: 'plein écran', keys: ['F11'] },
-  { id: 'new-tab', label: 'nouvel onglet', keys: ['CmdOrCtrl+T'] },
-  { id: 'close-tab', label: 'fermer l\'onglet', keys: ['CmdOrCtrl+W'] },
-  { id: 'reopen-tab', label: 'rouvrir l\'onglet fermé', keys: ['CmdOrCtrl+Shift+T'] },
-  { id: 'next-tab', label: 'onglet suivant', keys: ['Ctrl+Tab'] },
-  { id: 'prev-tab', label: 'onglet précédent', keys: ['Ctrl+Shift+Tab'] },
-  ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({ id: `tab-${n}`, label: 'onglet {n}', n, keys: [`CmdOrCtrl+${n}`] })),
-  { id: 'back', label: 'page précédente', keys: ['Alt+Left'] },
-  { id: 'forward', label: 'page suivante', keys: ['Alt+Right'] },
-  { id: 'reload', label: 'recharger', keys: ['F5', 'CmdOrCtrl+R'] },
-  { id: 'hard-reload', label: 'recharger sans le cache', keys: ['CmdOrCtrl+Shift+R'] },
-  { id: 'find', label: 'chercher dans la page', keys: ['CmdOrCtrl+F'] },
-  { id: 'bookmark', label: 'ajouter aux favoris', keys: ['CmdOrCtrl+D'] },
-  { id: 'split', label: 'split', keys: ['CmdOrCtrl+Shift+S'] },
-  { id: 'switch-pane', label: 'changer d\'écran', keys: ['F6'] },
-  { id: 'devtools', label: 'outils de développement', keys: ['F12', 'CmdOrCtrl+Shift+I'] },
-  { id: 'inspect', label: 'sélectionner un élément de la page et le voir dans le HTML', keys: ['CmdOrCtrl+Shift+C'] },
-  { id: 'downloads', label: 'téléchargements', keys: ['CmdOrCtrl+J', 'CmdOrCtrl+Shift+J'] },
-  { id: 'favorites', label: 'favoris', keys: ['CmdOrCtrl+Shift+B'] },
-  { id: 'extensions', label: 'extensions', keys: ['CmdOrCtrl+Shift+E'] },
-  { id: 'nadir', label: 'Nadir, l\'assistant', keys: ['CmdOrCtrl+Shift+A'] },
-  { id: 'mobile', label: 'mode mobile', keys: ['CmdOrCtrl+Alt+M'] },
-  { id: 'private', label: 'navigation privée', keys: ['CmdOrCtrl+Shift+N'] },
-  ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({ id: `ext-${n}`, label: 'popup de l\'extension {n}', n, keys: [`Alt+${n}`] })),
-  { id: 'zoom-in', label: 'zoom +', keys: ['CmdOrCtrl+=', 'CmdOrCtrl+Plus'] },
-  { id: 'zoom-out', label: 'zoom -', keys: ['CmdOrCtrl+-'] },
-  { id: 'zoom-reset', label: 'zoom normal', keys: ['CmdOrCtrl+0'] },
+  { id: 'terminal', group: 'terminal', label: 'aller au terminal', keys: ['CmdOrCtrl+K'] },
+  { id: 'history', group: 'terminal', label: 'historique', keys: ['CmdOrCtrl+H'] },
+  { id: 'clear', group: 'terminal', label: 'vider le terminal', keys: ['CmdOrCtrl+L'] },
+  { id: 'toggle-terminal', group: 'terminal', label: 'cacher / montrer le terminal', keys: ['CmdOrCtrl+`'], menu: false },
+  { id: 'fullscreen', group: 'window', label: 'plein écran', keys: ['F11'] },
+  { id: 'new-tab', group: 'tabs', label: 'nouvel onglet', keys: ['CmdOrCtrl+T'] },
+  { id: 'close-tab', group: 'tabs', label: 'fermer l\'onglet', keys: ['CmdOrCtrl+W'] },
+  { id: 'reopen-tab', group: 'tabs', label: 'rouvrir l\'onglet fermé', keys: ['CmdOrCtrl+Shift+T'] },
+  { id: 'next-tab', group: 'tabs', label: 'onglet suivant', keys: ['Ctrl+Tab'] },
+  { id: 'prev-tab', group: 'tabs', label: 'onglet précédent', keys: ['Ctrl+Shift+Tab'] },
+  ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({ id: `tab-${n}`, group: 'tabs', label: 'onglet {n}', n, keys: [`CmdOrCtrl+${n}`] })),
+  { id: 'back', group: 'nav', label: 'page précédente', keys: ['Alt+Left'] },
+  { id: 'forward', group: 'nav', label: 'page suivante', keys: ['Alt+Right'] },
+  { id: 'reload', group: 'nav', label: 'recharger', keys: ['F5', 'CmdOrCtrl+R'] },
+  { id: 'hard-reload', group: 'nav', label: 'recharger sans le cache', keys: ['CmdOrCtrl+Shift+R'] },
+  { id: 'find', group: 'nav', label: 'chercher dans la page', keys: ['CmdOrCtrl+F'] },
+  { id: 'bookmark', group: 'nav', label: 'ajouter aux favoris', keys: ['CmdOrCtrl+D'] },
+  { id: 'split', group: 'window', label: 'split', keys: ['CmdOrCtrl+Shift+S'] },
+  { id: 'switch-pane', group: 'window', label: 'changer d\'écran', keys: ['F6'] },
+  { id: 'devtools', group: 'dev', label: 'outils de développement', keys: ['F12', 'CmdOrCtrl+Shift+I'] },
+  { id: 'inspect', group: 'dev', label: 'sélectionner un élément de la page et le voir dans le HTML', keys: ['CmdOrCtrl+Shift+C'] },
+  { id: 'downloads', group: 'panels', label: 'téléchargements', keys: ['CmdOrCtrl+J', 'CmdOrCtrl+Shift+J'] },
+  { id: 'favorites', group: 'panels', label: 'favoris', keys: ['CmdOrCtrl+Shift+B'] },
+  { id: 'extensions', group: 'panels', label: 'extensions', keys: ['CmdOrCtrl+Shift+E'] },
+  { id: 'nadir', group: 'panels', label: 'Nadir, l\'assistant', keys: ['CmdOrCtrl+Shift+A'] },
+  { id: 'mobile', group: 'window', label: 'mode mobile', keys: ['CmdOrCtrl+Alt+M'] },
+  { id: 'private', group: 'window', label: 'navigation privée', keys: ['CmdOrCtrl+Shift+N'] },
+  { id: 'settings', group: 'panels', label: 'réglages', keys: ['CmdOrCtrl+,'] },
+  { id: 'settings-next', group: 'panels', label: 'réglages : page suivante (ailleurs, onglet suivant)', keys: ['CmdOrCtrl+PageDown'] },
+  { id: 'settings-prev', group: 'panels', label: 'réglages : page précédente (ailleurs, onglet précédent)', keys: ['CmdOrCtrl+PageUp'] },
+  ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({ id: `ext-${n}`, group: 'panels', label: 'popup de l\'extension {n}', n, keys: [`Alt+${n}`] })),
+  { id: 'zoom-in', group: 'window', label: 'zoom +', keys: ['CmdOrCtrl+=', 'CmdOrCtrl+Plus'] },
+  { id: 'zoom-out', group: 'window', label: 'zoom -', keys: ['CmdOrCtrl+-'] },
+  { id: 'zoom-reset', group: 'window', label: 'zoom normal', keys: ['CmdOrCtrl+0'] },
 ];
 
 const BY_ID = Object.fromEntries(SHORTCUTS.map((s) => [s.id, s]));
@@ -117,4 +130,4 @@ function matches(input, accel) {
   return String(input.key).toLowerCase() === k.toLowerCase();
 }
 
-module.exports = { SHORTCUTS, BY_ID, normalize, effective, conflict, display, matches };
+module.exports = { GROUPS, SHORTCUTS, BY_ID, normalize, effective, conflict, display, matches };

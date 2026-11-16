@@ -317,22 +317,47 @@ const screens = {
       }
       return h('span', { class: 'settings-form' }, inputs, f.button ? h('button', { type: 'button', class: 'pill', onclick: send }, f.button) : null);
     };
+    const go = (id) => run(`settings ${id}`, { echo: false });
+    const rowEl = (r) => (r.heading ? h('tr', { class: 'settings-head' }, h('th', { colspan: 2 }, r.heading)) : h(
+      'tr',
+      {},
+      h('td', {}, r.icon ? h('img', { class: 'ext-icon', src: r.icon, alt: '' }) : null, r.icon ? ' ' : null, r.label, r.hint ? h('div', { class: 'dim' }, r.hint) : null),
+      h('td', {}, (r.options || []).map(choice), r.form ? formEl(r.form) : null),
+    ));
+    const table = h('table', { class: 'settings' });
+    // Recherche dans toutes les pages : les lignes trouvées, sous le nom de leur page (cliquable).
+    const fold = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const textOf = (r) => fold([r.label, r.hint, ...(r.options || []).flatMap((o) => [o.label, o.cmd]), r.form && r.form.template].join(' '));
+    const nav = s.pages.map((p) => h('button', {
+      type: 'button',
+      class: p.sub === 2 ? 'sub sub2' : p.sub ? 'sub' : '',
+      title: `settings ${p.id}`,
+      onclick: () => { settingsQuery = ''; go(p.id); },
+    }, p.label));
+    const show = () => {
+      const words = fold(settingsQuery).split(/\s+/).filter(Boolean);
+      // Pendant une recherche, aucune page n'est en surbrillance.
+      nav.forEach((b, i) => b.classList.toggle('on', !words.length && s.pages[i].id === s.page));
+      if (!words.length) return fill(table, s.rows.map(rowEl));
+      const found = s.index.flatMap((p) => {
+        const rows = p.rows.filter((r) => words.every((w) => textOf(r).includes(w) || fold(p.label).includes(w)));
+        return rows.length ? [h('tr', { class: 'settings-head' }, h('th', { colspan: 2 }, h('button', { type: 'button', class: 'link', title: `settings ${p.id}`, onclick: () => { settingsQuery = ''; go(p.id); } }, p.label))), ...rows.map(rowEl)] : [];
+      });
+      fill(table, found.length ? found : [h('tr', {}, h('td', { class: 'dim' }, t('Aucun réglage trouvé.')))]);
+    };
+    const search = h('input', {
+      type: 'search', class: 'settings-search', value: settingsQuery, placeholder: t('Chercher un réglage…'), spellcheck: 'false',
+      oninput: (e) => { settingsQuery = e.target.value; show(); },
+      onkeydown: (e) => { if (e.key === 'Escape' && settingsQuery) { e.stopPropagation(); settingsQuery = ''; e.target.value = ''; show(); } },
+    });
+    show();
     return [
       head(t('réglages'), 'settings'),
+      search,
       h('div', { class: 'settings-wrap' },
-        h('nav', { class: 'settings-nav' }, s.pages.map((p) => h('button', {
-          type: 'button',
-          class: `${p.sub ? 'sub' : ''}${p.id === s.page ? ' on' : ''}`,
-          title: `settings ${p.id}`,
-          onclick: () => run(`settings ${p.id}`, { echo: false }),
-        }, p.label))),
-        h('table', { class: 'settings' }, s.rows.map((r) => h(
-          'tr',
-          {},
-          h('td', {}, r.icon ? h('img', { class: 'ext-icon', src: r.icon, alt: '' }) : null, r.icon ? ' ' : null, r.label, r.hint ? h('div', { class: 'dim' }, r.hint) : null),
-          h('td', {}, (r.options || []).map(choice), r.form ? formEl(r.form) : null),
-        )))),
-      h('div', { class: 'hint' }, t('Chaque choix lance sa commande dans le terminal : survole-le pour la voir.')),
+        h('nav', { class: 'settings-nav' }, nav),
+        table),
+      h('div', { class: 'hint' }, t('Chaque choix lance sa commande dans le terminal : survole-le pour la voir. Ctrl+Pg.préc / Ctrl+Pg.suiv : page précédente / suivante.')),
     ];
   },
 
@@ -344,6 +369,9 @@ const screens = {
     ];
   },
 };
+
+// Texte de la recherche des réglages : il reste quand la page se redessine après un choix.
+let settingsQuery = '';
 
 function renderScreen(s) {
   return (screens[s.kind] || (() => [h('div', {}, s.kind)]))(s);

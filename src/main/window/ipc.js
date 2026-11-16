@@ -172,11 +172,22 @@ function setupIpc() {
     const b = state.win.getBounds();
     const w = tabList.detachTab(tab, { x: Math.round(sx - ox), y: Math.round(sy - oy), width: b.width, height: b.height }, true);
     if (!w || !w.win) return;
-    // Fenêtre agrandie ou en plein écran (F11) : elle reprend sa taille normale pour suivre la souris,
-    // sinon le dernier onglet ne pouvait pas l'emmener.
+    // Fenêtre agrandie ou en plein écran (F11) : elle reprend une taille normale pour suivre la souris,
+    // sinon le dernier onglet ne pouvait pas l'emmener. Sous Windows, la sortie du plein écran finit
+    // plus tard et peut rendre la fenêtre agrandie : on la remet en taille normale à ce moment-là.
     const full = w.win.getBounds().width;
-    if (w.win.isFullScreen()) w.win.setFullScreen(false);
-    if (w.win.isMaximized()) w.win.unmaximize();
+    const toNormal = () => {
+      if (!w.win || w.win.isDestroyed() || w.win.isFullScreen()) return;
+      if (w.win.isMaximized()) w.win.unmaximize();
+      // Sans taille normale connue (fenêtre ouverte en plein écran), elle couvrirait encore l'écran.
+      const area = screen.getDisplayNearestPoint({ x: Math.round(sx), y: Math.round(sy) }).workArea;
+      const b = w.win.getBounds();
+      if (b.width >= area.width * 0.9) w.win.setSize(Math.round(area.width * 0.7), Math.round(Math.min(b.height, area.height) * 0.8));
+    };
+    if (w.win.isFullScreen()) {
+      w.win.once('leave-full-screen', () => setTimeout(toNormal, 50));
+      w.win.setFullScreen(false);
+    } else toNormal();
     const d = { tab, w, ox, oy, over: null, gap: undefined, last: null };
     // La fenêtre suit la souris que signale l'interface, ou à défaut (souris au-dessus d'une
     // autre fenêtre, événements en retard) le curseur lu ici.
@@ -207,7 +218,10 @@ function setupIpc() {
     const target = windowUnder(own, sx, sy);
     if (target) {
       const g = drag && drag.gap && drag.gap.w === target ? drag.gap : null;
+      // Posé sur une fenêtre en plein écran : elle y reste.
+      const full = target.win.isFullScreen();
       if (tabList.moveTabToWindow(tab, target, g ? g.gap : undefined, true, g ? g.side : undefined)) target.win.webContents.send('ui:tab-arrived', tab.id);
+      if (full && !target.win.isDestroyed() && !target.win.isFullScreen()) target.win.setFullScreen(true);
       return;
     }
     if (drag) {

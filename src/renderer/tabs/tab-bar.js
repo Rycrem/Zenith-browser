@@ -30,7 +30,6 @@ document.addEventListener('mouseup', (e) => {
 
 // La séparation des deux barres tombe sur celle des écrans.
 function alignTabGroups() {
-  fitTabs();
   const g = groups[0].el;
   if (!state || state.panes.length < 2) {
     g.style.flex = '';
@@ -38,16 +37,6 @@ function alignTabGroups() {
   }
   const edge = $('.pane-resizer').getBoundingClientRect().left;
   g.style.flex = `0 0 ${Math.max(80, Math.round(edge - g.getBoundingClientRect().left))}px`;
-}
-
-// Un onglet rétréci au plus petit (min-width) n'affiche que l'icône de son site.
-// On mesure sans la classe, puisque cacher le titre change la largeur voulue.
-function fitTabs(force) {
-  if (tabDrag || (tabAnims && !force)) return;
-  const els = [...document.querySelectorAll('#tabbar .tab')];
-  els.forEach((el) => el.classList.remove('mini'));
-  const mini = els.filter((el) => !el.classList.contains('active') && el.getBoundingClientRect().width <= parseFloat(getComputedStyle(el).minWidth) + 0.5);
-  mini.forEach((el) => el.classList.add('mini'));
 }
 
 // Glisser un onglet : il suit la souris de gauche à droite, et ses voisins s'écartent doucement
@@ -260,26 +249,16 @@ function tabEl(tb, shown) {
   );
 }
 
-// Onglet ouvert, fermé, affiché ou rétréci : les largeurs changent en douceur (FLIP),
-// le nouvel onglet part de rien.
-// Pendant l'animation, les largeurs ne sont pas les vraies : fitTabs attend la fin.
+// Onglet ouvert : il s'élargit en douceur (FLIP) depuis rien.
 const TAB_RESIZE_MS = 180;
-let tabAnims = 0;
 function animateTabWidths(before) {
-  const list = [];
   for (const el of document.querySelectorAll('#tabbar .tab')) {
     if (el.classList.contains('arrived')) continue;
     const from = before.has(el.dataset.id) ? before.get(el.dataset.id) : 0;
     const to = el.getBoundingClientRect().width;
     if (Math.abs(from - to) < 1) continue;
-    list.push(el.animate([{ flex: `0 0 ${from}px`, minWidth: 0 }, { flex: `0 0 ${to}px`, minWidth: 0 }], { duration: TAB_RESIZE_MS, easing: 'ease-out' }).finished.catch(() => {}));
+    el.animate([{ flex: `0 0 ${from}px` }, { flex: `0 0 ${to}px` }], { duration: TAB_RESIZE_MS, easing: 'ease-out' });
   }
-  if (!list.length) return;
-  tabAnims++;
-  Promise.all(list).then(() => {
-    tabAnims--;
-    fitTabs();
-  });
 }
 
 function renderTabs() {
@@ -296,14 +275,18 @@ function renderTabs() {
     const shownId = state.panes[i].tabId;
     const list = state.tabs.filter((tb) => tb.side === i);
     fill(g.strip, list.map((tb) => tabEl(tb, tb.id === shownId)));
-    // L'onglet affiché reste visible dans sa barre.
+    // L'onglet affiché reste visible dans sa barre : encore une fois quand un nouvel onglet a
+    // fini de s'élargir, sinon il serait poussé hors de la barre.
     if (shownId !== g.shownId) {
       g.shownId = shownId;
-      const el = $('.tab.active', g.strip);
-      if (el) el.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+      const show = () => {
+        const el = $('.tab.active', g.strip);
+        if (el) el.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+      };
+      show();
+      setTimeout(show, TAB_RESIZE_MS + 20);
     }
   });
-  fitTabs(true);
   // Au premier rendu (lancement), rien à animer.
   if (before.size) animateTabWidths(before);
   // Pas pendant qu'on la modifie.

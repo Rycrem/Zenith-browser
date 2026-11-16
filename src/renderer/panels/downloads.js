@@ -30,6 +30,16 @@ function ring(r) {
   return svg;
 }
 
+// Corbeille : un couvercle et une cuve.
+function trashIcon() {
+  const svg = document.createElementNS(SVG, 'svg');
+  svg.setAttribute('viewBox', '0 0 16 16');
+  const p = document.createElementNS(SVG, 'path');
+  p.setAttribute('d', 'M2.5 4h11M6 4V2.5h4V4M4 4l.8 9.5h6.4L12 4M6.8 6.5v4.5M9.2 6.5v4.5');
+  svg.append(p);
+  return svg;
+}
+
 window.panel.onData((d) => {
   document.querySelector('#title').textContent = d.title;
   document.querySelector('#hint').textContent = d.hint;
@@ -52,6 +62,16 @@ window.panel.onData((d) => {
       window.panel.act('folder', r.i);
     },
   }, d.folder),
+  r.state === 'completed' ? h('button', {
+    type: 'button',
+    class: 'trash',
+    title: d.trashTitle,
+    'aria-label': d.trashTitle,
+    onclick: (e) => {
+      e.stopPropagation();
+      window.panel.act('trash', r.i);
+    },
+  }, trashIcon()) : null,
   h('button', {
     type: 'button',
     class: 'remove',
