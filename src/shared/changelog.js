@@ -7,9 +7,11 @@ const CHANGELOG = [
     version: '0.2.0',
     notes: [
       'Onglets : un titre trop long pour l\'onglet se termine par « … » au lieu d\'être coupé net.',
+      'Glisser le dernier onglet d\'une fenêtre en plein écran : la fenêtre sort vraiment du plein écran et suit la souris jusqu\'à l\'autre fenêtre.',
     ],
     en: [
       'Tabs: a title too long for its tab ends with "…" instead of being cut off.',
+      'Dragging the last tab of a full-screen window: the window really leaves full screen and follows the mouse to the other window.',
     ],
   },
   {

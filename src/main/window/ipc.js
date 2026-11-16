@@ -173,21 +173,24 @@ function setupIpc() {
     const w = tabList.detachTab(tab, { x: Math.round(sx - ox), y: Math.round(sy - oy), width: b.width, height: b.height }, true);
     if (!w || !w.win) return;
     // Fenêtre agrandie ou en plein écran (F11) : elle reprend une taille normale pour suivre la souris,
-    // sinon le dernier onglet ne pouvait pas l'emmener. Sous Windows, la sortie du plein écran finit
-    // plus tard et peut rendre la fenêtre agrandie : on la remet en taille normale à ce moment-là.
+    // sinon le dernier onglet ne pouvait pas l'emmener. Sous Windows, la sortie du plein écran se fait
+    // plus tard, peut rendre la fenêtre agrandie, et isFullScreen() ne la signale pas toujours : on
+    // reprend donc plusieurs fois, tant que la fenêtre couvre encore tout l'écran.
     const full = w.win.getBounds().width;
+    const display = screen.getDisplayNearestPoint({ x: Math.round(sx), y: Math.round(sy) });
     const toNormal = () => {
-      if (!w.win || w.win.isDestroyed() || w.win.isFullScreen()) return;
+      if (!w.win || w.win.isDestroyed()) return;
+      const b = w.win.getBounds();
+      const covers = b.width >= display.bounds.width && b.height >= display.bounds.height;
+      if (w.win.isFullScreen() || covers) w.win.setFullScreen(false);
       if (w.win.isMaximized()) w.win.unmaximize();
       // Sans taille normale connue (fenêtre ouverte en plein écran), elle couvrirait encore l'écran.
-      const area = screen.getDisplayNearestPoint({ x: Math.round(sx), y: Math.round(sy) }).workArea;
-      const b = w.win.getBounds();
-      if (b.width >= area.width * 0.9) w.win.setSize(Math.round(area.width * 0.7), Math.round(Math.min(b.height, area.height) * 0.8));
+      const area = display.workArea;
+      const nb = w.win.getBounds();
+      if (!w.win.isFullScreen() && nb.width >= area.width * 0.9) w.win.setSize(Math.round(area.width * 0.7), Math.round(Math.min(nb.height, area.height) * 0.8));
     };
-    if (w.win.isFullScreen()) {
-      w.win.once('leave-full-screen', () => setTimeout(toNormal, 50));
-      w.win.setFullScreen(false);
-    } else toNormal();
+    toNormal();
+    for (const ms of [60, 200, 450, 800]) setTimeout(() => tabDrag && tabDrag.w === w && toNormal(), ms);
     const d = { tab, w, ox, oy, over: null, gap: undefined, last: null };
     // La fenêtre suit la souris que signale l'interface, ou à défaut (souris au-dessus d'une
     // autre fenêtre, événements en retard) le curseur lu ici.
