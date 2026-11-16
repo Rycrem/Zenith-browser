@@ -314,6 +314,16 @@ th { color: var(--dim); }
 .pill { padding: 1px 8px; border-radius: 3px; background: var(--chip); }
 .pill:hover { background: var(--line); }
 
+.cert { max-width: 640px; margin: 24px auto 0; line-height: 1.6; }
+.cert-sign { width: 44px; height: 44px; border: 3px solid currentColor; border-radius: 50%; display: grid; place-items: center; font-size: 26px; font-weight: 800; margin-bottom: 20px; }
+.cert h1 { margin: 0 0 16px; font-size: 22px; font-weight: 600; }
+.cert-actions { display: flex; justify-content: space-between; margin: 24px 0; }
+.cert-actions .pill { padding: 6px 14px; }
+.cert-more { border-top: 1px solid var(--line); padding-top: 12px; }
+.cert-more[hidden] { display: none; }
+.cert .cert-go { color: var(--red); text-decoration: underline; }
+.cert-actions .pill.on { background: var(--accent); color: var(--on-accent); }
+
 /* ------------------------------------------------ terminal */
 
 #resizer { cursor: row-resize; background: var(--bg-deep); border-top: 1px solid var(--line); }

@@ -4,6 +4,15 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.69',
+    notes: [
+      'Site au certificat non reconnu (certificat d\'entreprise, autosigné, expiré…) : au lieu d\'une page vide, Zenith affiche l\'avertissement « Votre connexion n\'est pas privée », comme Chrome. « Paramètres avancés » puis « Continuer vers le site (dangereux) », ou la commande unsafe, ouvre quand même ce site jusqu\'à la fermeture de Zenith.',
+    ],
+    en: [
+      'Site with an untrusted certificate (company, self-signed, expired…): instead of a blank page, Zenith shows the "Your connection is not private" warning, like Chrome. "Advanced" then "Proceed to the site (unsafe)", or the unsafe command, opens that site anyway until Zenith is closed.',
+    ],
+  },
+  {
     version: '0.1.68',
     notes: [
       'Onglets : trop nombreux, ils rétrécissent de nouveau ensemble, mais remplissent toujours toute la barre (plus de barre à moitié vide) ; trop étroits, ils ne montrent que l\'icône du site et ×.',

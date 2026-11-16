@@ -55,6 +55,7 @@ const COMMANDS = [
   ['clicks', '', 'numéroter les liens, boutons et champs de la page ; un numéro clique ou place le curseur'],
   ['tty', '[on | off]', 'la page en texte simple, liens numérotés en bleu (clic ou numéro)'],
   ['back / fwd / reload', '', 'précédent, suivant, recharger'],
+  ['unsafe', '', 'sur l\'avertissement « Votre connexion n\'est pas privée » : continuer vers le site quand même'],
   ['reload hard', '', 'recharger sans le cache (Ctrl+Maj+R)'],
   ['home', '', 'revenir à l\'accueil'],
   ['tab', '[n | new [url…]]', 'lister, changer ou ouvrir un ou plusieurs onglets'],
@@ -99,7 +100,7 @@ const COMMANDS = [
 ];
 
 const COMMAND_NAMES = [
-  'brows', 'ia', 'nadir', 'go', 'clicks', 'back', 'fwd', 'reload', 'home', 'tab', 'close', 'split', 'focus',
+  'brows', 'ia', 'nadir', 'go', 'clicks', 'back', 'unsafe', 'fwd', 'reload', 'home', 'tab', 'close', 'split', 'focus',
   'fav', 'add', 'undo', 'hist', 'clean', 'find', 'ext', 'dl', 'alias', 'unalias', 'engine',
   'theme', 'mode', 'gpu', 'lasttab', 'keys', 'settings', 'private', 'prive', 'lang', 'tty', 'perm', 'update', 'devtools', 'term', 'whatsapp', 'messages', 'gmail', 'chat', 'discord', 'fullscreen', 'quit', 'exit', 'help', 'clear', 'popback', 'config', 'default',
 ];
@@ -140,7 +141,7 @@ const ARG_SHAPES = {
   help: null, '?': null, clear: null, home: null, accueil: null, back: null, b: null, fwd: null, f: null,
   reload: /^hard$/i, r: /^hard$/i, n: null, next: null, p: null, prev: null, clicks: null, links: null, l: null, term: null, quit: null, exit: null, q: null, fullscreen: /^(on|off)$/i, fs: /^(on|off)$/i, tty: /^(on|off)$/i, gpu: /^(on|off)$/i, lasttab: /^(quit|keep)$/i,
   keys: new RegExp(`^(reset|${SHORTCUTS.map((s) => s.id).join('|')})$`, 'i'),
-  undo: null, focus: null, settings: /^(general|ia|nadir|alias|ext|perm|update|keys(-(terminal|tabs|nav|window|panels|dev))?)$/i, reglages: /^(general|ia|nadir|alias|ext|perm|update|keys(-(terminal|tabs|nav|window|panels|dev))?)$/i, 'réglages': /^(general|ia|nadir|alias|ext|perm|update|keys(-(terminal|tabs|nav|window|panels|dev))?)$/i, popback: null, default: null, config: /^(export|import)$/i, lang: /^(fr|en)$/i, langue: /^(fr|en)$/i, update: /^(install|electron|auto|-v|versions)$/i,
+  undo: null, focus: null, unsafe: null, settings: /^(general|ia|nadir|alias|ext|perm|update|keys(-(terminal|tabs|nav|window|panels|dev))?)$/i, reglages: /^(general|ia|nadir|alias|ext|perm|update|keys(-(terminal|tabs|nav|window|panels|dev))?)$/i, 'réglages': /^(general|ia|nadir|alias|ext|perm|update|keys(-(terminal|tabs|nav|window|panels|dev))?)$/i, popback: null, default: null, config: /^(export|import)$/i, lang: /^(fr|en)$/i, langue: /^(fr|en)$/i, update: /^(install|electron|auto|-v|versions)$/i,
   whatsapp: /^(pin|unpin|reload|close)$/i, messages: /^(pin|unpin|reload|close)$/i, gmail: /^(pin|unpin|reload|close)$/i, chat: /^(pin|unpin|reload|close)$/i, discord: /^(pin|unpin|reload|close)$/i,
   tab: /^(\d+|new|save)$/i, tabs: /^(\d+|new|save)$/i, close: /^\d+$/, dl: /^(\d+|cancel|rm|del)$/i, split: /^(off|close)$/i,
   devtools: /^(detach|detacher|attach|rattacher|close|off)$/i, dev: /^(detach|detacher|attach|rattacher|close|off)$/i,

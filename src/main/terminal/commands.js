@@ -12,6 +12,7 @@ const tabList = require('../tabs/tabs');
 const extPopup = require('../extensions/popup');
 const lastSession = require('../tabs/last-session');
 const navigation = require('../tabs/navigation');
+const pageView = require('../tabs/page-view');
 const split = require('../split/split');
 const screens = require('./screens');
 const output = require('./output');
@@ -161,6 +162,10 @@ async function exec(raw, depth = 0) {
         say(t('  {count} éléments numérotés : un numéro clique un lien ou un bouton, ou place le curseur dans un champ (« 3t » : lien dans un nouvel onglet)', { count }), 'dim');
         break;
       }
+      case 'unsafe':
+        pageView.proceedCert(tab);
+        say(t('  certificat accepté pour ce site jusqu\'à la fermeture de Zenith'), 'warn');
+        break;
       case 'back':
       case 'b':
         navigation.goBack(tab);

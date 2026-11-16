@@ -51,6 +51,7 @@ Logic tests (bookmarks, aliases, result parsing, extensions, translations): `npm
 | `clicks` | numbers the page's links, buttons and input fields; a number clicks the link or button, or puts the cursor in the field; `3t` (or `3 t`) opens link 3 in a new tab |
 | `tty [on\|off]` | shows pages as plain text, like a terminal: links are underlined in blue and numbered, type the number or click them (stays on while you browse) |
 | `back`, `fwd`, `reload`, `reload hard`, `home` | navigation (`reload hard` reloads without the cache; `back` goes through the search results the page came from) |
+| `unsafe` | on the "Your connection is not private" warning (site whose certificate is not trusted: company, self-signed, expired...), continue to the site anyway; the certificate is accepted for that site until Zenith is closed (same as "Advanced" then "Proceed to the site (unsafe)") |
 | `tab`, `tab <n>`, `tab new [url…]`, `tab save <name>`, `close [n]` | tabs (`tab new` with several addresses opens a tab for each) |
 | `popback` | reopens the tabs from last time (those open when Zenith was closed) |
 | `split`, `split off [1\|2]`, `focus` | two panes side by side, close a pane (the other one by default, or the ✕ at the top of the pane), switch pane; each pane has its own terminal below it, and Ctrl+Shift+N makes only the active pane private |
