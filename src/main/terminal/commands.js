@@ -329,10 +329,12 @@ async function exec(raw, depth = 0) {
         break;
       }
       case 'mode': {
-        const modes = { nuit: false, night: false, jour: true, day: true };
-        if (!args.length) say(t('  mode : {mode} (nuit | jour)', { mode: theme.isLight() ? t('jour') : t('nuit') }));
-        else if (!(args[0] in modes)) throw new Error(t('modes : nuit, jour'));
-        else theme.setMode(modes[args[0]]);
+        const modes = { nuit: 'nuit', night: 'nuit', jour: 'jour', day: 'jour', systeme: 'systeme', système: 'systeme', system: 'systeme' };
+        const mode = (args[0] || '').toLowerCase();
+        const current = theme.isLight() ? t('jour') : t('nuit');
+        if (!args.length) say(t('  mode : {mode} (nuit | jour | systeme)', { mode: theme.followsSystem() ? t('{mode}, comme le système', { mode: current }) : current }));
+        else if (!(mode in modes)) throw new Error(t('modes : nuit, jour, systeme'));
+        else theme.setMode(modes[mode]);
         break;
       }
       case 'settings':

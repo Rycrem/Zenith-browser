@@ -62,7 +62,7 @@ async function configCommand(sub, file, say) {
     }
     setLang(lang.initialLang());
     menu.buildMenu();
-    theme.setMode(theme.isLight());
+    theme.setMode(theme.followsSystem() ? 'systeme' : theme.isLight() ? 'jour' : 'nuit');
     for (const e of missing) {
       try {
         const ext = await state.exts.add(e.source);

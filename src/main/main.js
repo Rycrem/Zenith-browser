@@ -124,7 +124,7 @@ app.whenReady().then(async () => {
   for (const k of ['builtinAdblock', 'lastUpdateCheck']) delete state.settings.data[k];
   fs.rmSync(path.join(dir, 'adblock.bin'), { force: true });
   ai.migrate(state.settings);
-  nativeTheme.themeSource = theme.isLight() ? 'light' : 'dark';
+  nativeTheme.themeSource = theme.followsSystem() ? 'system' : theme.isLight() ? 'light' : 'dark';
   setLang(lang.initialLang());
   state.chromeApi = chromeApis.setupChromeApi(state.ses); // avant le chargement des extensions, pour lire leurs manifestes
   extLogs.watchExtensionLogs();

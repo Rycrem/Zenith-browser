@@ -30,6 +30,11 @@ function general() {
   return [
     { label: t('Mode'), options: [opt(t('nuit'), 'mode nuit', !light), opt(t('jour'), 'mode jour', light)] },
     {
+      label: process.platform === 'win32' ? t('Suivre le thème de Windows') : t('Suivre le thème du système'),
+      hint: t('clair ou sombre'),
+      options: [opt(t('activé'), 'mode systeme', theme.followsSystem()), opt(t('désactivé'), light ? 'mode jour' : 'mode nuit', !theme.followsSystem())],
+    },
+    {
       label: t('Couleur d\'accent'),
       options: [...Object.keys(theme.THEMES).map((k) => opt(k, `theme ${k}`, d.theme === k)), ...(custom ? [opt(d.theme, `theme ${d.theme}`, true)] : [])],
       form: form('theme {0}', [{ type: 'color', value: theme.accentColor(), title: t('Choisir une autre couleur') }]),

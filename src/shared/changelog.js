@@ -4,6 +4,15 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.66',
+    notes: [
+      'Nouveau réglage « Suivre le thème de Windows » (désactivé par défaut) : Zenith passe en jour ou en nuit en même temps que Windows (aussi « mode systeme »).',
+    ],
+    en: [
+      'New "Follow the Windows theme" setting (off by default): Zenith switches to day or night along with Windows (also "mode systeme").',
+    ],
+  },
+  {
     version: '0.1.65',
     notes: [
       'Fermer le dernier onglet ferme la fenêtre, et Zenith si c\'est la dernière (réglage « lasttab », activé par défaut).',
