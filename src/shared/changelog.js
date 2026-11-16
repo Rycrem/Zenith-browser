@@ -4,6 +4,15 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.2.0',
+    notes: [
+      'Onglets : un titre trop long pour l\'onglet se termine par « … » au lieu d\'être coupé net.',
+    ],
+    en: [
+      'Tabs: a title too long for its tab ends with "…" instead of being cut off.',
+    ],
+  },
+  {
     version: '0.1.69',
     notes: [
       'Site au certificat non reconnu (certificat d\'entreprise, autosigné, expiré…) : au lieu d\'une page vide, Zenith affiche l\'avertissement « Votre connexion n\'est pas privée », comme Chrome. « Paramètres avancés » puis « Continuer vers le site (dangereux) », ou la commande unsafe, ouvre quand même ce site jusqu\'à la fermeture de Zenith.',

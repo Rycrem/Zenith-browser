@@ -158,7 +158,8 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
 .tab .close:hover { background: var(--line); color: var(--text); }
 .tab .label { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1 1 auto; }
 .tab .n { flex: none; }
-.tab .text { overflow: hidden; text-overflow: ellipsis; }
+/* Titre trop long pour l'onglet : coupé avec « … » (min-width: 0, sinon il ne rétrécit pas et il est juste rogné). */
+.tab .text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 /* L'onglet affiché garde sa taille normale. Trop étroit pour son titre (classe mini, posée par
    fitTabs), un onglet ne montre que l'icône de son site (ou son numéro) et ×, sans changer de largeur. */
 .tab.active { flex-shrink: 0; }
