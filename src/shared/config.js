@@ -26,7 +26,7 @@ function map(v, ok) {
 const CHECKS = {
   engine: (v) => (str(v) ? v : undefined),
   theme: (v) => (str(v) ? v : undefined),
-  mode: (v) => (v === 'jour' || v === 'nuit' ? v : undefined),
+  mode: (v) => (['jour', 'nuit', 'systeme'].includes(v) ? v : undefined),
   lang: (v) => (v === 'fr' || v === 'en' ? v : undefined),
   aliases: (v) => map(v, (x) => str(x) && !!x.trim()),
   volume: (v) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : undefined),
