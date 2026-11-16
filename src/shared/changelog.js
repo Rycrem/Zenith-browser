@@ -8,10 +8,12 @@ const CHANGELOG = [
     notes: [
       'Onglets : un titre trop long pour l\'onglet se termine par « … » au lieu d\'être coupé net.',
       'Glisser le dernier onglet d\'une fenêtre en plein écran : la fenêtre sort vraiment du plein écran et suit la souris jusqu\'à l\'autre fenêtre.',
+      'Onglet glissé hors de sa fenêtre : tout en haut de l\'écran, un cadre translucide couvre l\'écran, comme sous Windows, pour montrer que la fenêtre s\'agrandira si on la lâche là.',
     ],
     en: [
       'Tabs: a title too long for its tab ends with "…" instead of being cut off.',
       'Dragging the last tab of a full-screen window: the window really leaves full screen and follows the mouse to the other window.',
+      'Tab dragged out of its window: at the very top of the screen, a translucent frame covers the screen, like in Windows, to show that the window will be maximized if dropped there.',
     ],
   },
   {

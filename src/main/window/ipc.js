@@ -1,6 +1,6 @@
 'use strict';
 
-const { ipcMain, clipboard, screen, Menu } = require('electron');
+const { ipcMain, clipboard, screen, Menu, BrowserWindow } = require('electron');
 const { t, getLang } = require('../../shared/i18n');
 const fav = require('../../shared/favorites');
 const state = require('../state');
@@ -156,9 +156,40 @@ function setupIpc() {
     if (d.w.win && !d.w.win.isDestroyed()) d.w.win.setOpacity(w ? 0.55 : 1);
     if (w) w.win.webContents.send('ui:tab-hover', x - w.win.getContentBounds().x);
   };
+  // Aperçu d'agrandissement : souris tout en haut de l'écran, un cadre translucide couvre l'écran
+  // (comme Windows quand on plaque une fenêtre en haut) ; lâchée là, la fenêtre s'agrandit.
+  // Windows ne le montre pas lui-même pour une fenêtre déplacée par Zenith (onglet glissé).
+  // Détruit à la fin du glissement : caché, il empêcherait Zenith de se fermer avec sa dernière fenêtre.
+  const SNAP_HTML = '<!doctype html><html><body style="margin:0;height:100vh;background:transparent;overflow:hidden">'
+    + '<div style="position:absolute;inset:8px;border-radius:8px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.55);box-shadow:0 0 0 1px rgba(0,0,0,.25);animation:in .15s ease-out"></div>'
+    + '<style>@keyframes in{from{transform:scale(.97);opacity:0}}</style></body></html>';
+  let snapWin = null;
+  const snapPreview = (area, above) => {
+    if (!area) {
+      if (snapWin && !snapWin.isDestroyed()) snapWin.destroy();
+      snapWin = null;
+      return;
+    }
+    if (snapWin && !snapWin.isDestroyed()) return;
+    snapWin = new BrowserWindow({
+      ...area, show: false, frame: false, transparent: true, resizable: false, movable: false, focusable: false,
+      skipTaskbar: true, hasShadow: false, webPreferences: { sandbox: true, contextIsolation: true, javascript: false },
+    });
+    snapWin.setIgnoreMouseEvents(true);
+    const sw = snapWin;
+    sw.loadURL(`data:text/html,${encodeURIComponent(SNAP_HTML)}`);
+    sw.once('ready-to-show', () => {
+      if (sw.isDestroyed() || snapWin !== sw) return;
+      sw.showInactive();
+      // La fenêtre glissée reste au-dessus de l'aperçu.
+      if (above && !above.isDestroyed()) above.moveTop();
+    });
+  };
+  const atTop = (p) => p.y <= screen.getDisplayNearestPoint(p).workArea.y + 4;
   const endDrag = () => {
     const d = tabDrag;
     tabDrag = null;
+    snapPreview(null);
     if (!d) return null;
     clearInterval(d.timer);
     const over = d.over;
@@ -203,6 +234,7 @@ function setupIpc() {
       w.win.setPosition(Math.round(p.x - x), Math.round(p.y - oy));
       const under = windowUnder(w, p.x, p.y);
       if (under !== d.over || under) hover(d, under || null, p.x);
+      snapPreview(!under && atTop(p) ? screen.getDisplayNearestPoint(p).workArea : null, w.win);
     }, 16);
     tabDrag = d;
   });
@@ -230,8 +262,7 @@ function setupIpc() {
     if (drag) {
       // Lâchée tout en haut de l'écran, la fenêtre glissée passe en plein écran, comme une fenêtre
       // plaquée en haut par sa barre de titre (Windows ne le fait pas pour un déplacement programmé).
-      const top = screen.getDisplayNearestPoint({ x: Math.round(sx), y: Math.round(sy) }).workArea.y;
-      if (own && own.win && !own.win.isDestroyed() && sy <= top + 4) own.win.maximize();
+      if (own && own.win && !own.win.isDestroyed() && atTop({ x: Math.round(sx), y: Math.round(sy) })) own.win.maximize();
       return void (own && own.win && own.win.focus());
     }
     // Lâché hors de toute fenêtre sans avoir été détaché (glissé de côté) : sa propre fenêtre, là.
