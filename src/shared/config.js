@@ -1,9 +1,11 @@
 'use strict';
 
+const { normalize } = require('./shortcuts');
+
 // Fichier de configuration (« config export / import ») : les réglages et favoris d'un profil,
 // pour le passer d'un ordinateur à l'autre. Les clés des IA n'y sont pas : chiffrées par le système,
 // elles ne se relisent que sur l'ordinateur qui les a enregistrées.
-const SETTINGS = ['engine', 'theme', 'mode', 'lang', 'aliases', 'volume', 'muteAll', 'permissions', 'autoUpdate', 'aiProvider', 'aiModels'];
+const SETTINGS = ['engine', 'theme', 'mode', 'lang', 'aliases', 'volume', 'muteAll', 'permissions', 'autoUpdate', 'aiProvider', 'aiModels', 'shortcuts'];
 
 function exportConfig({ settings, favorites, extensions, version }) {
   const picked = {};
@@ -33,6 +35,7 @@ const CHECKS = {
   autoUpdate: (v) => (bool(v) ? v : undefined),
   aiProvider: (v) => (str(v) ? v : undefined),
   aiModels: (v) => map(v, str),
+  shortcuts: (v) => map(v, (x) => Array.isArray(x) && x.length <= 4 && x.every((k) => str(k) && !!normalize(k))),
 };
 
 const LINK_URL = /^(https?|ftp|file):/i;

@@ -294,6 +294,23 @@ const screens = {
         for (const i of inputs) if (i.type !== 'color') i.value = '';
       };
       // La couleur s'applique dès qu'elle est choisie ; les autres champs avec Entrée ou le bouton.
+      // Un champ de raccourci prend les touches appuyées (Ctrl+Maj+O…) ; on peut aussi les écrire.
+      f.fields.forEach((x, n) => x.type === 'keys' && inputs[n].addEventListener('keydown', (e) => {
+        const i = inputs[n];
+        if (['Control', 'Shift', 'Alt', 'Meta', 'AltGraph'].includes(e.key)) return;
+        if (e.key === 'Escape') return void i.blur();
+        const ctrl = e.ctrlKey || e.metaKey;
+        if (!ctrl && !e.altKey && !/^F\d+$/.test(e.key)) return; // texte tapé, Entrée l'envoie
+        e.preventDefault();
+        e.stopPropagation();
+        const named = { ArrowLeft: 'Left', ArrowRight: 'Right', ArrowUp: 'Up', ArrowDown: 'Down', ' ': 'Space', '+': 'Plus' };
+        let key = named[e.key] || e.key;
+        if (e.code === 'Backquote') key = '`';
+        else if (/^Digit\d$/.test(e.code)) key = e.code.slice(5);
+        else if (/^Key[A-Z]$/.test(e.code)) key = e.key.length === 1 && /[a-z]/i.test(e.key) ? e.key.toUpperCase() : e.code.slice(3);
+        i.value = [ctrl && 'Ctrl', e.altKey && 'Alt', e.shiftKey && 'Shift', key].filter(Boolean).join('+');
+        send();
+      }));
       for (const i of inputs) {
         if (i.type === 'color') i.addEventListener('change', send);
         else i.addEventListener('keydown', (e) => e.key === 'Enter' && (e.preventDefault(), send()));

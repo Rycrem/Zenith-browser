@@ -9,12 +9,14 @@ const screens = require('../terminal/screens');
 const updates = require('../updates/update-command');
 const ai = require('../ai/providers');
 const nadir = require('../nadir/nadir');
+const keys = require('./keys');
+const menu = require('../window/menu');
 
 // Page des réglages (« settings [page] », bouton ⚙ en bas à droite). Un volet à gauche liste les
 // pages : les réglages généraux, puis une page par commande qui a des réglages. Chaque choix ou
 // champ lance sa commande dans le terminal, et la page se met à jour.
 // Une nouvelle commande qui a des réglages doit avoir sa page ici (PAGES et buildPage).
-const PAGES = ['general', 'ia', 'nadir', 'alias', 'ext', 'perm', 'update'];
+const PAGES = ['general', 'keys', 'ia', 'nadir', 'alias', 'ext', 'perm', 'update'];
 
 const opt = (label, cmd, on) => ({ label, cmd, on: !!on });
 // Formulaire : des champs, et la commande où {0}, {1}… sont remplacés par leur valeur.
@@ -75,7 +77,7 @@ function extPage() {
     ...state.exts.summary().map((e) => ({
       label: e.name || e.alias,
       icon: e.icon,
-      hint: `${e.alias} · Alt+${e.n}${e.error ? ` · ${e.error}` : ''}`,
+      hint: `${e.alias}${menu.keyLabel(`ext-${e.n}`) ? ` · ${menu.keyLabel(`ext-${e.n}`)}` : ''}${e.error ? ` · ${e.error}` : ''}`,
       options: [
         opt(t('activée'), `ext on ${e.n}`, e.enabled),
         opt(t('désactivée'), `ext off ${e.n}`, !e.enabled),
@@ -108,9 +110,9 @@ function updatePage() {
 }
 
 const TITLES = {
-  general: 'Général', ia: 'IA (ia)', nadir: 'Nadir', alias: 'Alias', ext: 'Extensions (ext)', perm: 'Autorisations (perm)', update: 'Mises à jour (update)',
+  general: 'Général', keys: 'Raccourcis (keys)', ia: 'IA (ia)', nadir: 'Nadir', alias: 'Alias', ext: 'Extensions (ext)', perm: 'Autorisations (perm)', update: 'Mises à jour (update)',
 };
-const BUILD = { general, ia: iaPage, nadir: nadirPage, alias: aliasPage, ext: extPage, perm: permPage, update: updatePage };
+const BUILD = { general, keys: keys.keysPage, ia: iaPage, nadir: nadirPage, alias: aliasPage, ext: extPage, perm: permPage, update: updatePage };
 
 function showSettings(tab, page = 'general') {
   const id = PAGES.includes(page) ? page : 'general';

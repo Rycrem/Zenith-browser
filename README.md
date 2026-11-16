@@ -69,6 +69,7 @@ Logic tests (bookmarks, aliases, result parsing, extensions, translations): `npm
 | `engine ddg\|google\|bing\|qwant`, `theme ambre\|vert\|cyan\|rose\|violet\|#rrggbb`, `lang [en\|fr]` | settings |
 | `settings [page]` | settings page, with a page list on the left: General (night/day mode, color with a picker for your own color, language, engine, hardware acceleration, default browser, backup), then one page per command that has settings: `ia`, `nadir`, `alias`, `ext`, `perm`, `update`; also the ⚙ button at the far right of the status bar, next to Nadir. Away from the home screen, settings open in a new tab |
 | `gpu [on\|off]` | turns hardware acceleration on or off (Zenith offers to restart) |
+| `keys [shortcut <keys\|off\|default>\|reset]` | change the keyboard shortcuts: `keys` lists them, `keys new-tab ctrl+shift+o` changes one, `off` removes it, `default` restores it, `keys reset` restores them all; also in `settings keys`, where you click a shortcut's field and press the keys |
 | `lasttab [quit\|keep]` | closing the last tab closes the window, and Zenith if it is the last one (`quit`, default), or leaves a home tab (`keep`); also in `settings` |
 | `config export [file]`, `config import [file]` | saves or loads your settings, bookmarks and extensions in a file, to move to another computer (without the AI keys) |
 | `default` | makes Zenith the default browser (on Windows, registers it then opens the default apps page to pick it) |
@@ -88,6 +89,8 @@ After a command, the keyboard stays in the terminal, even while a page loads; Es
 Each tab has its own terminal; command history (↑ ↓) is shared by all of them.
 
 ## Shortcuts
+
+All the shortcuts below (the defaults) can be changed in `settings keys` or with `keys`. The help (`help`) shows the current ones.
 
 Ctrl+K terminal · Ctrl+H history · Ctrl+L clear the terminal · Ctrl+` (the key below Esc) hide/show the terminal · F11 fullscreen · Esc hand over to the page · Ctrl+T / Ctrl+W tabs · Ctrl+Tab / Ctrl+Shift+Tab next / previous tab (the active pane's in split), Ctrl+1…9 · Alt+←/→ · F5 · Ctrl+Shift+R reload without the cache · Ctrl+Shift+T reopen closed tab · Ctrl+F find bar (on a page as well as on history, bookmarks, help…; Esc closes it) · Ctrl+D bookmark · Ctrl+Shift+S split · F6 switch pane · F12 or right-click › Inspect for DevTools · Ctrl+Shift+C pick an element of the page and see it in the HTML · Alt+1…9 extension popup · Ctrl+Shift+B bookmarks popup · Ctrl+J downloads popup · Ctrl+Shift+E extensions popup · Ctrl+Shift+A Nadir · Ctrl+Alt+M mobile mode · Ctrl+Shift+N private browsing · Ctrl+Enter run the command in a new tab · Ctrl+C cancel the input · ↑/↓ command history · Tab completion (Tab again: each suggestion in turn, highlighted in the theme color, Shift+Tab backwards) · → (or End) accepts the grey prediction, taken from command history, aliases, bookmarks and visited pages · Ctrl+Enter keeps the command and its answer in the new tab's terminal. A window dragged by a tab and dropped at the very top of the screen is maximized. Shortcuts also work while the cursor is in the terminal.
 

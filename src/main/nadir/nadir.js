@@ -381,7 +381,7 @@ function ask(text, shown = false) {
     system: N.systemPrompt({
       lang: getLang(),
       commands: C.COMMANDS.map(([n, a, d]) => [n, t(a), t(d)]),
-      shortcuts: menu.SHORTCUTS.map(([k, d]) => [t(k), t(d)]),
+      shortcuts: menu.shortcutList(),
     }),
     tools: TOOLS,
     history,

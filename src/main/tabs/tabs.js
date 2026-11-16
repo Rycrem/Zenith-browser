@@ -3,6 +3,7 @@
 const { Menu } = require('electron');
 const { t } = require('../../shared/i18n');
 const { shortUrl } = require('../../shared/search');
+const K = require('../../shared/shortcuts');
 const state = require('../state');
 const ui = require('../window/ui');
 const lastSession = require('./last-session');
@@ -83,9 +84,10 @@ function reopenClosed(i = 0) {
 // Clic droit sur + : les onglets fermés, le plus récent en premier.
 function recentMenu() {
   const recent = closedTabs.map((c, i) => ({ label: (c.title || shortUrl(c.url)).slice(0, 70), click: () => reopenClosed(i) }));
+  const keys = K.effective(state.settings.data.shortcuts);
   Menu.buildFromTemplate([
-    { label: t('Nouvel onglet'), accelerator: 'CmdOrCtrl+T', click: () => { createTab(); output.focusTerminal(); } },
-    { label: t('Rouvrir l\'onglet fermé'), accelerator: 'CmdOrCtrl+Shift+T', enabled: closedTabs.length > 0, click: () => reopenClosed(0) },
+    { label: t('Nouvel onglet'), accelerator: keys['new-tab'][0], click: () => { createTab(); output.focusTerminal(); } },
+    { label: t('Rouvrir l\'onglet fermé'), accelerator: keys['reopen-tab'][0], enabled: closedTabs.length > 0, click: () => reopenClosed(0) },
     { label: t('Onglets récents'), submenu: recent.length ? recent : [{ label: t('Aucun onglet fermé'), enabled: false }] },
   ]).popup({ window: state.win });
 }
@@ -216,9 +218,13 @@ function cycleTab(dir) {
 }
 
 // Ctrl+Tab ou Ctrl+Maj+Tab : 1 ou -1, sinon 0.
+// Onglet suivant / précédent lu avant la page et le terminal, qui garderaient sinon la touche (Tab).
 function cycleKey(input) {
-  if (input.type !== 'keyDown' || input.key !== 'Tab' || !input.control || input.alt || input.meta) return 0;
-  return input.shift ? -1 : 1;
+  if (input.type !== 'keyDown') return 0;
+  const keys = K.effective(state.settings.data.shortcuts);
+  if (keys['next-tab'].some((k) => K.matches(input, k))) return 1;
+  if (keys['prev-tab'].some((k) => K.matches(input, k))) return -1;
+  return 0;
 }
 
 function tabTitle(tab) {

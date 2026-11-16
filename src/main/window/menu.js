@@ -12,31 +12,48 @@ const devtools = require('../devtools/devtools');
 const privateBrowsing = require('../private/private');
 const commands = require('../terminal/commands');
 const panels = require('../panels/panels');
+const K = require('../../shared/shortcuts');
 
-const SHORTCUTS = [
-  ['Ctrl+K', mark('aller au terminal')],
-  ['Ctrl+H', mark('historique')],
-  ['Ctrl+L', mark('vider le terminal')],
-  [mark('Ctrl+² (la touche sous Échap)'), mark('cacher / montrer le terminal')],
-  ['F11', mark('plein écran')],
+// Raccourcis que l'on ne peut pas changer (souris, touches du terminal), montrés dans l'aide après les autres.
+const FIXED = [
   [mark('Échap'), mark('rendre la main à la page')],
-  ['Ctrl+T / Ctrl+W', mark('nouvel onglet / fermer l\'onglet')],
-  [mark('Ctrl+Maj+T, clic droit sur +'), mark('rouvrir un onglet fermé / onglets récents')],
-  ['Ctrl+Tab', mark('onglet suivant (Ctrl+1…9 : onglet n)')],
-  ['Alt+← / Alt+→', mark('précédent / suivant')],
-  ['F5', mark('recharger')],
-  [mark('Ctrl+Maj+R'), mark('recharger sans le cache')],
-  ['Ctrl+F / Ctrl+D', mark('chercher dans la page / ajouter aux favoris')],
-  [mark('Ctrl+Maj+S / F6'), mark('split / changer d\'écran')],
-  [mark('F12, clic droit › Inspecter'), mark('outils de développement')],
-  [mark('Ctrl+Maj+C'), mark('sélectionner un élément de la page et le voir dans le HTML')],
-  ['Alt+1…9', mark('popup de l\'extension n')],
-  ['Ctrl+J', mark('téléchargements (ou le bouton ↓ de la barre du bas)')],
-  [mark('Ctrl+Maj+A'), mark('Nadir, l\'assistant (ou son bouton en bas à droite)')],
-  [mark('Ctrl+Maj+B'), mark('favoris (ou le bouton ★ en bas à gauche)')],
-  [mark('Ctrl+molette, Ctrl+= / Ctrl+-'), 'zoom'],
+  [mark('clic droit sur +'), mark('onglets récents')],
+  [mark('clic droit › Inspecter'), mark('outils de développement')],
+  [mark('Ctrl+molette'), 'zoom'],
   ['↑ ↓ / Tab', mark('historique des commandes / autocomplétion')],
 ];
+
+const keysOf = () => K.effective(state.settings.data.shortcuts);
+const show = (accel) => K.display(accel, t('Maj'));
+
+// « Ctrl+1…9 » quand les neuf raccourcis d'une série se suivent, sinon chacun.
+function series(prefix, keys) {
+  const firsts = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => keys[`${prefix}-${n}`][0]);
+  if (firsts.some((k) => !k)) return firsts.filter(Boolean).map(show).join(' / ');
+  const base = firsts.map((k) => k.replace(/\d$/, ''));
+  if (firsts.every((k, i) => k.endsWith(String(i + 1)) && base[i] === base[0])) return `${show(firsts[0])}…9`;
+  return firsts.map(show).join(' / ');
+}
+
+// Liste de l'aide et de Nadir : [touches, description], d'après les raccourcis en vigueur.
+function shortcutList() {
+  const keys = keysOf();
+  const rows = [];
+  for (const s of K.SHORTCUTS) {
+    if (s.n > 1) continue;
+    if (s.n === 1) {
+      const prefix = s.id.replace(/-1$/, '');
+      rows.push([series(prefix, keys), t(s.label, { n: 'n' })]);
+    } else if (keys[s.id].length) rows.push([keys[s.id].map(show).join(' / '), t(s.label)]);
+  }
+  return [...rows, ...FIXED.map(([k, d]) => [t(k), t(d)])];
+}
+
+// Touches affichées pour un raccourci (menus, info-bulles), ou '' s'il n'en a plus.
+function keyLabel(id) {
+  const k = keysOf()[id];
+  return k && k.length ? show(k[0]) : '';
+}
 
 function buildMenu() {
   const act = (fn) => () => {
@@ -46,53 +63,59 @@ function buildMenu() {
       output.print([{ t: `  ${err.message}`, c: 'err' }]);
     }
   };
+  const panel = (kind) => () => state.win.webContents.send('ui:panel', kind);
+  const ACTIONS = {
+    terminal: () => output.focusTerminal(),
+    history: act(() => commands.runCommand('hist')),
+    clear: () => state.win.webContents.send('term:clear'),
+    fullscreen: () => state.win.setFullScreen(!state.win.isFullScreen()),
+    'new-tab': act(() => { tabList.createTab(); output.focusTerminal(); }),
+    'close-tab': act(() => tabList.closeTab(tabList.activeTab())),
+    'reopen-tab': act(() => tabList.reopenClosed(0)),
+    'next-tab': act(() => tabList.cycleTab(1)),
+    'prev-tab': act(() => tabList.cycleTab(-1)),
+    back: act(() => navigation.goBack(tabList.activeTab())),
+    forward: act(() => navigation.goForward(tabList.activeTab())),
+    reload: act(() => navigation.reloadTab(tabList.activeTab())),
+    'hard-reload': act(() => navigation.reloadTab(tabList.activeTab(), true)),
+    find: () => findInPage.openFind(),
+    bookmark: () => output.focusTerminal('add '),
+    split: () => commands.runCommand(state.panes.length > 1 ? 'split off' : 'split'),
+    'switch-pane': () => state.panes.length > 1 && commands.runCommand('focus'),
+    devtools: act(() => devtools.toggleDevtools(tabList.activeTab())),
+    inspect: act(() => devtools.inspectMode(tabList.activeTab())),
+    downloads: panel('dl'),
+    favorites: panel('fav'),
+    extensions: panel('ext'),
+    nadir: panel('nadir'),
+    mobile: () => panels.togglePanel('mobile'),
+    private: () => privateBrowsing.togglePrivate().catch((err) => output.print([{ t: `  ${err.message}`, c: 'err' }])),
+    'zoom-in': () => navigation.zoom(0.5),
+    'zoom-out': () => navigation.zoom(-0.5),
+    'zoom-reset': () => navigation.zoom(0),
+  };
+  for (const n of [1, 2, 3, 4, 5, 6, 7, 8, 9]) {
+    ACTIONS[`tab-${n}`] = act(() => {
+      if (!state.tabs[n - 1]) return;
+      const inUi = state.win.webContents.isFocused();
+      tabList.selectTab(state.tabs[n - 1]);
+      tabList.focusShown(inUi);
+    });
+    ACTIONS[`ext-${n}`] = act(() => extPopup.openExtPopup(n));
+  }
+  // Un élément par touche : le premier raccourci est visible dans le menu, les autres cachés.
+  const keys = keysOf();
+  const items = [];
+  for (const s of K.SHORTCUTS) {
+    if (s.menu === false) continue;
+    const label = s.n ? t(s.label, { n: s.n }) : t(s.label);
+    keys[s.id].forEach((accelerator, i) => items.push({ label, accelerator, visible: !s.n && i === 0, click: ACTIONS[s.id] }));
+  }
   const template = [
     {
       label: 'Zenith',
       submenu: [
-        { label: 'Terminal', accelerator: 'CmdOrCtrl+K', click: () => output.focusTerminal() },
-        { label: t('Historique'), accelerator: 'CmdOrCtrl+H', click: act(() => commands.runCommand('hist')) },
-        { label: t('Vider le terminal'), accelerator: 'CmdOrCtrl+L', click: () => state.win.webContents.send('term:clear') },
-        { label: t('Plein écran'), accelerator: 'F11', click: () => state.win.setFullScreen(!state.win.isFullScreen()) },
-        { label: t('Nouvel onglet'), accelerator: 'CmdOrCtrl+T', click: act(() => { tabList.createTab(); output.focusTerminal(); }) },
-        { label: t('Fermer l\'onglet'), accelerator: 'CmdOrCtrl+W', click: act(() => tabList.closeTab(tabList.activeTab())) },
-        { label: t('Rouvrir l\'onglet fermé'), accelerator: 'CmdOrCtrl+Shift+T', click: act(() => tabList.reopenClosed(0)) },
-        { label: t('Onglet suivant'), accelerator: 'Ctrl+Tab', click: act(() => tabList.cycleTab(1)) },
-        { label: t('Onglet précédent'), accelerator: 'Ctrl+Shift+Tab', click: act(() => tabList.cycleTab(-1)) },
-        ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({
-          label: t('Onglet {n}', { n }), accelerator: `CmdOrCtrl+${n}`, visible: false, click: act(() => {
-            if (!state.tabs[n - 1]) return;
-            const inUi = state.win.webContents.isFocused();
-            tabList.selectTab(state.tabs[n - 1]);
-            tabList.focusShown(inUi);
-          }),
-        })),
-        { label: t('Précédent'), accelerator: 'Alt+Left', click: act(() => navigation.goBack(tabList.activeTab())) },
-        { label: t('Suivant'), accelerator: 'Alt+Right', click: act(() => navigation.goForward(tabList.activeTab())) },
-        { label: t('Recharger'), accelerator: 'F5', click: act(() => navigation.reloadTab(tabList.activeTab())) },
-        { label: t('Recharger'), accelerator: 'CmdOrCtrl+R', visible: false, click: act(() => navigation.reloadTab(tabList.activeTab())) },
-        { label: t('Recharger sans le cache'), accelerator: 'CmdOrCtrl+Shift+R', click: act(() => navigation.reloadTab(tabList.activeTab(), true)) },
-        { label: t('Chercher'), accelerator: 'CmdOrCtrl+F', click: () => findInPage.openFind() },
-        { label: t('Ajouter aux favoris'), accelerator: 'CmdOrCtrl+D', click: () => output.focusTerminal('add ') },
-        { label: 'Split', accelerator: 'CmdOrCtrl+Shift+S', click: () => commands.runCommand(state.panes.length > 1 ? 'split off' : 'split') },
-        { label: t('Changer d\'écran'), accelerator: 'F6', click: () => state.panes.length > 1 && commands.runCommand('focus') },
-        { label: t('Outils de développement'), accelerator: 'F12', click: act(() => devtools.toggleDevtools(tabList.activeTab())) },
-        { label: t('Outils de développement'), accelerator: 'CmdOrCtrl+Shift+I', visible: false, click: act(() => devtools.toggleDevtools(tabList.activeTab())) },
-        { label: t('Sélectionner un élément de la page'), accelerator: 'CmdOrCtrl+Shift+C', click: act(() => devtools.inspectMode(tabList.activeTab())) },
-        { label: t('Téléchargements'), accelerator: 'CmdOrCtrl+J', click: () => state.win.webContents.send('ui:panel', 'dl') },
-        { label: t('Téléchargements'), accelerator: 'CmdOrCtrl+Shift+J', visible: false, click: () => state.win.webContents.send('ui:panel', 'dl') },
-        { label: t('Favoris'), accelerator: 'CmdOrCtrl+Shift+B', click: () => state.win.webContents.send('ui:panel', 'fav') },
-        { label: 'Extensions', accelerator: 'CmdOrCtrl+Shift+E', click: () => state.win.webContents.send('ui:panel', 'ext') },
-        { label: 'Nadir', accelerator: 'CmdOrCtrl+Shift+A', click: () => state.win.webContents.send('ui:panel', 'nadir') },
-        { label: t('Mode mobile'), accelerator: 'CmdOrCtrl+Alt+M', click: () => panels.togglePanel('mobile') },
-        { label: t('Navigation privée'), accelerator: 'CmdOrCtrl+Shift+N', click: () => privateBrowsing.togglePrivate().catch((err) => output.print([{ t: `  ${err.message}`, c: 'err' }])) },
-        ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({
-          label: `Extension ${n}`, accelerator: `Alt+${n}`, visible: false, click: act(() => extPopup.openExtPopup(n)),
-        })),
-        { label: 'Zoom +', accelerator: 'CmdOrCtrl+=', click: () => navigation.zoom(0.5) },
-        { label: 'Zoom +', accelerator: 'CmdOrCtrl+Plus', visible: false, click: () => navigation.zoom(0.5) },
-        { label: 'Zoom -', accelerator: 'CmdOrCtrl+-', click: () => navigation.zoom(-0.5) },
-        { label: t('Zoom normal'), accelerator: 'CmdOrCtrl+0', click: () => navigation.zoom(0) },
+        ...items,
         { type: 'separator' },
         { role: 'quit', label: t('Quitter') },
       ],
@@ -105,4 +128,4 @@ function buildMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
-Object.assign(module.exports, { SHORTCUTS, buildMenu });
+Object.assign(module.exports, { shortcutList, keyLabel, buildMenu });
