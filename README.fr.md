@@ -44,6 +44,7 @@ Tests de la logique (favoris, alias, lecture des résultats, extensions) : `npm 
 | `clicks` | numérote les liens, boutons et champs de la page ; un numéro clique le lien ou le bouton, ou place le curseur dans le champ ; `3t` (ou `3 t`) ouvre le lien 3 dans un nouvel onglet |
 | `tty [on\|off]` | affiche les pages en texte simple, comme un terminal : liens soulignés en bleu et numérotés, tape le numéro ou clique dessus (reste actif pendant la navigation) |
 | `back`, `fwd`, `reload`, `reload hard`, `home` | navigation (`reload hard` recharge sans le cache ; `back` repasse par les résultats de recherche d'où venait la page) |
+| `unsafe` | sur l'avertissement « Votre connexion n'est pas privée » (site dont le certificat n'est pas reconnu : entreprise, autosigné, expiré...), continuer vers le site quand même ; le certificat est accepté pour ce site jusqu'à la fermeture de Zenith (comme « Paramètres avancés » puis « Continuer vers le site (dangereux) ») |
 | `tab`, `tab <n>`, `tab new [url…]`, `tab save <nom>`, `close [n]` | onglets (`tab new` avec plusieurs adresses ouvre un onglet pour chacune) |
 | `popback` | rouvre les onglets de la dernière fois (ceux ouverts quand Zenith a été fermé) |
 | `split`, `split off [1\|2]`, `focus` | deux écrans côte à côte, fermer un écran (l'autre par défaut, ou le ✕ en haut de l'écran), changer d'écran ; chaque écran a son terminal en dessous, et Ctrl+Maj+N ne passe en privé que l'écran actif |

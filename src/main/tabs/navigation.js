@@ -67,6 +67,8 @@ function hideScreen(tab) {
 }
 
 function goBack(tab) {
+  // L'avertissement de certificat remplace la page qui n'a pas chargé : retour à la page d'avant.
+  if (tab.screen && tab.screen.kind === 'cert') hideScreen(tab);
   const s = tab.screen;
   const nh = tab.view && tab.view.webContents.navigationHistory;
   if (s && s.histAt !== undefined) {

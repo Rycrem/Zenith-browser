@@ -154,7 +154,7 @@ function sendStateNow() {
     status: {
       mode: tab.screen ? tabList.tabTitle(tab).split(':')[0].toUpperCase() : 'SITE',
       host: hostLabel(tab),
-      url: tab.screen && tab.screen.kind !== 'tty' ? '' : tab.url,
+      url: tab.screen && tab.screen.kind !== 'tty' && tab.screen.kind !== 'cert' ? '' : tab.url,
       fav: favHere ? favHere.path : null,
       split: state.panes.length > 1,
       devtools: tab.devOpen ? (tab.devWin ? 'detached' : 'docked') : null,
@@ -184,7 +184,7 @@ function lastDownload() {
 // Ce qui suit « @ » dans l'invite : le site, l'écran, ou l'IA de la discussion.
 function hostLabel(tab) {
   if (tab.screen && tab.screen.kind === 'ai') return tab.screen.provider.toLowerCase();
-  return tab.screen && tab.screen.kind !== 'tty' ? tabList.tabTitle(tab) : hostOf(tab.url);
+  return tab.screen && tab.screen.kind !== 'tty' && tab.screen.kind !== 'cert' ? tabList.tabTitle(tab) : hostOf(tab.url);
 }
 
 function hostOf(url) {

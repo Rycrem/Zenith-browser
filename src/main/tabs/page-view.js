@@ -99,6 +99,57 @@ function offerUnblock(tab, url) {
   }
 }
 
+// Certificat refusé (autosigné, autorité inconnue, expiré…) : au lieu d'une page vide, un avertissement
+// comme celui de Chrome. « Continuer vers le site » accepte ce certificat-là pour cet hôte seulement,
+// jusqu'à la fermeture de Zenith ; la vérification reste normale partout ailleurs.
+const allowedCerts = new Set();
+
+function certKey(tab, url, cert) {
+  try {
+    return `${tab.private ? 'prive' : ''}|${new URL(url).host}|${cert.fingerprint}`;
+  } catch {
+    return null;
+  }
+}
+
+const CERT_REASONS = {
+  ERR_CERT_AUTHORITY_INVALID: 'son certificat de sécurité n\'est pas reconnu par cet ordinateur (autorité inconnue ou certificat autosigné).',
+  ERR_CERT_COMMON_NAME_INVALID: 'son certificat de sécurité est fait pour un autre site.',
+  ERR_CERT_DATE_INVALID: 'son certificat de sécurité a expiré ou n\'est pas encore valable (vérifie aussi l\'heure de cet ordinateur).',
+  ERR_CERT_REVOKED: 'son certificat de sécurité a été révoqué.',
+};
+
+function showCertWarning(tab, url, desc) {
+  const c = tab.certError;
+  const code = String(desc).replace(/^net::/, '');
+  tab.certError = null;
+  let host = url;
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    // adresse illisible : affichée telle quelle
+  }
+  tab.url = url;
+  tab.title = host;
+  screens.setScreen(tab, {
+    kind: 'cert',
+    url,
+    host,
+    error: `net::${code}`,
+    reason: t(CERT_REASONS[code] || 'son certificat de sécurité n\'est pas valable.'),
+    issuer: c.issuer,
+    key: c.key,
+  });
+}
+
+// « unsafe » ou « Continuer vers le site (dangereux) » sur l'avertissement.
+function proceedCert(tab) {
+  const s = tab.screen;
+  if (!s || s.kind !== 'cert') throw new Error(t('aucun avertissement de certificat dans cet onglet'));
+  if (s.key) allowedCerts.add(s.key);
+  navigation.navigate(tab, s.url);
+}
+
 function wireWebContents(tab, wc) {
   // Ses événements se traitent dans la fenêtre où se trouve l'onglet à ce moment-là.
   state.bindEmitter(wc, () => state.windowOfTab(tab));
@@ -192,9 +243,20 @@ function wireWebContents(tab, wc) {
     const message = event.message !== undefined ? event.message : old[1];
     if (message === `${webStore.STORE_SECRET}:install`) webStore.installFromStore(tab).catch(() => {});
   });
+  wc.on('certificate-error', (event, url, error, cert, callback, isMainFrame) => {
+    const key = certKey(tab, url, cert);
+    if (key && allowedCerts.has(key)) {
+      event.preventDefault();
+      callback(true);
+      return;
+    }
+    if (isMainFrame) tab.certError = { issuer: cert.issuerName, key };
+  });
   wc.on('did-fail-load', (e, code, desc, url, isMainFrame) => {
     if (isMainFrame) navigation.unblank(tab);
     if (isMainFrame && code === -20) return offerUnblock(tab, url);
+    // Codes -200 à -299 : erreurs de certificat.
+    if (isMainFrame && code <= -200 && code > -300 && tab.certError) return showCertWarning(tab, url, desc);
     if (isMainFrame && code !== -3) output.print([{ t: t('impossible de charger {url} : {desc}', { url, desc }), c: 'err' }]);
   });
   wc.on('focus', () => {
@@ -266,4 +328,4 @@ function wireWebContents(tab, wc) {
   }));
 }
 
-Object.assign(module.exports, { ensureView, tabOfContents });
+Object.assign(module.exports, { proceedCert, ensureView, tabOfContents });

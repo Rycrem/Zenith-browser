@@ -361,6 +361,29 @@ const screens = {
     ];
   },
 
+  // Certificat refusé : avertissement comme celui de Chrome. « Paramètres avancés » montre la raison
+  // et le lien pour continuer quand même (commande unsafe).
+  cert(s) {
+    const more = h('div', { class: 'cert-more', hidden: true },
+      h('p', {}, t('Ce serveur n\'a pas pu prouver qu\'il s\'agit bien de {host} : ', { host: s.host }), s.reason),
+      s.issuer ? h('p', { class: 'dim' }, t('Émis par : {issuer}', { issuer: s.issuer })) : null,
+      h('p', {}, h('button', { type: 'button', class: 'link-btn cert-go', title: 'unsafe', onclick: () => run('unsafe') }, t('Continuer vers le site {host} (dangereux)', { host: s.host }))));
+    const toggle = h('button', { type: 'button', class: 'pill', onclick: () => {
+      more.hidden = !more.hidden;
+      toggle.textContent = more.hidden ? t('Paramètres avancés') : t('Masquer les paramètres avancés');
+    } }, t('Paramètres avancés'));
+    return [
+      h('div', { class: 'cert' },
+        h('div', { class: 'cert-sign err' }, '!'),
+        h('h1', {}, t('Votre connexion n\'est pas privée')),
+        h('p', {}, t('Des pirates informatiques tentent peut-être de voler vos informations sur {host} (mots de passe, messages ou cartes de crédit, par exemple).', { host: s.host })),
+        h('p', { class: 'dim' }, s.error),
+        h('div', { class: 'cert-actions' }, toggle, h('button', { type: 'button', class: 'pill on', onclick: () => run('back') }, t('Retour en lieu sûr'))),
+        more),
+      h('div', { class: 'hint' }, h('b', {}, 'unsafe'), t(' continue vers le site quand même · '), h('b', {}, 'back'), t(' revient en arrière')),
+    ];
+  },
+
   alias(s) {
     return [
       head('alias', `${s.rows.length} alias`),
