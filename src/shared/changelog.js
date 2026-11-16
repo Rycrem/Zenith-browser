@@ -4,6 +4,17 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.68',
+    notes: [
+      'Onglets : trop nombreux, ils rétrécissent de nouveau ensemble, mais remplissent toujours toute la barre (plus de barre à moitié vide) ; trop étroits, ils ne montrent que l\'icône du site et ×.',
+      'Onglets : l\'anneau de chargement prend exactement la place de l\'icône du site.',
+    ],
+    en: [
+      'Tabs: when there are too many, they shrink together again, but always fill the whole bar (no more half-empty bar); too narrow, they show only the site icon and ×.',
+      'Tabs: the loading ring takes exactly the place of the site icon.',
+    ],
+  },
+  {
     version: '0.1.67',
     notes: [
       'Onglets : tous gardent toujours leur taille normale ; trop nombreux, la barre défile.',
