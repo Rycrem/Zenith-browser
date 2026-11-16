@@ -104,4 +104,11 @@ function removeDownload(d) {
   refresh();
 }
 
-Object.assign(module.exports, { showDl, showInFolder, setupDownloads, cancelDownload, removeDownload });
+// Envoie le fichier téléchargé dans la corbeille du système (récupérable) et le retire de la liste.
+async function trashDownload(d) {
+  if (d.state === 'progressing') throw new Error(t('téléchargement en cours : « dl cancel n » l\'arrête d\'abord'));
+  if (fs.existsSync(d.path)) await shell.trashItem(d.path);
+  removeDownload(d);
+}
+
+Object.assign(module.exports, { showDl, showInFolder, setupDownloads, cancelDownload, removeDownload, trashDownload });

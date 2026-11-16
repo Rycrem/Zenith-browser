@@ -110,13 +110,17 @@ function changed() {
 
 // ------------------------------------------------ le tiroir de discussion
 
+// Taille choisie à la souris pour chaque appli, séparément ; gardée jusqu'au redémarrage de Zenith.
+const sizes = {};
+
 // Posée sur la barre du bas, au-dessus de son icône, sans dépasser sous les onglets.
-// Taille choisie à la souris (gardée dans les réglages), sinon 16:9.
-// Plein écran (bouton ⛶ du tiroir) : toute la fenêtre entre la barre des onglets et la barre du bas.
-function drawerBounds(x) {
+// Taille choisie à la souris pour cette appli, sinon 16:9.
+// Plein écran (bouton ⛶ du tiroir) : toute la fenêtre entre la barre des onglets et la barre du bas,
+// seulement tant que l'appli reste ouverte (d.full).
+function drawerBounds(d, x) {
   const b = state.win.getContentBounds();
-  if (state.settings.data.drawerFull) return { x: b.x, y: b.y + 48, width: b.width, height: Math.max(200, b.height - 48 - 28) };
-  const size = state.settings.data.drawerSize || { width: Math.round((HEIGHT * 16) / 9), height: HEIGHT };
+  if (d.full) return { x: b.x, y: b.y + 48, width: b.width, height: Math.max(200, b.height - 48 - 28) };
+  const size = sizes[d.id] || { width: Math.round((HEIGHT * 16) / 9), height: HEIGHT };
   const width = Math.max(300, Math.min(size.width, b.width - 16));
   const bottom = b.y + b.height - 32;
   const height = Math.max(200, Math.min(size.height, bottom - (b.y + 56)));
@@ -134,7 +138,7 @@ function fitView(d) {
 
 function sendHeader(d) {
   if (d.win.isDestroyed()) return;
-  const full = !!state.settings.data.drawerFull;
+  const full = !!d.full;
   d.win.webContents.send('panel:data', { id: d.id, name: M.MESSENGERS[d.id].name, full, fullLabel: full ? t('Réduire') : t('Plein écran'), reload: t('Recharger'), close: t('Fermer (même icône ou « {cmd} »)', { cmd: d.id }) });
 }
 
@@ -155,14 +159,17 @@ function open(id, x) {
     state.inWindow(other, close);
   }
   let d = state.drawer;
+  // Une autre appli prend le tiroir : celle d'avant est fermée, son plein écran s'arrête.
   if (d && d.id !== id) {
     detach(apps[d.id]);
     d.id = id;
+    d.full = false;
+    d.win.setResizable(true);
   }
   if (Number.isFinite(x)) state.drawerX = x;
   if (!d) {
-    const win = popupWindow('drawer.html', { ...drawerBounds(state.drawerX), resizable: !state.settings.data.drawerFull, minWidth: 300, minHeight: 200 });
-    d = { id, win };
+    const win = popupWindow('drawer.html', { ...drawerBounds({ id, full: false }, state.drawerX), resizable: true, minWidth: 300, minHeight: 200 });
+    d = { id, win, full: false };
     state.drawer = d;
     const own = state.current();
     win.webContents.on('did-finish-load', () => sendHeader(d));
@@ -192,12 +199,10 @@ function open(id, x) {
     win.on('resize', () => fitView(d));
     // Seulement quand on tire un bord (pas pour les setBounds de Zenith) : la taille est gardée.
     win.on('will-resize', (e, nb) => {
-      if (state.settings.data.drawerFull) return;
-      state.settings.data.drawerSize = { width: nb.width, height: nb.height };
-      state.settings.save();
+      if (!d.full) sizes[d.id] = { width: nb.width, height: nb.height };
     });
   } else {
-    d.win.setBounds(drawerBounds(state.drawerX));
+    d.win.setBounds(drawerBounds(d, state.drawerX));
     sendHeader(d);
   }
   d.openedAt = Date.now();
@@ -248,7 +253,7 @@ function layoutDrawer() {
     if (d.win.isVisible()) d.win.hide();
     return;
   }
-  d.win.setBounds(drawerBounds(state.drawerX));
+  d.win.setBounds(drawerBounds(d, state.drawerX));
   if (!d.win.isVisible()) d.win.showInactive();
   fitView(d);
 }
@@ -261,10 +266,9 @@ function drawerAction(action) {
   if (action === 'close') close();
   else if (action === 'reload' && apps[d.id]) apps[d.id].view.webContents.reload();
   else if (action === 'full') {
-    state.settings.data.drawerFull = !state.settings.data.drawerFull;
-    state.settings.save();
-    d.win.setResizable(!state.settings.data.drawerFull);
-    d.win.setBounds(drawerBounds(state.drawerX));
+    d.full = !d.full;
+    d.win.setResizable(!d.full);
+    d.win.setBounds(drawerBounds(d, state.drawerX));
     fitView(d);
     sendHeader(d);
   }

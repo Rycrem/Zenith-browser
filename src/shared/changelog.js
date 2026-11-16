@@ -4,6 +4,27 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.1.67',
+    notes: [
+      'Onglets : tous gardent toujours leur taille normale ; trop nombreux, la barre défile.',
+      'Réglages : une barre de recherche qui cherche dans toutes les pages, Ctrl+, pour les ouvrir, Ctrl+Pg.suiv / Ctrl+Pg.préc pour changer de page.',
+      'Réglages : les raccourcis sont rangés par catégorie (Terminal, Onglets, Navigation…), chacune avec sa page.',
+      'Split : la barre d\'adresse et ses boutons passent juste au-dessus du terminal, sur toute sa largeur.',
+      'Glisser le dernier onglet d\'une fenêtre en plein écran la remet en taille normale ; posé sur une fenêtre en plein écran, celle-ci y reste.',
+      'Applis de discussion : chacune garde sa propre taille jusqu\'au redémarrage de Zenith ; le plein écran ne dure que tant que l\'appli est ouverte.',
+      'Téléchargements : un bouton rouge corbeille supprime le fichier de l\'ordinateur (aussi « dl del n »).',
+    ],
+    en: [
+      'Tabs: all of them always keep their normal size; when there are too many, the bar scrolls.',
+      'Settings: a search bar that looks through every page, Ctrl+, to open them, Ctrl+PgDn / Ctrl+PgUp to switch pages.',
+      'Settings: shortcuts are sorted by category (Terminal, Tabs, Navigation…), each with its own page.',
+      'Split: the address bar and its buttons move just above the terminal, across its whole width.',
+      'Dragging the last tab of a full-screen window brings it back to normal size; dropped on a full-screen window, that one stays full screen.',
+      'Chat apps: each keeps its own size until Zenith restarts; full screen only lasts while the app is open.',
+      'Downloads: a red trash button deletes the file from the computer (also "dl del n").',
+    ],
+  },
+  {
     version: '0.1.66',
     notes: [
       'Nouveau réglage « Suivre le thème de Windows » (désactivé par défaut) : Zenith passe en jour ou en nuit en même temps que Windows (aussi « mode systeme »).',

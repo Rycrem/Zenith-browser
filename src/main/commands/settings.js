@@ -11,12 +11,15 @@ const ai = require('../ai/providers');
 const nadir = require('../nadir/nadir');
 const keys = require('./keys');
 const menu = require('../window/menu');
+const K = require('../../shared/shortcuts');
 
 // Page des réglages (« settings [page] », bouton ⚙ en bas à droite). Un volet à gauche liste les
 // pages : les réglages généraux, puis une page par commande qui a des réglages. Chaque choix ou
 // champ lance sa commande dans le terminal, et la page se met à jour.
-// Une nouvelle commande qui a des réglages doit avoir sa page ici (PAGES et buildPage).
-const PAGES = ['general', 'keys', 'ia', 'nadir', 'alias', 'ext', 'perm', 'update'];
+// Une nouvelle commande qui a des réglages doit avoir sa page ici (PAGES, TITLES et BUILD).
+// Les raccourcis ont une sous-page par catégorie (keys-tabs…), sous « Raccourcis » qui les montre toutes.
+const KEY_PAGES = K.GROUPS.map((g) => `keys-${g.id}`);
+const PAGES = ['general', 'keys', ...KEY_PAGES, 'ia', 'nadir', 'alias', 'ext', 'perm', 'update'];
 
 const opt = (label, cmd, on) => ({ label, cmd, on: !!on });
 // Formulaire : des champs, et la commande où {0}, {1}… sont remplacés par leur valeur.
@@ -117,16 +120,30 @@ function updatePage() {
 const TITLES = {
   general: 'Général', keys: 'Raccourcis (keys)', ia: 'IA (ia)', nadir: 'Nadir', alias: 'Alias', ext: 'Extensions (ext)', perm: 'Autorisations (perm)', update: 'Mises à jour (update)',
 };
-const BUILD = { general, keys: keys.keysPage, ia: iaPage, nadir: nadirPage, alias: aliasPage, ext: extPage, perm: permPage, update: updatePage };
+for (const g of K.GROUPS) TITLES[`keys-${g.id}`] = g.label;
+const BUILD = { general, keys: () => keys.keysPage(), ia: iaPage, nadir: nadirPage, alias: aliasPage, ext: extPage, perm: permPage, update: updatePage };
+for (const g of K.GROUPS) BUILD[`keys-${g.id}`] = () => keys.keysPage(g.id);
 
 function showSettings(tab, page = 'general') {
   const id = PAGES.includes(page) ? page : 'general';
+  const rows = BUILD[id]();
   screens.setScreen(tab, {
     kind: 'settings',
     page: id,
-    pages: PAGES.map((p) => ({ id: p, label: t(TITLES[p]), sub: p !== 'general' })),
-    rows: BUILD[id](),
+    pages: PAGES.map((p) => ({ id: p, label: t(TITLES[p]), sub: p === 'general' ? 0 : KEY_PAGES.includes(p) ? 2 : 1 })),
+    rows,
+    // Pour la barre de recherche : les lignes de toutes les pages (les sous-pages des raccourcis
+    // sont déjà dans « Raccourcis »).
+    index: PAGES.filter((p) => !KEY_PAGES.includes(p)).map((p) => ({ id: p, label: t(TITLES[p]), rows: (p === id ? rows : BUILD[p]()).filter((r) => !r.heading) })),
   });
+}
+
+// Raccourci : page suivante ou précédente des réglages affichés. false s'ils ne sont pas affichés.
+function cyclePage(tab, dir) {
+  if (!tab || !tab.screen || tab.screen.kind !== 'settings') return false;
+  const i = PAGES.indexOf(tab.screen.page);
+  showSettings(tab, PAGES[(i + dir + PAGES.length) % PAGES.length]);
+  return true;
 }
 
 // Après une commande lancée depuis la page, elle montre les nouveaux choix.
@@ -134,4 +151,4 @@ function refreshSettings(tab) {
   if (tab && tab.screen && tab.screen.kind === 'settings') showSettings(tab, tab.screen.page);
 }
 
-Object.assign(module.exports, { showSettings, refreshSettings, PAGES });
+Object.assign(module.exports, { showSettings, refreshSettings, cyclePage, PAGES });

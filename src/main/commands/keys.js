@@ -60,20 +60,25 @@ function keysCommand(args, say) {
 }
 
 // Lignes de la page « settings keys » : chaque raccourci, ses touches, un champ pour en taper d'autres.
-function keysPage() {
+// Rangés par catégorie (un titre avant chacune) ; group : seulement cette catégorie (« settings keys-tabs »).
+function keysPage(group) {
   const custom = state.settings.data.shortcuts || {};
   const keys = K.effective(custom);
+  const row = (s) => ({
+    label: nameOf(s).replace(/^./, (c) => c.toUpperCase()),
+    hint: `${keys[s.id].map(show).join(' / ') || t('aucun')}${custom[s.id] ? '' : t(' · par défaut')}`,
+    form: { template: `keys ${s.id} {0}`, fields: [{ type: 'keys', placeholder: t('touches…'), title: t('Clique ici puis appuie sur les touches (ou écris-les, puis Entrée)') }] },
+    options: [
+      ...(custom[s.id] ? [{ label: t('par défaut'), cmd: `keys ${s.id} default`, on: false }] : []),
+      ...(keys[s.id].length ? [{ label: t('retirer'), cmd: `keys ${s.id} off`, on: false }] : []),
+    ],
+  });
   return [
-    ...K.SHORTCUTS.map((s) => ({
-      label: nameOf(s).replace(/^./, (c) => c.toUpperCase()),
-      hint: `${keys[s.id].map(show).join(' / ') || t('aucun')}${custom[s.id] ? '' : t(' · par défaut')}`,
-      form: { template: `keys ${s.id} {0}`, fields: [{ type: 'keys', placeholder: t('touches…'), title: t('Clique ici puis appuie sur les touches (ou écris-les, puis Entrée)') }] },
-      options: [
-        ...(custom[s.id] ? [{ label: t('par défaut'), cmd: `keys ${s.id} default`, on: false }] : []),
-        ...(keys[s.id].length ? [{ label: t('retirer'), cmd: `keys ${s.id} off`, on: false }] : []),
-      ],
-    })),
-    { label: t('Tous les raccourcis'), options: [{ label: t('revenir à ceux par défaut'), cmd: 'keys reset', on: false }] },
+    ...K.GROUPS.filter((g) => !group || g.id === group).flatMap((g) => [
+      ...(group ? [] : [{ heading: t(g.label) }]),
+      ...K.SHORTCUTS.filter((s) => s.group === g.id).map(row),
+    ]),
+    ...(group ? [] : [{ label: t('Tous les raccourcis'), options: [{ label: t('revenir à ceux par défaut'), cmd: 'keys reset', on: false }] }]),
   ];
 }
 
