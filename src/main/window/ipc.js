@@ -15,6 +15,7 @@ const navigation = require('../tabs/navigation');
 const split = require('../split/split');
 const output = require('../terminal/output');
 const suggestions = require('../history/suggest');
+const tabPreview = require('../tabs/preview');
 const findInPage = require('../search/find-in-page');
 const devtools = require('../devtools/devtools');
 const audio = require('../audio/audio');
@@ -360,6 +361,11 @@ function setupIpc() {
   });
   onUi('ui:suggest-select', (e, i, rect) => suggestions.showSuggest(rect, i));
   onUi('ui:suggest-hide', () => suggestions.hideSuggest());
+  // Survol d'un onglet (réglage « preview ») : rect est sa place dans l'interface.
+  onUi('ui:tab-preview', (e, id, rect) => {
+    if (rect && ['x', 'y', 'width', 'height'].every((k) => Number.isFinite(rect[k]))) tabPreview.showPreview(id, rect);
+  });
+  onUi('ui:tab-preview-hide', () => tabPreview.hidePreview());
   onPopup('panel:act', (e, action, arg) => {
     if (state.findWin && !state.findWin.win.isDestroyed() && e.sender === state.findWin.win.webContents) return findInPage.findAction(action, arg);
     if (state.suggest && !state.suggest.win.isDestroyed() && e.sender === state.suggest.win.webContents) return suggestions.suggestAction(action, arg);

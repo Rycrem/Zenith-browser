@@ -41,6 +41,7 @@ function newWindowState() {
     fullSetWin: false, // la fenêtre est passée en plein écran pour la vidéo
     suggest: null, // fenêtre des suggestions de l'adresse : { win, key, ready, data }
     suggestList: [],
+    tabPreview: null, // fenêtre de l'aperçu de l'onglet survolé
     findWin: null, // Ctrl+F : { win, tabId, screen }
     modal: null, // question au milieu de la fenêtre : { win, place, answer }
     stateQueued: false, // un envoi de l'état à l'interface est prévu

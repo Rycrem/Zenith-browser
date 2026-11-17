@@ -12,6 +12,7 @@ const nadir = require('../nadir/nadir');
 const keys = require('./keys');
 const menu = require('../window/menu');
 const K = require('../../shared/shortcuts');
+const tabPreview = require('../tabs/preview');
 
 // Page des réglages (« settings [page] », bouton ⚙ en bas à droite). Un volet à gauche liste les
 // pages : les réglages généraux, puis une page par commande qui a des réglages. Chaque choix ou
@@ -44,6 +45,12 @@ function general() {
     },
     { label: t('Langue'), options: [opt('français', 'lang fr', getLang() === 'fr'), opt('English', 'lang en', getLang() === 'en')] },
     { label: t('Moteur de recherche'), options: Object.entries(C.ENGINES).map(([k, e]) => opt(e.label, `engine ${k}`, d.engine === k)) },
+    {
+      label: t('Aperçu des onglets'),
+      hint: t('au survol, après {s} s', { s: tabPreview.delay() }),
+      options: [opt(t('activé'), 'preview on', tabPreview.enabled()), opt(t('désactivé'), 'preview off', !tabPreview.enabled())],
+      form: form('preview {0}', [{ placeholder: t('secondes'), title: t('Temps de survol avant l\'aperçu, en secondes') }], t('changer')),
+    },
     { label: t('Fermer le dernier onglet'), options: [opt(t('quitte Zenith'), 'lasttab quit', d.quitOnLastTab !== false), opt(t('garde un onglet d\'accueil'), 'lasttab keep', d.quitOnLastTab === false)] },
     { label: t('Accélération matérielle'), hint: t('relance Zenith'), options: [opt(t('activée'), 'gpu on', gpu), opt(t('désactivée'), 'gpu off', !gpu)] },
     { label: t('Navigateur par défaut'), options: [opt(t('faire de Zenith le navigateur par défaut'), 'default')] },
