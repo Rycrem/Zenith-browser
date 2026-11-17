@@ -37,6 +37,8 @@ contextBridge.exposeInMainWorld('brows', {
   suggest: (text, rect) => ipcRenderer.invoke('ui:suggest', text, rect),
   suggestSelect: (i, rect) => ipcRenderer.send('ui:suggest-select', i, rect),
   suggestHide: () => ipcRenderer.send('ui:suggest-hide'),
+  tabPreview: (id, rect) => ipcRenderer.send('ui:tab-preview', id, rect),
+  tabPreviewHide: () => ipcRenderer.send('ui:tab-preview-hide'),
   muteAll: () => ipcRenderer.send('ui:mute-all'),
   readClipboard: () => ipcRenderer.invoke('ui:clipboard-read'),
   writeClipboard: (text) => ipcRenderer.send('ui:clipboard-write', text),

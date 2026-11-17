@@ -6,6 +6,7 @@ const ui = require('../window/ui');
 const tabList = require('../tabs/tabs');
 const chromeApis = require('../extensions/chrome-api');
 const findInPage = require('../search/find-in-page');
+const preview = require('../tabs/preview');
 
 function showInPane(tab, idx) {
   if (state.findWin && state.findWin.tabId !== tab.id && idx === state.activePane) findInPage.closeFind(false);
@@ -16,6 +17,9 @@ function showInPane(tab, idx) {
     tabList.sortSides();
     if (other >= 0) state.panes[other].tabId = tabList.replacement(other, tab).id;
   }
+  // L'onglet qui va être caché : son image pour l'aperçu au survol.
+  const before = tabList.getTab(state.panes[idx].tabId);
+  if (before && before !== tab) preview.remember(before);
   state.panes[idx].tabId = tab.id;
   state.activePane = idx;
   if (tab.view?.webContents) tabList.apiOf(tab).selectTab(tab.view.webContents);

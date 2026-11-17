@@ -127,6 +127,7 @@ function sendStateNow() {
   if (!state.win || state.win.isDestroyed()) return;
   const tab = tabList.activeTab();
   if (!tab || state.panes.some((p) => !tabList.getTab(p.tabId))) return; // pendant la création d'un écran
+  const tabPreview = require('../tabs/preview'); // ici : require circulaire sinon (popup-window → theme → ui)
   const favHere = tab && (!tab.screen || tab.screen.kind === 'tty') && fav.findByUrl(state.favorites.data.tree, tab.url);
   state.win.webContents.send('state', {
     user: os.userInfo().username,
@@ -136,6 +137,8 @@ function sendStateNow() {
     private: !!state.privateMode,
     platform: process.platform,
     engine: state.settings.data.engine,
+    // Aperçu au survol d'un onglet : secondes d'attente, null s'il est désactivé.
+    preview: tabPreview.enabled() ? tabPreview.delay() : null,
     tabs: state.tabs.map((t, i) => ({ id: t.id, n: i + 1, side: tabList.sideOf(t), title: tabList.tabTitle(t), loading: t.loading, pane: tabList.paneOf(t), audible: !!t.audible, muted: audio.isMuted(t), private: !!t.private, favicon: !t.screen && t.view ? t.favicon || null : null })),
     panes: state.panes.map((p) => {
       const t = tabList.getTab(p.tabId);

@@ -4,6 +4,21 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.2.0',
+    notes: [
+      'Aperçu des onglets : la souris 2 secondes sur un onglet montre en dessous une image de sa page, son titre et son adresse ; à régler dans les réglages ou avec « preview on|off|secondes ».',
+      'Onglets : un titre trop long pour l\'onglet se termine par « … » au lieu d\'être coupé net.',
+      'Glisser le dernier onglet d\'une fenêtre en plein écran : la fenêtre sort vraiment du plein écran et suit la souris jusqu\'à l\'autre fenêtre.',
+      'Onglet glissé hors de sa fenêtre : tout en haut de l\'écran, un cadre translucide couvre l\'écran, comme sous Windows, pour montrer que la fenêtre s\'agrandira si on la lâche là.',
+    ],
+    en: [
+      'Tab preview: hovering a tab for 2 seconds shows an image of its page, its title and address below it; set it in settings or with "preview on|off|seconds".',
+      'Tabs: a title too long for its tab ends with "…" instead of being cut off.',
+      'Dragging the last tab of a full-screen window: the window really leaves full screen and follows the mouse to the other window.',
+      'Tab dragged out of its window: at the very top of the screen, a translucent frame covers the screen, like in Windows, to show that the window will be maximized if dropped there.',
+    ],
+  },
+  {
     version: '0.1.69',
     notes: [
       'Site au certificat non reconnu (certificat d\'entreprise, autosigné, expiré…) : au lieu d\'une page vide, Zenith affiche l\'avertissement « Votre connexion n\'est pas privée », comme Chrome. « Paramètres avancés » puis « Continuer vers le site (dangereux) », ou la commande unsafe, ouvre quand même ce site jusqu\'à la fermeture de Zenith.',

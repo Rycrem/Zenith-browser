@@ -321,3 +321,9 @@ body.drawer { height: 100vh; border: 1px solid var(--line); }
 .drawer header button { width: 24px; height: 22px; border: none; border-radius: 3px; color: var(--dim); }
 .drawer header button:hover { background: var(--line); color: var(--text); }
 #icon .app-icon { width: 14px; height: 14px; display: block; }
+
+/* Aperçu d'un onglet survolé */
+#pop.preview { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+#pop.preview .shot { display: block; flex: none; width: 100%; object-fit: cover; object-position: top left; border-bottom: 1px solid var(--line); }
+#pop.preview .title { padding: 7px 10px 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--text); }
+#pop.preview .url { padding: 0 10px 7px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--dim); font-size: 12px; }

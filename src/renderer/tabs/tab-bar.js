@@ -220,6 +220,32 @@ api.on('ui:tab-hover', (x) => {
   api.tabHoverPos(at, side);
 });
 
+// Aperçu d'un onglet survolé (réglage « preview ») : après state.preview secondes sur l'onglet,
+// ou tout de suite en passant d'un onglet à l'autre quand un aperçu est déjà affiché.
+let previewTimer = null;
+let previewShown = false;
+function previewOff() {
+  clearTimeout(previewTimer);
+  previewTimer = null;
+  if (!previewShown) return;
+  previewShown = false;
+  api.tabPreviewHide();
+}
+function previewOn(id) {
+  const now = previewShown;
+  previewOff();
+  if (!state || state.preview === null || state.preview === undefined) return;
+  previewTimer = setTimeout(() => {
+    // La barre a pu être redessinée pendant l'attente : l'onglet est retrouvé par son numéro.
+    const el = document.querySelector(`#tabbar .tab[data-id="${id}"]`);
+    if (tabDrag || !el || !el.matches(':hover')) return;
+    const r = el.getBoundingClientRect();
+    previewShown = true;
+    api.tabPreview(id, { x: r.x, y: r.y, width: r.width, height: r.height });
+  }, now ? 0 : state.preview * 1000);
+}
+window.addEventListener('blur', previewOff);
+
 // Onglet qui vient d'entrer depuis une autre fenêtre : il se pose avec une petite animation.
 let arrivedId = null;
 api.on('ui:tab-arrived', (id) => {
@@ -236,11 +262,16 @@ function tabEl(tb, shown) {
       // Clic molette : ferme l'onglet.
       onmousedown: (e) => { if (e.button === 1) e.preventDefault(); },
       onauxclick: (e) => { if (e.button === 1) api.closeTab(tb.id); },
-      onpointerdown: (e) => startTabDrag(e, tb),
+      onpointerdown: (e) => {
+        previewOff();
+        startTabDrag(e, tb);
+      },
+      onmouseenter: () => previewOn(tb.id),
+      onmouseleave: previewOff,
       // Tout l'onglet se clique, bords compris.
       onclick: (e) => { if (!e.target.closest('.close, .speaker')) api.tab(tb.id); },
     },
-    h('button', { type: 'button', class: 'label', title: tb.title },
+    h('button', { type: 'button', class: 'label', title: state.preview == null ? tb.title : null },
       h('span', { class: 'n' }, `[${tb.n}]`),
       // Sans icône (ou si elle ne charge pas) : celle de Zenith.
       tb.loading ? h('span', { class: 'spin', 'aria-label': t('chargement…') }) : h('img', { class: 'favicon', src: tb.favicon || 'zenith.png', alt: '', onerror: (e) => { if (!e.target.src.endsWith('zenith.png')) e.target.src = 'zenith.png'; } }),
@@ -298,6 +329,8 @@ function renderTabs() {
       setTimeout(show, TAB_RESIZE_MS + 20);
     }
   });
+  // Onglet survolé fermé ou déplacé : son aperçu s'en va.
+  if (previewShown && !document.querySelector('#tabbar .tab:hover')) previewOff();
   fitTabs();
   // Au premier rendu (lancement), rien à animer.
   if (before.size) animateTabWidths(before);

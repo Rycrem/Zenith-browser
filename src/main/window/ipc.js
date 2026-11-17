@@ -1,6 +1,6 @@
 'use strict';
 
-const { ipcMain, clipboard, screen, Menu } = require('electron');
+const { ipcMain, clipboard, screen, Menu, BrowserWindow } = require('electron');
 const { t, getLang } = require('../../shared/i18n');
 const fav = require('../../shared/favorites');
 const state = require('../state');
@@ -15,6 +15,7 @@ const navigation = require('../tabs/navigation');
 const split = require('../split/split');
 const output = require('../terminal/output');
 const suggestions = require('../history/suggest');
+const tabPreview = require('../tabs/preview');
 const findInPage = require('../search/find-in-page');
 const devtools = require('../devtools/devtools');
 const audio = require('../audio/audio');
@@ -156,9 +157,40 @@ function setupIpc() {
     if (d.w.win && !d.w.win.isDestroyed()) d.w.win.setOpacity(w ? 0.55 : 1);
     if (w) w.win.webContents.send('ui:tab-hover', x - w.win.getContentBounds().x);
   };
+  // Aperçu d'agrandissement : souris tout en haut de l'écran, un cadre translucide couvre l'écran
+  // (comme Windows quand on plaque une fenêtre en haut) ; lâchée là, la fenêtre s'agrandit.
+  // Windows ne le montre pas lui-même pour une fenêtre déplacée par Zenith (onglet glissé).
+  // Détruit à la fin du glissement : caché, il empêcherait Zenith de se fermer avec sa dernière fenêtre.
+  const SNAP_HTML = '<!doctype html><html><body style="margin:0;height:100vh;background:transparent;overflow:hidden">'
+    + '<div style="position:absolute;inset:8px;border-radius:8px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.55);box-shadow:0 0 0 1px rgba(0,0,0,.25);animation:in .15s ease-out"></div>'
+    + '<style>@keyframes in{from{transform:scale(.97);opacity:0}}</style></body></html>';
+  let snapWin = null;
+  const snapPreview = (area, above) => {
+    if (!area) {
+      if (snapWin && !snapWin.isDestroyed()) snapWin.destroy();
+      snapWin = null;
+      return;
+    }
+    if (snapWin && !snapWin.isDestroyed()) return;
+    snapWin = new BrowserWindow({
+      ...area, show: false, frame: false, transparent: true, resizable: false, movable: false, focusable: false,
+      skipTaskbar: true, hasShadow: false, webPreferences: { sandbox: true, contextIsolation: true, javascript: false },
+    });
+    snapWin.setIgnoreMouseEvents(true);
+    const sw = snapWin;
+    sw.loadURL(`data:text/html,${encodeURIComponent(SNAP_HTML)}`);
+    sw.once('ready-to-show', () => {
+      if (sw.isDestroyed() || snapWin !== sw) return;
+      sw.showInactive();
+      // La fenêtre glissée reste au-dessus de l'aperçu.
+      if (above && !above.isDestroyed()) above.moveTop();
+    });
+  };
+  const atTop = (p) => p.y <= screen.getDisplayNearestPoint(p).workArea.y + 4;
   const endDrag = () => {
     const d = tabDrag;
     tabDrag = null;
+    snapPreview(null);
     if (!d) return null;
     clearInterval(d.timer);
     const over = d.over;
@@ -173,21 +205,24 @@ function setupIpc() {
     const w = tabList.detachTab(tab, { x: Math.round(sx - ox), y: Math.round(sy - oy), width: b.width, height: b.height }, true);
     if (!w || !w.win) return;
     // Fenêtre agrandie ou en plein écran (F11) : elle reprend une taille normale pour suivre la souris,
-    // sinon le dernier onglet ne pouvait pas l'emmener. Sous Windows, la sortie du plein écran finit
-    // plus tard et peut rendre la fenêtre agrandie : on la remet en taille normale à ce moment-là.
+    // sinon le dernier onglet ne pouvait pas l'emmener. Sous Windows, la sortie du plein écran se fait
+    // plus tard, peut rendre la fenêtre agrandie, et isFullScreen() ne la signale pas toujours : on
+    // reprend donc plusieurs fois, tant que la fenêtre couvre encore tout l'écran.
     const full = w.win.getBounds().width;
+    const display = screen.getDisplayNearestPoint({ x: Math.round(sx), y: Math.round(sy) });
     const toNormal = () => {
-      if (!w.win || w.win.isDestroyed() || w.win.isFullScreen()) return;
+      if (!w.win || w.win.isDestroyed()) return;
+      const b = w.win.getBounds();
+      const covers = b.width >= display.bounds.width && b.height >= display.bounds.height;
+      if (w.win.isFullScreen() || covers) w.win.setFullScreen(false);
       if (w.win.isMaximized()) w.win.unmaximize();
       // Sans taille normale connue (fenêtre ouverte en plein écran), elle couvrirait encore l'écran.
-      const area = screen.getDisplayNearestPoint({ x: Math.round(sx), y: Math.round(sy) }).workArea;
-      const b = w.win.getBounds();
-      if (b.width >= area.width * 0.9) w.win.setSize(Math.round(area.width * 0.7), Math.round(Math.min(b.height, area.height) * 0.8));
+      const area = display.workArea;
+      const nb = w.win.getBounds();
+      if (!w.win.isFullScreen() && nb.width >= area.width * 0.9) w.win.setSize(Math.round(area.width * 0.7), Math.round(Math.min(nb.height, area.height) * 0.8));
     };
-    if (w.win.isFullScreen()) {
-      w.win.once('leave-full-screen', () => setTimeout(toNormal, 50));
-      w.win.setFullScreen(false);
-    } else toNormal();
+    toNormal();
+    for (const ms of [60, 200, 450, 800]) setTimeout(() => tabDrag && tabDrag.w === w && toNormal(), ms);
     const d = { tab, w, ox, oy, over: null, gap: undefined, last: null };
     // La fenêtre suit la souris que signale l'interface, ou à défaut (souris au-dessus d'une
     // autre fenêtre, événements en retard) le curseur lu ici.
@@ -200,6 +235,7 @@ function setupIpc() {
       w.win.setPosition(Math.round(p.x - x), Math.round(p.y - oy));
       const under = windowUnder(w, p.x, p.y);
       if (under !== d.over || under) hover(d, under || null, p.x);
+      snapPreview(!under && atTop(p) ? screen.getDisplayNearestPoint(p).workArea : null, w.win);
     }, 16);
     tabDrag = d;
   });
@@ -227,8 +263,7 @@ function setupIpc() {
     if (drag) {
       // Lâchée tout en haut de l'écran, la fenêtre glissée passe en plein écran, comme une fenêtre
       // plaquée en haut par sa barre de titre (Windows ne le fait pas pour un déplacement programmé).
-      const top = screen.getDisplayNearestPoint({ x: Math.round(sx), y: Math.round(sy) }).workArea.y;
-      if (own && own.win && !own.win.isDestroyed() && sy <= top + 4) own.win.maximize();
+      if (own && own.win && !own.win.isDestroyed() && atTop({ x: Math.round(sx), y: Math.round(sy) })) own.win.maximize();
       return void (own && own.win && own.win.focus());
     }
     // Lâché hors de toute fenêtre sans avoir été détaché (glissé de côté) : sa propre fenêtre, là.
@@ -326,6 +361,11 @@ function setupIpc() {
   });
   onUi('ui:suggest-select', (e, i, rect) => suggestions.showSuggest(rect, i));
   onUi('ui:suggest-hide', () => suggestions.hideSuggest());
+  // Survol d'un onglet (réglage « preview ») : rect est sa place dans l'interface.
+  onUi('ui:tab-preview', (e, id, rect) => {
+    if (rect && ['x', 'y', 'width', 'height'].every((k) => Number.isFinite(rect[k]))) tabPreview.showPreview(id, rect);
+  });
+  onUi('ui:tab-preview-hide', () => tabPreview.hidePreview());
   onPopup('panel:act', (e, action, arg) => {
     if (state.findWin && !state.findWin.win.isDestroyed() && e.sender === state.findWin.win.webContents) return findInPage.findAction(action, arg);
     if (state.suggest && !state.suggest.win.isDestroyed() && e.sender === state.suggest.win.webContents) return suggestions.suggestAction(action, arg);

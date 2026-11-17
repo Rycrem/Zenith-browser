@@ -354,6 +354,26 @@ async function exec(raw, depth = 0) {
       case 'keys':
         keys.keysCommand(args, say);
         break;
+      case 'preview': {
+        // « preview on|off » ou « preview 1.5 » (secondes de survol avant l'aperçu).
+        const sub = (args[0] || '').toLowerCase().replace(',', '.');
+        if (sub === 'on' || sub === 'off') state.settings.data.tabPreview = sub === 'on';
+        else if (sub) {
+          const s = Number(sub);
+          if (!Number.isFinite(s) || s < 0 || s > 10) throw new Error(t('temps de survol entre 0 et 10 secondes (ex. preview 1.5)'));
+          state.settings.data.tabPreview = true;
+          state.settings.data.tabPreviewDelay = Math.round(s * 10) / 10;
+        }
+        if (sub) {
+          state.settings.save();
+          ui.sendStateAll();
+          settingsPage.refreshSettings(tab);
+        }
+        say(state.settings.data.tabPreview !== false
+          ? t('  aperçu des onglets après {s} s de survol ; « preview off » le désactive', { s: require('../tabs/preview').delay() })
+          : t('  aperçu des onglets désactivé ; « preview on » le réactive'), sub ? 'ok' : 'dim');
+        break;
+      }
       case 'lasttab': {
         const sub = (args[0] || '').toLowerCase();
         if (sub === 'quit' || sub === 'keep') {
