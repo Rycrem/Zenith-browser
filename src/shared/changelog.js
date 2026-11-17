@@ -4,7 +4,7 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
-    version: '0.2.0',
+    version: '0.2.1',
     notes: [
       'Aperçu des onglets : la souris 2 secondes sur un onglet montre en dessous une image de sa page, son titre et son adresse ; à régler dans les réglages ou avec « preview on|off|secondes ».',
       'Onglets : un titre trop long pour l\'onglet se termine par « … » au lieu d\'être coupé net.',
