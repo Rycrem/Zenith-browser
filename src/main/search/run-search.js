@@ -9,26 +9,52 @@ const hist = require('../history/history');
 const navigation = require('../tabs/navigation');
 const screens = require('../terminal/screens');
 
+// Sans réponse au bout de ce délai, on relance une fois avant d'abandonner.
+const TIMEOUT_MS = 8000;
+const ATTEMPTS = 2;
+
+function fetchResults(query, form, signal) {
+  const opts = { signal: AbortSignal.any([signal, AbortSignal.timeout(TIMEOUT_MS)]) };
+  if (form) {
+    return net.fetch('https://html.duckduckgo.com/html/', {
+      ...opts,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(form).toString(),
+    });
+  }
+  return net.fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}&kl=${getLang() === 'en' ? 'us-en' : 'fr-fr'}`, opts);
+}
+
 async function runSearch(tab, query, form) {
   const engine = state.settings.data.engine;
   if (!form) hist.addHistory({ url: `brows:${query}`, query, title: `brows « ${query} »` }, tab);
+  // Une nouvelle recherche annule la précédente : sa réponse tardive ne doit pas remplacer l'écran.
+  if (tab.searchAbort) tab.searchAbort.abort();
+  const ctrl = new AbortController();
+  tab.searchAbort = ctrl;
+  tab.searchSeq = (tab.searchSeq || 0) + 1;
+  const seq = tab.searchSeq;
+  const stale = () => tab.searchSeq !== seq;
   if (engine !== 'ddg') {
     navigation.navigate(tab, C.ENGINES[engine].url(query));
     return [{ t: t('  page de résultats ouverte, tape « clicks » pour numéroter les liens'), c: 'dim' }];
   }
   let html;
-  try {
-    const res = form
-      ? await net.fetch('https://html.duckduckgo.com/html/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams(form).toString(),
-      })
-      : await net.fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}&kl=${getLang() === 'en' ? 'us-en' : 'fr-fr'}`);
-    html = await res.text();
-  } catch (err) {
-    return [{ t: t('recherche impossible : {error}', { error: err.message }), c: 'err' }];
+  for (let i = 1; html === undefined; i++) {
+    try {
+      html = await (await fetchResults(query, form, ctrl.signal)).text();
+    } catch (err) {
+      if (stale()) return [];
+      if (i < ATTEMPTS) continue;
+      if (tab.searchAbort === ctrl) tab.searchAbort = null;
+      // Le serveur HTML de DuckDuckGo ne répond pas : la page normale passe souvent.
+      navigation.navigate(tab, C.ENGINES.ddg.url(query));
+      return [{ t: t('recherche impossible : {error}, page DuckDuckGo ouverte (tape « clicks »)', { error: err.name === 'TimeoutError' ? t('pas de réponse') : err.message }), c: 'warn' }];
+    }
   }
+  if (tab.searchAbort === ctrl) tab.searchAbort = null;
+  if (stale()) return [];
   const results = parseDuckDuckGoHtml(html);
   if (!results.length) {
     // DuckDuckGo a pu demander une vérification : on affiche sa page telle quelle.
