@@ -4,6 +4,17 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.2.2',
+    notes: [
+      'Recherche (brows) : sans réponse de DuckDuckGo au bout de 8 secondes, Zenith réessaie une fois, puis ouvre la page DuckDuckGo au lieu d\'attendre longtemps pour finir sur « net::ERR_TIMED_OUT ».',
+      'Recherches lancées à la suite : seule la dernière s\'affiche, une réponse en retard d\'une recherche précédente est ignorée.',
+    ],
+    en: [
+      'Search (brows): if DuckDuckGo does not answer within 8 seconds, Zenith retries once, then opens the DuckDuckGo page instead of waiting a long time and ending with "net::ERR_TIMED_OUT".',
+      'Searches typed one after another: only the last one is shown, a late answer from an earlier search is ignored.',
+    ],
+  },
+  {
     version: '0.2.1',
     notes: [
       'Aperçu des onglets : la souris 2 secondes sur un onglet montre en dessous une image de sa page, son titre et son adresse ; à régler dans les réglages ou avec « preview on|off|secondes ».',

@@ -13,6 +13,8 @@ const tty = require('../page/tty');
 const HISTORY_SCREENS = new Set(['results', 'ai', 'hist', 'fav']);
 
 function navigate(tab, url) {
+  // Ouvrir une page rend caduque une recherche encore en cours dans cet onglet.
+  tab.searchSeq = (tab.searchSeq || 0) + 1;
   const view = pageView.ensureView(tab);
   // La nouvelle page remplace l'ancienne : celle-ci n'est plus montrée pendant le chargement.
   const s = tab.screen;
