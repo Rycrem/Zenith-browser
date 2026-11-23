@@ -4,6 +4,25 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.2.3',
+    notes: [
+      'Téléchargements : un fichier fini se glisse hors de la popup ↓ (ou de l\'écran dl) vers le bureau, un dossier ou le champ d\'envoi d\'un site, et y est copié.',
+      'Applis épinglées : la pastille de messages non lus reste entière dans la barre du bas au lieu d\'être coupée en haut.',
+      'Applis (WhatsApp, Messages, Gmail, Chat, Discord) : zoom avec − et + dans leur barre, Ctrl+molette, Ctrl + / - / 0 ou « whatsapp zoom 125 » ; gardé pour chaque appli.',
+      'Split : chaque écran a sa propre barre d\'adresse, avec ses boutons, au-dessus de son terminal.',
+      'Windows : le seul onglet d\'une fenêtre la déplace comme sa barre de titre (aimantation sur les bords, agrandissement en haut de l\'écran) ; lâchée sur la barre d\'onglets d\'une autre fenêtre, elle s\'y fusionne toujours.',
+      'DevTools : dans l\'onglet Network, clic droit sur une requête, « Rejouer la requête (Replay XHR) » ou « Modifier et rejouer… » pour changer la méthode, l\'adresse, les en-têtes ou le corps avant de la renvoyer.',
+    ],
+    en: [
+      'Downloads: a finished file can be dragged out of the ↓ popup (or the dl screen) to the desktop, a folder or a site\'s upload field, and is copied there.',
+      'Pinned apps: the unread badge stays whole in the bottom bar instead of being cut off at the top.',
+      'Apps (WhatsApp, Messages, Gmail, Chat, Discord): zoom with − and + in their bar, Ctrl+wheel, Ctrl + / - / 0 or "whatsapp zoom 125"; kept for each app.',
+      'Split: each pane has its own address bar, with its buttons, above its terminal.',
+      'Windows: the only tab of a window moves it like its title bar (snapping to the edges, maximizing at the top of the screen); dropped on another window\'s tab bar, it still merges into it.',
+      'DevTools: in the Network tab, right-click a request, "Replay request (Replay XHR)" or "Edit and replay…" to change the method, address, headers or body before sending it again.',
+    ],
+  },
+  {
     version: '0.2.2',
     notes: [
       'Recherche (brows) : sans réponse de DuckDuckGo au bout de 8 secondes, Zenith réessaie une fois, puis ouvre la page DuckDuckGo au lieu d\'attendre longtemps pour finir sur « net::ERR_TIMED_OUT ».',
