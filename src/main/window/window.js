@@ -89,10 +89,24 @@ function createWindow(bounds, inactive = false) {
     suggestions.hideSuggest();
     if (state.fullTab) ui.layout();
   });
+  // Déplacée à la main (Windows) : par son seul onglet ou la barre, voir windowMoving.
+  let moving = false;
   state.win.on('move', () => {
     suggestions.hideSuggest();
     ui.layout();
+    if (moving) require('./ipc').windowMoving(own);
   });
+  state.win.on('will-move', () => {
+    moving = process.platform === 'win32';
+  });
+  state.win.on('moved', () => {
+    if (!moving) return;
+    moving = false;
+    require('./ipc').windowMoved(own);
+  });
+  // Le seul onglet ne déplace la fenêtre comme sa barre de titre que hors plein écran.
+  state.win.on('enter-full-screen', ui.sendState);
+  state.win.on('leave-full-screen', ui.sendState);
   // Boutons précédent / suivant de la souris (Windows).
   state.win.on('app-command', (e, cmd) => {
     if (cmd === 'browser-backward') navigation.mouseNav(-1);

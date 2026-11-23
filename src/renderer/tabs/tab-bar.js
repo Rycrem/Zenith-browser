@@ -257,7 +257,7 @@ function tabEl(tb, shown) {
   return h(
     'div',
     {
-      class: `tab${shown ? ' active' : ''}${tb.private ? ' private' : ''}${tb.id === arrivedId ? ' arrived' : ''}`,
+      class: `tab${shown ? ' active' : ''}${tb.private ? ' private' : ''}${tb.id === arrivedId ? ' arrived' : ''}${state.windowHandle ? ' handle' : ''}`,
       'data-id': tb.id,
       // Clic molette : ferme l'onglet.
       onmousedown: (e) => { if (e.button === 1) e.preventDefault(); },

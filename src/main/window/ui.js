@@ -155,6 +155,8 @@ function sendStateNow() {
       };
     }),
     activePane: state.activePane,
+    // Sous Windows, hors plein écran, le seul onglet de la fenêtre la déplace comme sa barre de titre.
+    windowHandle: process.platform === 'win32' && state.tabs.length === 1 && !state.win.isFullScreen(),
     status: {
       mode: tab.screen ? tabList.tabTitle(tab).split(':')[0].toUpperCase() : 'SITE',
       host: hostLabel(tab),

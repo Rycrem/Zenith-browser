@@ -122,6 +122,8 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
 
 :root[data-platform="darwin"] #tabbar { padding-left: 84px; }
 #tabbar button, #tabbar .tab, #tabbar .url { -webkit-app-region: no-drag; }
+/* Seul onglet de la fenêtre (Windows) : il la déplace comme la barre de titre ; × reste un bouton. */
+#tabbar .tab.handle, #tabbar .tab.handle .label { -webkit-app-region: drag; }
 :root[data-private] #tabbar { background: #1B0F26; border-bottom-color: #1B0F26; --bg-raised: #231531; --chip: #2C1B3D; --line: #36234B; --tab-border: #4A3363; }
 
 #tabs { flex: 1 1 auto; display: flex; align-items: center; min-width: 0; align-self: stretch; }

@@ -198,6 +198,34 @@ function setupIpc() {
     hover(d, null);
     return { ...d, over };
   };
+  // Sous Windows, le seul onglet d'une fenêtre est une poignée de la fenêtre (comme la barre de titre) :
+  // c'est le système qui la déplace (aimantation sur les bords, agrandissement en haut de l'écran).
+  // Zenith suit ce déplacement : au-dessus de la barre d'onglets d'une autre fenêtre, celle-ci montre
+  // où l'onglet entrera et la fenêtre glissée s'efface à moitié ; lâchée là, l'onglet y entre.
+  let winMove = null; // { w, over, gap }
+  module.exports.windowMoving = (w) => {
+    if (tabDrag || state.tabsOf(w).length !== 1) return;
+    if (!winMove || winMove.w !== w) winMove = { w, over: null, gap: undefined };
+    const p = screen.getCursorScreenPoint();
+    const under = windowUnder(w, p.x, p.y);
+    if (under !== winMove.over || under) hover(winMove, under || null, p.x);
+  };
+  module.exports.windowMoved = (w) => {
+    const d = winMove;
+    if (!d || d.w !== w) return;
+    winMove = null;
+    const over = d.over;
+    hover(d, null);
+    const tab = state.tabsOf(w)[0];
+    if (!over || !tab || over.win.isDestroyed()) return;
+    const g = d.gap && d.gap.w === over ? d.gap : null;
+    const full = over.win.isFullScreen();
+    // Après l'événement : la fenêtre glissée, vidée, se ferme.
+    setImmediate(() => {
+      if (tabList.moveTabToWindow(tab, over, g ? g.gap : undefined, true, g ? g.side : undefined)) over.win.webContents.send('ui:tab-arrived', tab.id);
+      if (full && !over.win.isDestroyed() && !over.win.isFullScreen()) over.win.setFullScreen(true);
+    });
+  };
   onUi('ui:tab-detach', (e, id, sx, sy, ox, oy) => {
     const tab = tabList.getTab(id);
     if (!tab || ![sx, sy, ox, oy].every(Number.isFinite)) return;
@@ -245,7 +273,8 @@ function setupIpc() {
   });
   // Place annoncée par la fenêtre survolée : gap parmi tous ses onglets, side son écran.
   onUi('ui:tab-hover-pos', (e, gap, side) => {
-    if (tabDrag && tabDrag.over && tabDrag.over.win.webContents === e.sender && Number.isInteger(gap)) tabDrag.gap = { gap, side, w: tabDrag.over };
+    const d = tabDrag || winMove;
+    if (d && d.over && d.over.win.webContents === e.sender && Number.isInteger(gap)) d.gap = { gap, side, w: d.over };
   });
   onUi('ui:tab-drop', (e, id, sx, sy) => {
     const drag = endDrag();
