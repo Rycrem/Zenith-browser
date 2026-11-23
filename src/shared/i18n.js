@@ -561,8 +561,13 @@
     '  {name} fermé : il ne se charge plus au lancement, « {cmd} » le rouvre': '  {name} closed: it no longer loads at startup, "{cmd}" opens it again',
     '  {name} ouvert ; « {cmd} » ou son icône le referme': '  {name} opened; "{cmd}" or its icon closes it',
     'Applis : WhatsApp, Messages, Gmail, Chat, Discord': 'Apps: WhatsApp, Messages, Gmail, Chat, Discord',
-    '[pin | unpin | reload | close]': '[pin | unpin | reload | close]',
-    'ouvrir ou fermer WhatsApp, Google Messages, Gmail, Google Chat ou Discord au-dessus de la barre du bas (aussi la flèche ⌃ et leurs icônes) ; pin l\'épingle dans la barre, close libère la mémoire': 'open or close WhatsApp, Google Messages, Gmail, Google Chat or Discord above the bottom bar (also the ⌃ arrow and their icons); pin pins it to the bar, close frees memory',
+    '[pin | unpin | reload | zoom +|-|% | close]': '[pin | unpin | reload | zoom +|-|% | close]',
+    'ouvrir ou fermer WhatsApp, Google Messages, Gmail, Google Chat ou Discord au-dessus de la barre du bas (aussi la flèche ⌃ et leurs icônes) ; pin l\'épingle dans la barre, zoom agrandit ou rétrécit l\'appli, close libère la mémoire': 'open or close WhatsApp, Google Messages, Gmail, Google Chat or Discord above the bottom bar (also the ⌃ arrow and their icons); pin pins it to the bar, zoom enlarges or shrinks the app, close frees memory',
+    'Zoom avant (Ctrl+molette, Ctrl++)': 'Zoom in (Ctrl+wheel, Ctrl++)',
+    'Zoom arrière (Ctrl+molette, Ctrl+-)': 'Zoom out (Ctrl+wheel, Ctrl+-)',
+    'Taille normale (Ctrl+0)': 'Normal size (Ctrl+0)',
+    '  zoom + | - | reset | 25 à 300': '  zoom + | - | reset | 25 to 300',
+    '  {name} : zoom {zoom} %': '  {name}: zoom {zoom}%',
     'Glisser pour redimensionner le terminal (double-clic : taille par défaut)': 'Drag to resize the terminal (double-click: default size)',
 
     // favoris et fichiers
