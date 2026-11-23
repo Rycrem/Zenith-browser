@@ -238,14 +238,25 @@ const screens = {
   dl(s) {
     return [
       head('dl', t('{count} téléchargements', { count: s.rows.length })),
-      h('div', { class: 'rows' }, s.rows.length ? s.rows.map((r) => item(
-        '',
-        String(r.n),
-        h('span', { class: 'time' }, `[${r.n}]`),
-        r.name,
-        h('span', { class: r.state === 'completed' ? 'ok' : r.state === 'progressing' ? 'acc' : 'err' }, dlState(r)),
-      )) : h('div', { class: 'dim' }, t('Aucun téléchargement.'))),
-      h('div', { class: 'hint' }, t('Tape un numéro pour ouvrir le fichier · '), h('b', {}, '3t'), t(' l\'affiche dans son dossier')),
+      h('div', { class: 'rows' }, s.rows.length ? s.rows.map((r) => {
+        const el = item(
+          '',
+          String(r.n),
+          h('span', { class: 'time' }, `[${r.n}]`),
+          r.name,
+          h('span', { class: r.state === 'completed' ? 'ok' : r.state === 'progressing' ? 'acc' : 'err' }, dlState(r)),
+        );
+        // Glissé hors de Zenith (bureau, dossier, site) : le fichier y est copié.
+        if (r.state === 'completed') {
+          el.draggable = true;
+          el.addEventListener('dragstart', (e) => {
+            e.preventDefault();
+            api.dragFile(Math.max(0, panesEl.indexOf(el.closest('.pane'))), r.n);
+          });
+        }
+        return el;
+      }) : h('div', { class: 'dim' }, t('Aucun téléchargement.'))),
+      h('div', { class: 'hint' }, t('Tape un numéro pour ouvrir le fichier, ou glisse-le où tu veux le copier · '), h('b', {}, '3t'), t(' l\'affiche dans son dossier')),
     ];
   },
 

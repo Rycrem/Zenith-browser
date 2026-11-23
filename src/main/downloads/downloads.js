@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, shell } = require('electron');
+const { app, shell, nativeImage } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { t } = require('../../shared/i18n');
@@ -111,4 +111,21 @@ async function trashDownload(d) {
   removeDownload(d);
 }
 
-Object.assign(module.exports, { showDl, showInFolder, setupDownloads, cancelDownload, removeDownload, trashDownload });
+// Fichier glissé hors de Zenith (Explorateur, bureau, champ d'envoi d'un site) : le système en pose
+// une copie là où on le lâche. Le glissement doit partir tout de suite, d'où l'icône de Zenith.
+// Pendant ce temps la popup ↓ peut perdre le focus sans se fermer (le glissement s'arrêterait).
+let dragIcon = null;
+let draggingUntil = 0;
+function dragDownload(wc, d) {
+  if (!d || d.state !== 'completed' || !fs.existsSync(d.path)) return;
+  if (!dragIcon) dragIcon = nativeImage.createFromPath(path.join(__dirname, '..', '..', 'renderer', 'zenith.png')).resize({ width: 32, height: 32 });
+  draggingUntil = Infinity;
+  try {
+    wc.startDrag({ file: d.path, icon: dragIcon });
+  } finally {
+    draggingUntil = Date.now() + 1000;
+  }
+}
+const isDragging = () => Date.now() < draggingUntil;
+
+Object.assign(module.exports, { showDl, showInFolder, setupDownloads, cancelDownload, removeDownload, trashDownload, dragDownload, isDragging });

@@ -8,4 +8,5 @@ contextBridge.exposeInMainWorld('panel', {
   onData: (fn) => ipcRenderer.on('panel:data', (e, data) => fn(data)),
   act: (action, arg) => ipcRenderer.send('panel:act', action, arg),
   size: (height) => ipcRenderer.send('panel:size', height),
+  drag: (arg) => ipcRenderer.send('panel:drag', arg),
 });

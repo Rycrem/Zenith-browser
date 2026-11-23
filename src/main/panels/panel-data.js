@@ -84,7 +84,7 @@ function dlData() {
     hint: 'Ctrl+J',
     folder: t('dossier'),
     folderTitle: t('Afficher dans le dossier'),
-    openTitle: t('Ouvrir le fichier'),
+    openTitle: t('Ouvrir le fichier (ou le glisser pour le copier ailleurs)'),
     cancelTitle: t('Annuler le téléchargement'),
     removeTitle: t('Retirer de la liste (le fichier reste)'),
     trashTitle: t('Supprimer le fichier de l\'ordinateur (corbeille)'),

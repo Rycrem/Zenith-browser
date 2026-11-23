@@ -26,6 +26,7 @@ const updates = require('../updates/update-command');
 const completion = require('../terminal/completion');
 const favs = require('../favorites/favorites');
 const messengers = require('../messengers/messengers');
+const dl = require('../downloads/downloads');
 const { fromInternal } = require('../panels/popup-window');
 
 function setupIpc() {
@@ -302,6 +303,13 @@ function setupIpc() {
       { label: t('Copier l\'adresse du lien'), click: () => clipboard.writeText(url) },
     ]).popup({ window: state.win });
   });
+  // Ligne de l'écran dl glissée hors de Zenith.
+  onUi('ui:drag-file', (e, idx, n) => {
+    const pane = state.panes[idx];
+    const tab = pane && tabList.getTab(pane.tabId);
+    const item = tab && tab.screen && tab.screen.kind === 'dl' && tab.numbered[n - 1];
+    if (item) dl.dragDownload(e.sender, state.downloads.find((d) => d.path === item.path));
+  });
   // Flèches de la barre d'onglets : page précédente ou suivante de l'onglet de cet écran, comme back / fwd.
   onUi('ui:tab-nav', (e, idx, dir) => {
     if (!state.panes[idx] || (dir !== 1 && dir !== -1)) return;
@@ -373,6 +381,11 @@ function setupIpc() {
     if (messengers.isDrawer(e.sender)) return messengers.drawerAction(action);
     const p = fromPanel(e);
     if (p) panels.panelAction(p.kind, action, arg).catch((err) => output.print([{ t: `  ${err.message}`, c: 'err' }]));
+  });
+  // Téléchargement glissé depuis la popup ↓ (arg : son rang dans la liste).
+  onPopup('panel:drag', (e, i) => {
+    const p = fromPanel(e);
+    if (p && (p.kind === 'dl' || p.kind === 'dlnew') && Number.isInteger(i)) dl.dragDownload(e.sender, state.downloads[i]);
   });
   onPopup('panel:size', (e, height) => {
     if (fromModal(e) && Number.isFinite(height)) return modal.modalSize(height);
