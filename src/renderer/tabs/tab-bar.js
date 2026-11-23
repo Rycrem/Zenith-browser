@@ -334,9 +334,7 @@ function renderTabs() {
   fitTabs();
   // Au premier rendu (lancement), rien à animer.
   if (before.size) animateTabWidths(before);
-  // Pas pendant qu'on la modifie.
-  if (document.activeElement !== urlInput) urlInput.value = siteOf(state.status.url);
-  renderFavButton();
+  renderUrlBars();
 }
 
 function renderPanes() {

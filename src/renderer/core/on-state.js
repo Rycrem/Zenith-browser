@@ -2,14 +2,15 @@
 
 // ------------------------------------------------ rendu de l'état
 
-// En split, la barre d'adresse (et ses boutons) passe juste au-dessus du terminal, sur toute sa largeur.
+// En split, la barre d'adresse de la barre d'onglets passe au-dessus du terminal du premier écran ;
+// celle du second écran y est déjà.
 function placeUrlBar() {
-  const form = $('#url-form');
-  const target = state.panes.length > 1 ? $('#url-row') : $('#tabbar');
+  const { form, input } = urlBars[0];
+  const target = state.panes.length > 1 ? $('#url-row .url-cell[data-pane="0"]') : $('#tabbar');
   if (form.parentNode === target) return;
-  const focused = document.activeElement === urlInput;
+  const focused = document.activeElement === input;
   target.append(form);
-  if (focused) urlInput.focus();
+  if (focused) input.focus();
 }
 
 api.on('state', (s) => {
