@@ -54,7 +54,7 @@ Logic tests (bookmarks, aliases, result parsing, extensions, translations): `npm
 | `unsafe` | on the "Your connection is not private" warning (site whose certificate is not trusted: company, self-signed, expired...), continue to the site anyway; the certificate is accepted for that site until Zenith is closed (same as "Advanced" then "Proceed to the site (unsafe)") |
 | `tab`, `tab <n>`, `tab new [url…]`, `tab save <name>`, `close [n]` | tabs (`tab new` with several addresses opens a tab for each) |
 | `popback` | reopens the tabs from last time (those open when Zenith was closed) |
-| `split`, `split off [1\|2]`, `focus` | two panes side by side, close a pane (the other one by default, or the ✕ at the top of the pane), switch pane; each pane has its own terminal below it, and Ctrl+Shift+N makes only the active pane private |
+| `split`, `split off [1\|2]`, `focus` | two panes side by side (the tab shown moves to the right, its neighbour shows on the left; `split <address or search>` opens it on the right in a new tab), close a pane (the other one by default, or the ✕ at the top of the pane), switch pane; each pane has its own terminal below it, and Ctrl+Shift+N makes only the active pane private |
 | `fav [folder]` | bookmarks as a tree, with each site's logo |
 | `add [folder/]name` | bookmarks the page, creating missing folders |
 | `<bookmark name>` | opens that bookmark (its name alone, or its path `folder/name`); Tab completes bookmark names |

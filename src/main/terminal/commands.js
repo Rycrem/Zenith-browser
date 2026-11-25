@@ -217,11 +217,17 @@ async function exec(raw, depth = 0) {
           say(t('  déjà en split : « focus » change d\'écran, « split off » ferme l\'autre écran (« split off 1|2 » pour choisir)'), 'dim');
         } else {
           state.panes.push({ tabId: null });
-          const t = args.length
-            ? tabList.createTab({ url: C.looksLikeUrl(rest) ? C.normalizeUrl(rest) : undefined, background: true, pane: 1 })
-            : tabList.createTab({ background: true, pane: 1 });
-          split.showInPane(t, 1);
-          if (args.length && !C.looksLikeUrl(rest)) out.push(...(await search.runSearch(t, rest)));
+          if (args.length) {
+            const t = tabList.createTab({ url: C.looksLikeUrl(rest) ? C.normalizeUrl(rest) : undefined, background: true, pane: 1 });
+            split.showInPane(t, 1);
+            if (!C.looksLikeUrl(rest)) out.push(...(await search.runSearch(t, rest)));
+          } else {
+            // L'onglet affiché passe à droite ; à gauche, son voisin (un nouvel onglet s'il était seul).
+            const i = state.tabs.indexOf(tab);
+            const left = state.tabs[i - 1] || state.tabs[i + 1] || tabList.createTab({ background: true, pane: 0 });
+            state.panes[0].tabId = left.id;
+            split.showInPane(tab, 1);
+          }
         }
         break;
       case 'focus':

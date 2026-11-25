@@ -47,7 +47,7 @@ Tests de la logique (favoris, alias, lecture des résultats, extensions) : `npm 
 | `unsafe` | sur l'avertissement « Votre connexion n'est pas privée » (site dont le certificat n'est pas reconnu : entreprise, autosigné, expiré...), continuer vers le site quand même ; le certificat est accepté pour ce site jusqu'à la fermeture de Zenith (comme « Paramètres avancés » puis « Continuer vers le site (dangereux) ») |
 | `tab`, `tab <n>`, `tab new [url…]`, `tab save <nom>`, `close [n]` | onglets (`tab new` avec plusieurs adresses ouvre un onglet pour chacune) |
 | `popback` | rouvre les onglets de la dernière fois (ceux ouverts quand Zenith a été fermé) |
-| `split`, `split off [1\|2]`, `focus` | deux écrans côte à côte, fermer un écran (l'autre par défaut, ou le ✕ en haut de l'écran), changer d'écran ; chaque écran a son terminal en dessous, et Ctrl+Maj+N ne passe en privé que l'écran actif |
+| `split`, `split off [1\|2]`, `focus` | deux écrans côte à côte (l'onglet affiché passe à droite, son voisin s'affiche à gauche ; `split <adresse ou recherche>` l'ouvre à droite dans un nouvel onglet), fermer un écran (l'autre par défaut, ou le ✕ en haut de l'écran), changer d'écran ; chaque écran a son terminal en dessous, et Ctrl+Maj+N ne passe en privé que l'écran actif |
 | `fav [dossier]` | favoris en arbre, avec le logo de chaque site |
 | `add [dossier/]nom` | ajoute la page, crée les dossiers manquants |
 | `<nom d'un favori>` | ouvre ce favori (son nom seul, ou son chemin `dossier/nom`) ; Tab complète les noms des favoris |
