@@ -353,6 +353,11 @@ test('castLabs : versions stables triées et choix de la mise à jour', () => {
 
 test('applis de discussion : non-lus du titre, adresses, épinglage', () => {
   const M = require('../src/shared/messengers');
+  assert.ok(M.isAccountPage('gmail', 'https://mail.google.com/mail/u/1/'));
+  assert.ok(!M.isAccountPage('gmail', 'https://mail.google.com/mail/u/0/?view=cm'));
+  assert.ok(!M.isAccountPage('gmail', 'https://accounts.google.com/u/1/'));
+  assert.ok(!M.isAccountPage('discord', 'https://discord.com/u/1/'));
+  assert.ok(M.isAppPage('gmail', 'https://mail.google.com/mail/u/1/#inbox'));
   assert.strictEqual(M.unreadFromTitle('(3) WhatsApp'), 3);
   assert.strictEqual(M.unreadFromTitle('(12) Discord | #général'), 12);
   assert.strictEqual(M.unreadFromTitle('• Discord | #général'), -1);
