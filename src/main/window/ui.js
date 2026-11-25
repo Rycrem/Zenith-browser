@@ -151,9 +151,12 @@ function sendStateNow() {
         title: t.screen ? tabList.tabTitle(t) : t.title || hostOf(t.url) || tr('nouvel onglet'),
         host: hostLabel(t),
         private: !!t.private,
+        bar: barOf(t),
       };
     }),
     activePane: state.activePane,
+    // Sous Windows, hors plein écran, le seul onglet de la fenêtre la déplace comme sa barre de titre.
+    windowHandle: process.platform === 'win32' && state.tabs.length === 1 && !state.win.isFullScreen(),
     status: {
       mode: tab.screen ? tabList.tabTitle(tab).split(':')[0].toUpperCase() : 'SITE',
       host: hostLabel(tab),
@@ -182,6 +185,14 @@ function lastDownload() {
   const d = state.downloads[0];
   if (!d) return null;
   return { startedAt: d.startedAt || 0, progress: d.state === 'progressing' && d.total > 0 ? Math.min(1, d.received / d.total) : null };
+}
+
+// Barre d'adresse d'un écran : l'adresse (vide sur un écran du terminal), le favori qui y mène,
+// et site : une page qu'on peut ajouter aux favoris.
+function barOf(tab) {
+  const url = tab.screen && tab.screen.kind !== 'tty' && tab.screen.kind !== 'cert' ? '' : tab.url;
+  const here = (!tab.screen || tab.screen.kind === 'tty') && fav.findByUrl(state.favorites.data.tree, tab.url);
+  return { url, fav: here ? here.path : null, site: !tab.screen };
 }
 
 // Ce qui suit « @ » dans l'invite : le site, l'écran, ou l'IA de la discussion.

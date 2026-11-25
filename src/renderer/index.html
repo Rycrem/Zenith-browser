@@ -29,12 +29,12 @@
           </span>
         </div>
       </div>
-      <form id="url-form" class="url" autocomplete="off">
-        <button id="url-reload" type="button" title="Recharger (F5)" aria-label="Recharger"></button>
-        <input id="url" spellcheck="false" title="Modifier l'adresse (Entrée pour y aller)">
-        <span id="copied" hidden>copié</span>
-        <button id="url-fav" type="button" title="Ajouter aux favoris" aria-label="Ajouter aux favoris">☆</button>
-        <button id="url-copy" type="button" title="Copier l'adresse" aria-label="Copier l'adresse"></button>
+      <form class="url" data-pane="0" autocomplete="off">
+        <button class="url-reload" type="button" title="Recharger (F5)" aria-label="Recharger"></button>
+        <input class="url-input" spellcheck="false" title="Modifier l'adresse (Entrée pour y aller)">
+        <span class="copied" hidden>copié</span>
+        <button class="url-fav" type="button" title="Ajouter aux favoris" aria-label="Ajouter aux favoris">☆</button>
+        <button class="url-copy" type="button" title="Copier l'adresse" aria-label="Copier l'adresse"></button>
       </form>
     </header>
     <main id="content">
@@ -49,8 +49,20 @@
       </section>
     </main>
     <div id="resizer" role="separator" aria-orientation="horizontal" title="Glisser pour redimensionner le terminal (double-clic : taille par défaut)"></div>
-    <!-- En split, la barre d'adresse descend ici, sur toute la largeur du terminal. -->
-    <div id="url-row"></div>
+    <!-- En split, une barre d'adresse par écran, au-dessus de son terminal (la première descend de la barre d'onglets). -->
+    <div id="url-row">
+      <div class="url-cell" data-pane="0"></div>
+      <div class="url-sep"></div>
+      <div class="url-cell" data-pane="1">
+        <form class="url" data-pane="1" autocomplete="off">
+          <button class="url-reload" type="button" title="Recharger (F5)" aria-label="Recharger"></button>
+          <input class="url-input" spellcheck="false" title="Modifier l'adresse (Entrée pour y aller)">
+          <span class="copied" hidden>copié</span>
+          <button class="url-fav" type="button" title="Ajouter aux favoris" aria-label="Ajouter aux favoris">☆</button>
+          <button class="url-copy" type="button" title="Copier l'adresse" aria-label="Copier l'adresse"></button>
+        </form>
+      </div>
+    </div>
     <section id="terminal">
       <div class="term-col" data-pane="0">
         <div class="scrollback" aria-live="polite"></div>

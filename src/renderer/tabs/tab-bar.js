@@ -257,7 +257,7 @@ function tabEl(tb, shown) {
   return h(
     'div',
     {
-      class: `tab${shown ? ' active' : ''}${tb.private ? ' private' : ''}${tb.id === arrivedId ? ' arrived' : ''}`,
+      class: `tab${shown ? ' active' : ''}${tb.private ? ' private' : ''}${tb.id === arrivedId ? ' arrived' : ''}${state.windowHandle ? ' handle' : ''}`,
       'data-id': tb.id,
       // Clic molette : ferme l'onglet.
       onmousedown: (e) => { if (e.button === 1) e.preventDefault(); },
@@ -334,9 +334,7 @@ function renderTabs() {
   fitTabs();
   // Au premier rendu (lancement), rien à animer.
   if (before.size) animateTabWidths(before);
-  // Pas pendant qu'on la modifie.
-  if (document.activeElement !== urlInput) urlInput.value = siteOf(state.status.url);
-  renderFavButton();
+  renderUrlBars();
 }
 
 function renderPanes() {

@@ -90,7 +90,7 @@ const COMMANDS = [
   ['config', '<export | import> [fichier]', 'enregistrer ou charger tes réglages, favoris et extensions (pour un autre ordinateur)'],
   ['perm', '[reset [site]]', 'autorisations accordées aux sites (caméra, micro, position…)'],
   ['devtools', '[detach | close]', 'outils de développement : ouvrir, détacher dans une fenêtre, fermer'],
-  ['whatsapp / messages / gmail / chat / discord', '[pin | unpin | reload | close]', 'ouvrir ou fermer WhatsApp, Google Messages, Gmail, Google Chat ou Discord au-dessus de la barre du bas (aussi la flèche ⌃ et leurs icônes) ; pin l\'épingle dans la barre, close libère la mémoire'],
+  ['whatsapp / messages / gmail / chat / discord', '[pin | unpin | reload | zoom +|-|% | close]', 'ouvrir ou fermer WhatsApp, Google Messages, Gmail, Google Chat ou Discord au-dessus de la barre du bas (aussi la flèche ⌃ et leurs icônes) ; pin l\'épingle dans la barre, zoom agrandit ou rétrécit l\'appli, close libère la mémoire'],
   ['term', '', 'cacher le terminal (Ctrl+² pour le rappeler)'],
   ['fullscreen', '[on | off]', 'plein écran (F11)'],
   ['quit / exit', '', 'quitter le navigateur'],
@@ -131,11 +131,11 @@ const SUBCOMMANDS = {
   settings: ['general', 'ia', 'nadir', 'alias', 'ext', 'perm', 'update', 'keys', 'keys-terminal', 'keys-tabs', 'keys-nav', 'keys-window', 'keys-panels', 'keys-dev'],
   reload: ['hard'],
   config: ['export', 'import'],
-  whatsapp: ['pin', 'unpin', 'reload', 'close'],
-  messages: ['pin', 'unpin', 'reload', 'close'],
-  gmail: ['pin', 'unpin', 'reload', 'close'],
-  chat: ['pin', 'unpin', 'reload', 'close'],
-  discord: ['pin', 'unpin', 'reload', 'close'],
+  whatsapp: ['pin', 'unpin', 'reload', 'zoom', 'close'],
+  messages: ['pin', 'unpin', 'reload', 'zoom', 'close'],
+  gmail: ['pin', 'unpin', 'reload', 'zoom', 'close'],
+  chat: ['pin', 'unpin', 'reload', 'zoom', 'close'],
+  discord: ['pin', 'unpin', 'reload', 'zoom', 'close'],
 };
 
 // Commandes qui n'acceptent pas de texte libre : ce qu'elles acceptent après leur nom.
@@ -144,7 +144,7 @@ const ARG_SHAPES = {
   reload: /^hard$/i, r: /^hard$/i, n: null, next: null, p: null, prev: null, clicks: null, links: null, l: null, term: null, quit: null, exit: null, q: null, fullscreen: /^(on|off)$/i, fs: /^(on|off)$/i, tty: /^(on|off)$/i, gpu: /^(on|off)$/i, lasttab: /^(quit|keep)$/i, preview: /^(on|off|\d+([.,]\d+)?)$/i,
   keys: new RegExp(`^(reset|${SHORTCUTS.map((s) => s.id).join('|')})$`, 'i'),
   undo: null, focus: null, unsafe: null, settings: /^(general|ia|nadir|alias|ext|perm|update|keys(-(terminal|tabs|nav|window|panels|dev))?)$/i, reglages: /^(general|ia|nadir|alias|ext|perm|update|keys(-(terminal|tabs|nav|window|panels|dev))?)$/i, 'réglages': /^(general|ia|nadir|alias|ext|perm|update|keys(-(terminal|tabs|nav|window|panels|dev))?)$/i, popback: null, default: null, config: /^(export|import)$/i, lang: /^(fr|en)$/i, langue: /^(fr|en)$/i, update: /^(install|electron|auto|-v|versions)$/i,
-  whatsapp: /^(pin|unpin|reload|close)$/i, messages: /^(pin|unpin|reload|close)$/i, gmail: /^(pin|unpin|reload|close)$/i, chat: /^(pin|unpin|reload|close)$/i, discord: /^(pin|unpin|reload|close)$/i,
+  whatsapp: /^(pin|unpin|reload|zoom|close)$/i, messages: /^(pin|unpin|reload|zoom|close)$/i, gmail: /^(pin|unpin|reload|zoom|close)$/i, chat: /^(pin|unpin|reload|zoom|close)$/i, discord: /^(pin|unpin|reload|zoom|close)$/i,
   tab: /^(\d+|new|save)$/i, tabs: /^(\d+|new|save)$/i, close: /^\d+$/, dl: /^(\d+|cancel|rm|del)$/i, split: /^(off|close)$/i,
   devtools: /^(detach|detacher|attach|rattacher|close|off)$/i, dev: /^(detach|detacher|attach|rattacher|close|off)$/i,
 };

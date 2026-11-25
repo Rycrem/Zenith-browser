@@ -5,6 +5,7 @@ const { t } = require('../../shared/i18n');
 const state = require('../state');
 const ui = require('../window/ui');
 const tabList = require('../tabs/tabs');
+const { setupReplay } = require('./replay');
 
 function openDevtools(tab, x, y) {
   if (!tab.view) throw new Error(t('aucune page ouverte'));
@@ -14,6 +15,7 @@ function openDevtools(tab, x, y) {
     tab.dev = new WebContentsView();
     state.win.contentView.addChildView(tab.dev);
     wc.setDevToolsWebContents(tab.dev.webContents);
+    setupReplay(tab.dev.webContents);
     // Avec une vue DevTools à nous, isDevToolsOpened() reste faux : on suit l'état nous-mêmes.
     wc.on('devtools-closed', () => {
       tab.devOpen = false;

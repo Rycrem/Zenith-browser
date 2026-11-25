@@ -16,11 +16,15 @@ function applyStaticLabels() {
     b.setAttribute('aria-label', t('Page suivante'));
     b.title = t('Page suivante (Alt+→)');
   }
-  $('#url').title = t('Modifier l\'adresse (Entrée pour y aller)');
-  $('#url').placeholder = t('adresse ou recherche');
-  $('#url-copy').title = t('Copier l\'adresse');
-  $('#url-copy').setAttribute('aria-label', t('Copier l\'adresse'));
-  $('#copied').textContent = t('copié');
+  for (const el of document.querySelectorAll('.url-input')) {
+    el.title = t('Modifier l\'adresse (Entrée pour y aller)');
+    el.placeholder = t('adresse ou recherche');
+  }
+  for (const el of document.querySelectorAll('.url-copy')) {
+    el.title = t('Copier l\'adresse');
+    el.setAttribute('aria-label', t('Copier l\'adresse'));
+  }
+  for (const el of document.querySelectorAll('.url .copied')) el.textContent = t('copié');
   $('.pane-resizer').title = t('Glisser pour redimensionner');
   $('#resizer').title = t('Glisser pour redimensionner le terminal (double-clic : taille par défaut)');
   for (const b of document.querySelectorAll('.devbar .detach')) b.title = t('Détacher dans une fenêtre (devtools detach)');

@@ -26,6 +26,7 @@ const updates = require('../updates/update-command');
 const completion = require('../terminal/completion');
 const favs = require('../favorites/favorites');
 const messengers = require('../messengers/messengers');
+const dl = require('../downloads/downloads');
 const { fromInternal } = require('../panels/popup-window');
 
 function setupIpc() {
@@ -197,6 +198,34 @@ function setupIpc() {
     hover(d, null);
     return { ...d, over };
   };
+  // Sous Windows, le seul onglet d'une fenêtre est une poignée de la fenêtre (comme la barre de titre) :
+  // c'est le système qui la déplace (aimantation sur les bords, agrandissement en haut de l'écran).
+  // Zenith suit ce déplacement : au-dessus de la barre d'onglets d'une autre fenêtre, celle-ci montre
+  // où l'onglet entrera et la fenêtre glissée s'efface à moitié ; lâchée là, l'onglet y entre.
+  let winMove = null; // { w, over, gap }
+  module.exports.windowMoving = (w) => {
+    if (tabDrag || state.tabsOf(w).length !== 1) return;
+    if (!winMove || winMove.w !== w) winMove = { w, over: null, gap: undefined };
+    const p = screen.getCursorScreenPoint();
+    const under = windowUnder(w, p.x, p.y);
+    if (under !== winMove.over || under) hover(winMove, under || null, p.x);
+  };
+  module.exports.windowMoved = (w) => {
+    const d = winMove;
+    if (!d || d.w !== w) return;
+    winMove = null;
+    const over = d.over;
+    hover(d, null);
+    const tab = state.tabsOf(w)[0];
+    if (!over || !tab || over.win.isDestroyed()) return;
+    const g = d.gap && d.gap.w === over ? d.gap : null;
+    const full = over.win.isFullScreen();
+    // Après l'événement : la fenêtre glissée, vidée, se ferme.
+    setImmediate(() => {
+      if (tabList.moveTabToWindow(tab, over, g ? g.gap : undefined, true, g ? g.side : undefined)) over.win.webContents.send('ui:tab-arrived', tab.id);
+      if (full && !over.win.isDestroyed() && !over.win.isFullScreen()) over.win.setFullScreen(true);
+    });
+  };
   onUi('ui:tab-detach', (e, id, sx, sy, ox, oy) => {
     const tab = tabList.getTab(id);
     if (!tab || ![sx, sy, ox, oy].every(Number.isFinite)) return;
@@ -244,7 +273,8 @@ function setupIpc() {
   });
   // Place annoncée par la fenêtre survolée : gap parmi tous ses onglets, side son écran.
   onUi('ui:tab-hover-pos', (e, gap, side) => {
-    if (tabDrag && tabDrag.over && tabDrag.over.win.webContents === e.sender && Number.isInteger(gap)) tabDrag.gap = { gap, side, w: tabDrag.over };
+    const d = tabDrag || winMove;
+    if (d && d.over && d.over.win.webContents === e.sender && Number.isInteger(gap)) d.gap = { gap, side, w: d.over };
   });
   onUi('ui:tab-drop', (e, id, sx, sy) => {
     const drag = endDrag();
@@ -301,6 +331,13 @@ function setupIpc() {
       { label: t('Ouvrir le lien dans un nouvel onglet'), click: () => tabList.createTab({ url, background: true, opener: tab }) },
       { label: t('Copier l\'adresse du lien'), click: () => clipboard.writeText(url) },
     ]).popup({ window: state.win });
+  });
+  // Ligne de l'écran dl glissée hors de Zenith.
+  onUi('ui:drag-file', (e, idx, n) => {
+    const pane = state.panes[idx];
+    const tab = pane && tabList.getTab(pane.tabId);
+    const item = tab && tab.screen && tab.screen.kind === 'dl' && tab.numbered[n - 1];
+    if (item) dl.dragDownload(e.sender, state.downloads.find((d) => d.path === item.path));
   });
   // Flèches de la barre d'onglets : page précédente ou suivante de l'onglet de cet écran, comme back / fwd.
   onUi('ui:tab-nav', (e, idx, dir) => {
@@ -373,6 +410,11 @@ function setupIpc() {
     if (messengers.isDrawer(e.sender)) return messengers.drawerAction(action);
     const p = fromPanel(e);
     if (p) panels.panelAction(p.kind, action, arg).catch((err) => output.print([{ t: `  ${err.message}`, c: 'err' }]));
+  });
+  // Téléchargement glissé depuis la popup ↓ (arg : son rang dans la liste).
+  onPopup('panel:drag', (e, i) => {
+    const p = fromPanel(e);
+    if (p && (p.kind === 'dl' || p.kind === 'dlnew') && Number.isInteger(i)) dl.dragDownload(e.sender, state.downloads[i]);
   });
   onPopup('panel:size', (e, height) => {
     if (fromModal(e) && Number.isFinite(height)) return modal.modalSize(height);

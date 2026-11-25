@@ -122,6 +122,8 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
 
 :root[data-platform="darwin"] #tabbar { padding-left: 84px; }
 #tabbar button, #tabbar .tab, #tabbar .url { -webkit-app-region: no-drag; }
+/* Seul onglet de la fenêtre (Windows) : il la déplace comme la barre de titre ; × reste un bouton. */
+#tabbar .tab.handle, #tabbar .tab.handle .label { -webkit-app-region: drag; }
 :root[data-private] #tabbar { background: #1B0F26; border-bottom-color: #1B0F26; --bg-raised: #231531; --chip: #2C1B3D; --line: #36234B; --tab-border: #4A3363; }
 
 #tabs { flex: 1 1 auto; display: flex; align-items: center; min-width: 0; align-self: stretch; }
@@ -201,26 +203,30 @@ button:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); ou
 /* Recharger | adresse | copier : une seule boîte de largeur fixe (2 fois celle qu'elle avait sur l'accueil), le bouton recharger séparé par un trait. */
 .url { margin-left: auto; flex: none; display: flex; align-items: center; position: relative; height: 28px; width: 456px; max-width: 50vw; border: 1px solid var(--line); border-radius: 4px; }
 .url:focus-within { border-color: var(--accent); background: var(--bg-raised); }
-/* En split : au-dessus du terminal, sur toute sa largeur. */
+/* En split : une barre par écran, au-dessus de son terminal, aux mêmes largeurs que lui. */
 /* Toujours dans la grille (0 de haut hors split), sinon le terminal prendrait sa ligne. */
-#url-row { overflow: hidden; }
-#app.split #url-row { display: flex; align-items: center; padding: 0 12px; background: var(--bg-deep); border-top: 1px solid var(--line); min-width: 0; }
+#url-row { overflow: hidden; display: flex; }
+#app.split #url-row { background: var(--bg-deep); border-top: 1px solid var(--line); min-width: 0; }
+.url-cell { flex: 1 1 0; min-width: 0; display: flex; align-items: center; padding: 0 12px; }
+#app.split .url-cell[data-pane="0"] { flex: var(--ratio) 1 0; }
+#app.split .url-cell[data-pane="1"] { flex: calc(1 - var(--ratio)) 1 0; }
+.url-sep { width: 6px; background: var(--bg-deep); border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
 #url-row .url { flex: 1; width: auto; max-width: none; margin-left: 0; }
-#url-reload { flex: none; width: 28px; height: 26px; display: grid; place-items: center; color: var(--dim); border-right: 1px solid var(--line); border-radius: 3px 0 0 3px; }
-#url-reload:hover { background: var(--bg-raised); color: var(--text); }
-#url { flex: 1; min-width: 0; height: 26px; padding: 0 8px; border: 0; background: transparent; color: var(--green); font: inherit; text-overflow: ellipsis; outline: none; }
-#url:focus { color: var(--text); }
-#url::placeholder { color: var(--dim); }
-#url-copy { flex: none; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 0 3px 3px 0; color: var(--dim); }
+form.url .url-reload { flex: none; width: 28px; height: 26px; display: grid; place-items: center; color: var(--dim); border-right: 1px solid var(--line); border-radius: 3px 0 0 3px; }
+form.url .url-reload:hover { background: var(--bg-raised); color: var(--text); }
+form.url .url-input { flex: 1; min-width: 0; height: 26px; padding: 0 8px; border: 0; background: transparent; color: var(--green); font: inherit; text-overflow: ellipsis; outline: none; }
+form.url .url-input:focus { color: var(--text); }
+form.url .url-input::placeholder { color: var(--dim); }
+form.url .url-copy { flex: none; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 0 3px 3px 0; color: var(--dim); }
 .copy-icon { width: 16px; height: 16px; display: block; }
-#url-copy:hover { background: var(--bg-raised); color: var(--text); }
-#url-fav { flex: none; width: 26px; height: 26px; display: grid; place-items: center; color: var(--dim); font-size: 15px; }
-#url-fav:hover:not(:disabled) { background: var(--bg-raised); color: var(--text); }
-#url-fav.on { color: var(--accent); }
-#url-fav:disabled { opacity: .35; cursor: default; }
+form.url .url-copy:hover { background: var(--bg-raised); color: var(--text); }
+form.url .url-fav { flex: none; width: 26px; height: 26px; display: grid; place-items: center; color: var(--dim); font-size: 15px; }
+form.url .url-fav:hover:not(:disabled) { background: var(--bg-raised); color: var(--text); }
+form.url .url-fav.on { color: var(--accent); }
+form.url .url-fav:disabled { opacity: .35; cursor: default; }
 /* La bulle reste dans la barre : la page (vue native) recouvrirait tout ce qui dépasse dessous. */
-#copied { position: absolute; right: 32px; top: 50%; transform: translateY(-50%); padding: 1px 8px; border-radius: 3px; background: var(--accent); color: var(--on-accent); font-size: 12px; font-weight: 600; pointer-events: none; }
-#copied[hidden] { display: none; }
+form.url .copied { position: absolute; right: 32px; top: 50%; transform: translateY(-50%); padding: 1px 8px; border-radius: 3px; background: var(--accent); color: var(--on-accent); font-size: 12px; font-weight: 600; pointer-events: none; }
+form.url .copied[hidden] { display: none; }
 
 /* ------------------------------------------------ écrans */
 
@@ -503,7 +509,8 @@ table.settings .pill.on { background: var(--accent); color: var(--bg); }
 .chip.app { position: relative; padding: 0 5px; }
 .chip.app .app-icon { width: 16px; height: 16px; display: block; }
 .chip.app.open { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px #fff; }
-.app-badge { position: absolute; right: -5px; top: -6px; min-width: 13px; height: 13px; padding: 0 3px; border-radius: 7px; background: #E5484D; color: #fff; font: 700 9px/13px sans-serif; text-align: center; pointer-events: none; }
+/* La barre (28 px) coupe ce qui dépasse : la pastille reste dans sa hauteur, en haut à droite de l'icône. */
+.app-badge { position: absolute; right: -5px; top: -3px; min-width: 13px; height: 13px; padding: 0 3px; border-radius: 7px; background: #E5484D; color: #fff; font: 700 9px/13px sans-serif; text-align: center; pointer-events: none; }
 .app-badge.dot { min-width: 8px; width: 8px; height: 8px; padding: 0; right: -3px; top: -3px; }
 .app-slot { width: 28px; height: 22px; border: 2px dashed var(--on-accent); border-radius: 4px; background: rgba(255, 255, 255, .35); }
 .apps-sep { width: 1px; height: 16px; margin: 0 2px; background: var(--on-accent); opacity: .35; }

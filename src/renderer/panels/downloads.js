@@ -50,6 +50,12 @@ window.panel.onData((d) => {
     class: `row${r.state === 'completed' ? '' : ' off'}`,
     title: r.state === 'completed' ? d.openTitle : null,
     onclick: () => r.state === 'completed' && window.panel.act('open', r.i),
+    // Glissé hors de la popup (bureau, dossier, site) : le fichier y est copié.
+    draggable: r.state === 'completed' ? 'true' : null,
+    ondragstart: (e) => {
+      e.preventDefault();
+      window.panel.drag(r.i);
+    },
   },
   ring(r),
   h('div', { class: 'name' }, h('span', { class: 'n' }, `[${r.i + 1}]`), r.name),

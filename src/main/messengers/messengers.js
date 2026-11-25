@@ -26,6 +26,28 @@ const sessions = {};
 const used = () => (state.settings.data.messengers = state.settings.data.messengers || []);
 const pinned = () => (state.settings.data.pinnedApps = state.settings.data.pinnedApps || []).filter(M.isMessenger);
 
+// Zoom de chaque appli (niveau Chromium, 0 = 100 %), gardé dans les réglages.
+const zooms = () => (state.settings.data.appZoom = state.settings.data.appZoom || {});
+const MIN_ZOOM = Math.log(0.25) / Math.log(1.2); // 25 %
+const MAX_ZOOM = Math.log(3) / Math.log(1.2); // 300 %
+
+function applyZoom(id) {
+  const entry = apps[id];
+  if (entry && !entry.view.webContents.isDestroyed()) entry.view.webContents.setZoomLevel(zooms()[id] || 0);
+}
+
+// delta : +0.5 / -0.5 comme pour les onglets ; reset : retour à 100 %.
+function zoom(id, delta, reset = false) {
+  const level = reset ? 0 : Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, (zooms()[id] || 0) + delta));
+  if (level) zooms()[id] = level;
+  else delete zooms()[id];
+  state.settings.save();
+  applyZoom(id);
+  if (state.drawer && state.drawer.id === id) sendHeader(state.drawer);
+}
+
+const zoomPercent = (id) => Math.round(100 * 1.2 ** (zooms()[id] || 0));
+
 function setupSession(id) {
   if (sessions[id]) return sessions[id];
   const ses = session.fromPartition(M.MESSENGERS[id].partition);
@@ -55,6 +77,16 @@ function ensure(id) {
   const entry = { view, unread: 0, w: null };
   apps[id] = entry;
   const wc = view.webContents;
+  // Zoom : Ctrl+molette, Ctrl + / - / 0, ou les boutons du tiroir.
+  wc.on('did-navigate', () => applyZoom(id));
+  wc.on('zoom-changed', (e, dir) => zoom(id, dir === 'in' ? 0.5 : -0.5));
+  wc.on('before-input-event', (e, input) => {
+    if (input.type !== 'keyDown' || !(input.control || input.meta) || input.alt) return;
+    const delta = { '=': 0.5, '+': 0.5, '-': -0.5, 0: 0 }[input.key];
+    if (delta === undefined) return;
+    e.preventDefault();
+    zoom(id, delta, delta === 0);
+  });
   wc.on('page-title-updated', (e, title) => {
     const n = M.unreadFromTitle(title);
     if (n === entry.unread) return;
@@ -139,7 +171,18 @@ function fitView(d) {
 function sendHeader(d) {
   if (d.win.isDestroyed()) return;
   const full = !!d.full;
-  d.win.webContents.send('panel:data', { id: d.id, name: M.MESSENGERS[d.id].name, full, fullLabel: full ? t('Réduire') : t('Plein écran'), reload: t('Recharger'), close: t('Fermer (même icône ou « {cmd} »)', { cmd: d.id }) });
+  d.win.webContents.send('panel:data', {
+    id: d.id,
+    name: M.MESSENGERS[d.id].name,
+    full,
+    fullLabel: full ? t('Réduire') : t('Plein écran'),
+    reload: t('Recharger'),
+    close: t('Fermer (même icône ou « {cmd} »)', { cmd: d.id }),
+    zoom: `${zoomPercent(d.id)} %`,
+    zoomIn: t('Zoom avant (Ctrl+molette, Ctrl++)'),
+    zoomOut: t('Zoom arrière (Ctrl+molette, Ctrl+-)'),
+    zoomReset: t('Taille normale (Ctrl+0)'),
+  });
 }
 
 // Retire la vue de la fenêtre où elle est affichée, sans la détruire : l'appli reste connectée.
@@ -265,6 +308,9 @@ function drawerAction(action) {
   if (!d) return;
   if (action === 'close') close();
   else if (action === 'reload' && apps[d.id]) apps[d.id].view.webContents.reload();
+  else if (action === 'zoom-in') zoom(d.id, 0.5);
+  else if (action === 'zoom-out') zoom(d.id, -0.5);
+  else if (action === 'zoom-reset') zoom(d.id, 0, true);
   else if (action === 'full') {
     d.full = !d.full;
     d.win.setResizable(!d.full);
@@ -412,6 +458,13 @@ function messengerCommand(id, args, say) {
   } else if (sub === 'reload') {
     reload(id);
     say(t('  {name} rechargé', { name }), 'dim');
+  } else if (sub === 'zoom') {
+    const v = (args[1] || '').replace('%', '');
+    if (v === '+' || v === '-') zoom(id, v === '+' ? 0.5 : -0.5);
+    else if (/^\d+$/.test(v) && Number(v) >= 25 && Number(v) <= 300) zoom(id, Math.log(Number(v) / 100) / Math.log(1.2) - (zooms()[id] || 0));
+    else if (v === '' || v === '0' || v === 'reset') zoom(id, 0, !!v);
+    else return say(t('  zoom + | - | reset | 25 à 300'), 'err');
+    say(t('  {name} : zoom {zoom} %', { name, zoom: zoomPercent(id) }), 'ok');
   } else if (sub === 'close') {
     quit(id);
     say(t('  {name} fermé : il ne se charge plus au lancement, « {cmd} » le rouvre', { name, cmd: id }), 'dim');

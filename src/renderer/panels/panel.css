@@ -320,6 +320,7 @@ body.drawer { height: 100vh; border: 1px solid var(--line); }
 .drawer header .grow { flex: 1; }
 .drawer header button { width: 24px; height: 22px; border: none; border-radius: 3px; color: var(--dim); }
 .drawer header button:hover { background: var(--line); color: var(--text); }
+.drawer header button.zoom { width: auto; min-width: 44px; padding: 0 4px; font-size: 11px; }
 #icon .app-icon { width: 14px; height: 14px; display: block; }
 
 /* Aperçu d'un onglet survolé */
