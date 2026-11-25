@@ -4,6 +4,19 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.2.4',
+    notes: [
+      'Split : l\'onglet affiché passe dans l\'écran de droite et son voisin s\'affiche à gauche, au lieu d\'ouvrir un nouvel onglet.',
+      'Gmail : l\'appli utilise les mêmes comptes Google que le site ouvert dans les onglets (il faut s\'y reconnecter une fois si l\'appli avait un compte à part).',
+      'Gmail : un compte ajouté depuis l\'appli (« Ajouter un autre compte ») s\'affiche dans l\'appli une fois la connexion finie, au lieu de disparaître avec sa fenêtre ; changer de compte reste dans l\'appli.',
+    ],
+    en: [
+      'Split: the tab shown moves to the right pane and its neighbour shows on the left, instead of opening a new tab.',
+      'Gmail: the app uses the same Google accounts as the site open in tabs (sign in there once if the app had a separate account).',
+      'Gmail: an account added from the app ("Add another account") shows in the app once signed in, instead of disappearing with its window; switching accounts stays in the app.',
+    ],
+  },
+  {
     version: '0.2.3',
     notes: [
       'Téléchargements : un fichier fini se glisse hors de la popup ↓ (ou de l\'écran dl) vers le bureau, un dossier ou le champ d\'envoi d\'un site, et y est copié.',
