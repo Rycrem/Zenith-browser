@@ -1,11 +1,12 @@
 'use strict';
 
 // Applis de discussion de la barre du bas : les vrais sites, chacun dans sa propre session
-// (cookies à part des onglets), gardée d'un lancement à l'autre.
+// (cookies à part des onglets), gardée d'un lancement à l'autre ; partition null : la session des onglets.
 const MESSENGERS = {
   whatsapp: { name: 'WhatsApp', url: 'https://web.whatsapp.com/', hosts: ['whatsapp.com', 'whatsapp.net'], partition: 'persist:zenith-whatsapp' },
   messages: { name: 'Messages', url: 'https://messages.google.com/web/conversations', hosts: ['messages.google.com', 'accounts.google.com'], partition: 'persist:zenith-messages', google: true },
-  gmail: { name: 'Gmail', url: 'https://mail.google.com/mail/u/0/', hosts: ['mail.google.com', 'accounts.google.com'], partition: 'persist:zenith-gmail', google: true },
+  // Gmail partage la session des onglets : les mêmes comptes Google que sur le site.
+  gmail: { name: 'Gmail', url: 'https://mail.google.com/mail/u/0/', hosts: ['mail.google.com', 'accounts.google.com'], partition: null, google: true },
   chat: { name: 'Google Chat', url: 'https://chat.google.com/', hosts: ['chat.google.com', 'accounts.google.com'], partition: 'persist:zenith-chat', google: true },
   discord: { name: 'Discord', url: 'https://discord.com/app', hosts: ['discord.com', 'discordapp.com', 'discord.gg', 'discordapp.net', 'hcaptcha.com'], partition: 'persist:zenith-discord' },
 };
@@ -52,4 +53,14 @@ function pinAt(list, id, index) {
   return out;
 }
 
-module.exports = { MESSENGERS, isMessenger, isOwnUrl, unreadFromTitle, pinAt };
+// Adresse de l'appli elle-même, pas sa page de connexion.
+const isAppPage = (id, url) => !!hostOf(url) && hostOf(url) === hostOf(MESSENGERS[id].url);
+
+// Un compte Google de l'appli (Gmail : /mail/u/1/, Chat : /u/1/) : il s'ouvre dans l'appli, pas dans une popup.
+function isAccountPage(id, url) {
+  if (!MESSENGERS[id].google || !isAppPage(id, url)) return false;
+  const u = new URL(url);
+  return !u.search && /\/u\/\d+\/?$/.test(u.pathname);
+}
+
+module.exports = { MESSENGERS, isMessenger, isOwnUrl, isAppPage, isAccountPage, unreadFromTitle, pinAt };

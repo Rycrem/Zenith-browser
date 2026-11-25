@@ -50,6 +50,8 @@ const zoomPercent = (id) => Math.round(100 * 1.2 ** (zooms()[id] || 0));
 
 function setupSession(id) {
   if (sessions[id]) return sessions[id];
+  // Session des onglets : elle garde leurs autorisations et leurs téléchargements.
+  if (!M.MESSENGERS[id].partition) return (sessions[id] = state.ses);
   const ses = session.fromPartition(M.MESSENGERS[id].partition);
   // WhatsApp Web refuse les navigateurs qu'il ne reconnaît pas : celui d'un Chrome ordinaire.
   ses.setUserAgent(app.userAgentFallback);
@@ -94,6 +96,11 @@ function ensure(id) {
     changed();
   });
   wc.setWindowOpenHandler(({ url }) => {
+    // Un autre compte (Gmail : /mail/u/1/) : dans l'appli, pas dans une popup.
+    if (M.isAccountPage(id, url)) {
+      wc.loadURL(url);
+      return { action: 'deny' };
+    }
     // La fenêtre de connexion Google s'ouvre vide (about:blank) puis va sur accounts.google.com :
     // elle doit s'ouvrir, dans la session de l'appli, au-dessus du tiroir.
     if (url === 'about:blank' || M.isOwnUrl(id, url, wc.getURL())) {
@@ -115,6 +122,15 @@ function ensure(id) {
       pw.loadURL(target, { userAgent: googleLogin.firefoxUserAgent(), httpReferrer: wc.getURL() });
     };
     if (googleLogin.isGoogleLogin(url)) relaunch(url);
+    // Connexion finie (compte ajouté) : la popup passée par accounts.google.com arrive sur l'appli ;
+    // c'est l'appli qui l'affiche, sinon le nouveau compte disparaissait avec la popup.
+    let login = googleLogin.isGoogleLogin(url);
+    pw.on('did-navigate', (e, to) => {
+      if (googleLogin.isGoogleLogin(to)) login = true;
+      if (!login || !M.isAppPage(id, to) || win.isDestroyed()) return;
+      wc.loadURL(to);
+      win.close();
+    });
     pw.on('will-navigate', (e) => {
       if (relaunched || !googleLogin.isGoogleLogin(e.url)) return;
       e.preventDefault();

@@ -54,7 +54,7 @@ Logic tests (bookmarks, aliases, result parsing, extensions, translations): `npm
 | `unsafe` | on the "Your connection is not private" warning (site whose certificate is not trusted: company, self-signed, expired...), continue to the site anyway; the certificate is accepted for that site until Zenith is closed (same as "Advanced" then "Proceed to the site (unsafe)") |
 | `tab`, `tab <n>`, `tab new [url…]`, `tab save <name>`, `close [n]` | tabs (`tab new` with several addresses opens a tab for each) |
 | `popback` | reopens the tabs from last time (those open when Zenith was closed) |
-| `split`, `split off [1\|2]`, `focus` | two panes side by side, close a pane (the other one by default, or the ✕ at the top of the pane), switch pane; each pane has its own terminal below it, and Ctrl+Shift+N makes only the active pane private |
+| `split`, `split off [1\|2]`, `focus` | two panes side by side (the tab shown moves to the right, its neighbour shows on the left; `split <address or search>` opens it on the right in a new tab), close a pane (the other one by default, or the ✕ at the top of the pane), switch pane; each pane has its own terminal below it, and Ctrl+Shift+N makes only the active pane private |
 | `fav [folder]` | bookmarks as a tree, with each site's logo |
 | `add [folder/]name` | bookmarks the page, creating missing folders |
 | `<bookmark name>` | opens that bookmark (its name alone, or its path `folder/name`); Tab completes bookmark names |
@@ -150,7 +150,7 @@ Each conversation is saved from the first question and stays after a restart: th
 
 The ⌃ arrow in the bottom bar opens the apps drawer: WhatsApp, Google Messages, Gmail, Google Chat and Discord, with their unread messages. A click opens the app above the bar, over the page, in 16:9 (drag its edges to resize it; that app keeps its size until Zenith restarts; ⛶ makes it full screen while it stays open; − and + in its bar, Ctrl+wheel or Ctrl + / - / 0 change its zoom, kept for that app); the same icon, ✕, the command or a click elsewhere in the window closes it. In the drawer, drag an app onto another to change their order. Right-click an app, "Pin to the bar", or drag it from the drawer to the bar: its icon stays next to the arrow, with its unread badge (a red dot on the arrow means something new in an app; the apps show no on-screen notifications). Right-click a pinned icon to unpin, reload or close it.
 
-These are the real sites (web.whatsapp.com, messages.google.com, mail.google.com, chat.google.com, discord.com): you sign in once (QR code scanned from your phone for WhatsApp and Messages, which needs an Android phone), each in its own session, separate from the tabs. An app opened once loads in the background on later launches for notifications and badges; "Close the app" (or `whatsapp close`) stops it without signing out. Links to other sites open in a tab.
+These are the real sites (web.whatsapp.com, messages.google.com, mail.google.com, chat.google.com, discord.com): you sign in once (QR code scanned from your phone for WhatsApp and Messages, which needs an Android phone), each in its own session, separate from the tabs, except Gmail, which shares the tabs' session: it has the Google accounts signed in on the site, and an account added in the app ("Add another account") shows in it once signed in. An app opened once loads in the background on later launches for notifications and badges; "Close the app" (or `whatsapp close`) stops it without signing out. Links to other sites open in a tab.
 
 ## Protected videos (Netflix, Disney+…)
 
