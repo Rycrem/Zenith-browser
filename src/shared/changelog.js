@@ -4,6 +4,15 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.2.5',
+    notes: [
+      'Barre du bas : le séparateur entre les applis épinglées et les extensions a maintenant le même espace des deux côtés.',
+    ],
+    en: [
+      'Bottom bar: the separator between pinned apps and extensions now has the same spacing on both sides.',
+    ],
+  },
+  {
     version: '0.2.4',
     notes: [
       'Split : l\'onglet affiché passe dans l\'écran de droite et son voisin s\'affiche à gauche, au lieu d\'ouvrir un nouvel onglet.',
