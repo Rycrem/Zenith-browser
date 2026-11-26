@@ -14,7 +14,6 @@ const dl = require('../downloads/downloads');
 const audio = require('../audio/audio');
 const panelData = require('./panel-data');
 const mobile = require('../page/mobile');
-const nadir = require('../nadir/nadir');
 const messengers = require('../messengers/messengers');
 const { popupWindow } = require('./popup-window');
 
@@ -55,7 +54,7 @@ function togglePanel(kind, x) {
   state.panel = { kind, win: pw, place };
   pw.webContents.once('did-finish-load', () => sendPanel(kind));
   pw.once('ready-to-show', () => pw.show());
-  pw.on('blur', () => !pw.isDestroyed() && !(kind === 'nadir' && nadir.keepOpen()) && !dl.isDragging() && pw.close());
+  pw.on('blur', () => !pw.isDestroyed() && !dl.isDragging() && pw.close());
   pw.on('closed', () => {
     panelClosed = { kind, at: Date.now() };
     if (state.panel && state.panel.win === pw) state.panel = null;
@@ -117,8 +116,6 @@ async function panelAction(kind, action, arg) {
     }
     ui.sendState();
     sendPanel('ext');
-  } else if (kind === 'nadir') {
-    await nadir.panelAction(action, arg);
   } else if (kind === 'apps') {
     await messengers.trayAction(action, arg);
   } else if (kind === 'mobile') {

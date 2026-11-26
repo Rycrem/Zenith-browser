@@ -4,6 +4,15 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.2.5',
+    notes: [
+      'Nadir, l\'assistant IA local, est retiré : son étoile, sa commande, ses réglages et son raccourci Ctrl+Maj+A disparaissent. Ses modèles téléchargés et ses discussions sont effacés au lancement, ce qui libère plusieurs Go. « ia <question> » reste là.',
+    ],
+    en: [
+      'Nadir, the local AI assistant, is removed: its star, command, settings and Ctrl+Shift+A shortcut are gone. Its downloaded models and conversations are deleted at startup, freeing several GB. "ia <question>" is still there.',
+    ],
+  },
+  {
     version: '0.2.4',
     notes: [
       'Split : l\'onglet affiché passe dans l\'écran de droite et son voisin s\'affiche à gauche, au lieu d\'ouvrir un nouvel onglet.',

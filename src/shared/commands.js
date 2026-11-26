@@ -49,7 +49,6 @@ const ENGINES = {
 const COMMANDS = [
   ['brows', '<recherche>', 'lancer une recherche (résultats numérotés)'],
   ['ia', '[question | use | key | logout | model]', 'réponse courte d\'une IA (Claude, Gemini, ChatGPT, Mistral…) ; « ia » seul pour la choisir'],
-  ['nadir', '[question | niveau [léger | normal | fort] | discussions [n] | stop | clear]', 'Nadir, l\'assistant qui tourne sur ton ordinateur : répond sur Zenith et sur la page, agit dans le navigateur (Ctrl+Maj+A)'],
   ['go', '<url>', 'ouvrir une adresse'],
   ['<n>', '', 'ouvrir l\'élément numéro n de la liste affichée ; « nt » dans un nouvel onglet'],
   ['clicks', '', 'numéroter les liens, boutons et champs de la page ; un numéro clique ou place le curseur'],
@@ -101,7 +100,7 @@ const COMMANDS = [
 ];
 
 const COMMAND_NAMES = [
-  'brows', 'ia', 'nadir', 'go', 'clicks', 'back', 'unsafe', 'fwd', 'reload', 'home', 'tab', 'close', 'split', 'focus',
+  'brows', 'ia', 'go', 'clicks', 'back', 'unsafe', 'fwd', 'reload', 'home', 'tab', 'close', 'split', 'focus',
   'fav', 'add', 'undo', 'hist', 'clean', 'find', 'ext', 'dl', 'alias', 'unalias', 'engine',
   'theme', 'mode', 'gpu', 'lasttab', 'preview', 'keys', 'settings', 'private', 'prive', 'lang', 'tty', 'perm', 'update', 'devtools', 'term', 'whatsapp', 'messages', 'gmail', 'chat', 'discord', 'fullscreen', 'quit', 'exit', 'help', 'clear', 'popback', 'config', 'default',
 ];
@@ -115,7 +114,6 @@ const SUBCOMMANDS = {
   clean: ['all'],
   perm: ['reset'],
   ia: ['use', 'connect', 'key', 'logout', 'model'],
-  nadir: ['niveau', 'discussions', 'stop', 'clear'],
   update: ['install', 'electron', 'auto', '-v'],
   engine: Object.keys(ENGINES),
   theme: ['ambre', 'vert', 'cyan', 'rose', 'violet'],
@@ -128,7 +126,7 @@ const SUBCOMMANDS = {
   lasttab: ['quit', 'keep'],
   preview: ['on', 'off'],
   keys: ['reset', ...SHORTCUTS.map((s) => s.id)],
-  settings: ['general', 'ia', 'nadir', 'alias', 'ext', 'perm', 'update', 'keys', 'keys-terminal', 'keys-tabs', 'keys-nav', 'keys-window', 'keys-panels', 'keys-dev'],
+  settings: ['general', 'ia', 'alias', 'ext', 'perm', 'update', 'keys', 'keys-terminal', 'keys-tabs', 'keys-nav', 'keys-window', 'keys-panels', 'keys-dev'],
   reload: ['hard'],
   config: ['export', 'import'],
   whatsapp: ['pin', 'unpin', 'reload', 'zoom', 'close'],
@@ -143,7 +141,7 @@ const ARG_SHAPES = {
   help: null, '?': null, clear: null, home: null, accueil: null, back: null, b: null, fwd: null, f: null,
   reload: /^hard$/i, r: /^hard$/i, n: null, next: null, p: null, prev: null, clicks: null, links: null, l: null, term: null, quit: null, exit: null, q: null, fullscreen: /^(on|off)$/i, fs: /^(on|off)$/i, tty: /^(on|off)$/i, gpu: /^(on|off)$/i, lasttab: /^(quit|keep)$/i, preview: /^(on|off|\d+([.,]\d+)?)$/i,
   keys: new RegExp(`^(reset|${SHORTCUTS.map((s) => s.id).join('|')})$`, 'i'),
-  undo: null, focus: null, unsafe: null, settings: /^(general|ia|nadir|alias|ext|perm|update|keys(-(terminal|tabs|nav|window|panels|dev))?)$/i, reglages: /^(general|ia|nadir|alias|ext|perm|update|keys(-(terminal|tabs|nav|window|panels|dev))?)$/i, 'réglages': /^(general|ia|nadir|alias|ext|perm|update|keys(-(terminal|tabs|nav|window|panels|dev))?)$/i, popback: null, default: null, config: /^(export|import)$/i, lang: /^(fr|en)$/i, langue: /^(fr|en)$/i, update: /^(install|electron|auto|-v|versions)$/i,
+  undo: null, focus: null, unsafe: null, settings: /^(general|ia|alias|ext|perm|update|keys(-(terminal|tabs|nav|window|panels|dev))?)$/i, reglages: /^(general|ia|alias|ext|perm|update|keys(-(terminal|tabs|nav|window|panels|dev))?)$/i, 'réglages': /^(general|ia|alias|ext|perm|update|keys(-(terminal|tabs|nav|window|panels|dev))?)$/i, popback: null, default: null, config: /^(export|import)$/i, lang: /^(fr|en)$/i, langue: /^(fr|en)$/i, update: /^(install|electron|auto|-v|versions)$/i,
   whatsapp: /^(pin|unpin|reload|zoom|close)$/i, messages: /^(pin|unpin|reload|zoom|close)$/i, gmail: /^(pin|unpin|reload|zoom|close)$/i, chat: /^(pin|unpin|reload|zoom|close)$/i, discord: /^(pin|unpin|reload|zoom|close)$/i,
   tab: /^(\d+|new|save)$/i, tabs: /^(\d+|new|save)$/i, close: /^\d+$/, dl: /^(\d+|cancel|rm|del)$/i, split: /^(off|close)$/i,
   devtools: /^(detach|detacher|attach|rattacher|close|off)$/i, dev: /^(detach|detacher|attach|rattacher|close|off)$/i,

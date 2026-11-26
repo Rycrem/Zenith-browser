@@ -289,52 +289,6 @@ test('reload hard et popback ne sont pas des recherches', () => {
   assert.ok(!cmd.acceptsArgs('config', ['du', 'pc']));
 });
 
-test('Nadir : niveaux, niveau par défaut selon la mémoire', () => {
-  const N = require('../src/shared/nadir');
-  assert.strictEqual(N.resolveLevel('léger'), 'leger');
-  assert.strictEqual(N.resolveLevel('LIGHT'), 'leger');
-  assert.strictEqual(N.resolveLevel('strong'), 'fort');
-  assert.strictEqual(N.resolveLevel('turbo'), null);
-  assert.strictEqual(N.defaultLevel(4 * 1024 ** 3), 'leger');
-  assert.strictEqual(N.defaultLevel(16 * 1024 ** 3), 'normal');
-  for (const l of Object.values(N.LEVELS)) assert.ok(l.uri.startsWith('hf:') && l.file.endsWith('.gguf'));
-});
-
-test('Nadir demande avant ce qui efface, quitte ou paie', () => {
-  const N = require('../src/shared/nadir');
-  for (const line of ['quit', 'clean', 'clean all', 'fav rm 3', 'ext rm 2', 'ia logout', 'perm reset', 'update install', ' Exit ']) assert.ok(N.needsConfirm(line), line);
-  for (const line of ['go youtube.com', 'tab new', 'fav', 'ext', 'split', 'clicks', 'mode jour', 'quitter le travail', 'alias', 'perm', 'dl']) assert.ok(!N.needsConfirm(line), line);
-  // Comme à l'exécution : les « ; » et les alias sont dépliés avant de juger.
-  for (const line of ['go a.com ; clean all', 'w', 'alias x = quit', 'ext add abc', 'dl 2', 'ia bonjour', 'config export', 'update auto off', 'dl cancel 1']) assert.ok(N.needsConfirm(line, { w: 'tab new a.com ; quit' }), line);
-  // Adresses locales ou qui emporteraient du texte dans leur fin.
-  for (const line of ['go file:///etc/passwd', 'view-source:https://a.com', `go https://a.com/?d=${'x'.repeat(120)}`, `go https://a.com/${'x'.repeat(120)}`, `go https://${'x'.repeat(60)}.${'y'.repeat(60)}.com`, `brows ${'mot '.repeat(40)}`]) assert.ok(N.needsConfirm(line), line);
-  assert.ok(!N.needsConfirm('go https://www.google.com/search?q=meteo+paris'));
-  // Après lecture d'une page : tout ce qui envoie du texte vers un site.
-  for (const line of ['go evil.com/?d=abc', 'evil.com', 'brows mot de passe', 'un texte libre', 'tab new a.com', 'ia resume', 'back ; go a.com']) assert.ok(N.sendsOut(line), line);
-  for (const line of ['back', 'tab 2', 'tab new', 'close', 'split', '3', '2t', 'mode jour', 'reload']) assert.ok(!N.sendsOut(line), line);
-  for (const label of ['Acheter maintenant', 'Passer la commande', 'Supprimer le compte', 'Envoyer', 'Buy now', 'Delete', 'Procéder au paiement', 'Régler', 'Réserver', 'Book now']) assert.ok(N.riskyClick(label), label);
-  for (const label of ['Rechercher', 'Connexion', 'Suivant', 'Images', '']) assert.ok(!N.riskyClick(label), label);
-});
-
-test('Nadir : titre et ordre des discussions enregistrées', () => {
-  const N = require('../src/shared/nadir');
-  assert.strictEqual(N.chatTitle([{ role: 'info', text: 'x' }, { role: 'user', text: '  ouvre\n wikipedia ' }]), 'ouvre wikipedia');
-  assert.strictEqual(N.chatTitle([]), '');
-  assert.strictEqual(N.chatTitle([{ role: 'user', text: 'a'.repeat(80) }]).length, 60);
-  const list = [{ id: 'a', updated: 3 }, { id: 'b', updated: 1, pinned: true }, { id: 'c', updated: 5 }];
-  assert.deepStrictEqual(N.sortChats(list).map((c) => c.id), ['b', 'c', 'a']);
-  assert.strictEqual(list[0].id, 'a');
-});
-
-test('les consignes de Nadir listent les commandes et les raccourcis', () => {
-  const N = require('../src/shared/nadir');
-  const s = N.systemPrompt({ lang: 'fr', commands: cmd.COMMANDS, shortcuts: [['Ctrl+K', 'aller au terminal']] });
-  assert.match(s, /- brows <recherche> : lancer une recherche/);
-  assert.match(s, /- Ctrl\+K : aller au terminal/);
-  assert.match(s, /Réponds en français/);
-  assert.match(N.systemPrompt({ lang: 'en', commands: [], shortcuts: [] }), /Réponds en anglais/);
-});
-
 test('castLabs : versions stables triées et choix de la mise à jour', () => {
   const cl = require('../src/shared/castlabs');
   const out = [

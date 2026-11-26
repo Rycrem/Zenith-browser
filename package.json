@@ -1,7 +1,7 @@
 {
   "name": "zenith",
   "productName": "Zenith",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Zenith, navigateur basé sur Chromium qui se pilote comme un terminal",
   "main": "src/main/main.js",
   "scripts": {
@@ -16,8 +16,7 @@
     "@anthropic-ai/sdk": "^0.135.0",
     "adm-zip": "^0.6.1",
     "electron-chrome-extensions": "^4.9.0",
-    "electron-updater": "^6.8.9",
-    "node-llama-cpp": "3.22.1"
+    "electron-updater": "^6.8.9"
   },
   "devDependencies": {
     "electron": "https://github.com/castlabs/electron-releases#v44.10.1+wvcus",
@@ -41,20 +40,13 @@
     },
     "files": [
       "src/**/*",
-      "package.json",
-      "!node_modules/node-llama-cpp/llama/gitRelease.bundle",
-      "!node_modules/@node-llama-cpp/*-cuda*/**",
-      "!node_modules/@node-llama-cpp/{linux,win}-{arm64,armv7l,riscv64}/**"
+      "package.json"
     ],
     "electronDownload": {
       "mirror": "https://github.com/castlabs/electron-releases/releases/download/"
     },
     "afterPack": "scripts/vmp-after-pack.js",
     "afterSign": "scripts/vmp-after-sign.js",
-    "asarUnpack": [
-      "node_modules/node-llama-cpp/**",
-      "node_modules/@node-llama-cpp/**"
-    ],
     "electronFuses": {
       "runAsNode": false,
       "enableCookieEncryption": true,

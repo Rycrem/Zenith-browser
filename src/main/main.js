@@ -119,10 +119,9 @@ app.whenReady().then(async () => {
   state.sessionStore = new JsonStore(path.join(dir, 'session.json'), { tabs: [] });
   state.previousSession = state.sessionStore.data.tabs.slice();
   state.settings = new JsonStore(path.join(dir, 'reglages.json'), { engine: 'ddg', theme: 'ambre', aliases: {}, extensions: [] });
-  state.nadirChats = new JsonStore(path.join(dir, 'nadir-discussions.json'), { list: [] });
-  // Plus rien d'enregistré pour ce qui a disparu : le bloqueur de secours, la date de la dernière vérification.
-  for (const k of ['builtinAdblock', 'lastUpdateCheck']) delete state.settings.data[k];
-  fs.rmSync(path.join(dir, 'adblock.bin'), { force: true });
+  // Plus rien d'enregistré pour ce qui a disparu : le bloqueur de secours, la date de la dernière vérification, Nadir (ses modèles pèsent plusieurs Go).
+  for (const k of ['builtinAdblock', 'lastUpdateCheck', 'nadirLevel', 'nadirCpu']) delete state.settings.data[k];
+  for (const f of ['adblock.bin', 'nadir', 'nadir-discussions.json']) fs.rmSync(path.join(dir, f), { recursive: true, force: true });
   ai.migrate(state.settings);
   nativeTheme.themeSource = theme.followsSystem() ? 'system' : theme.isLight() ? 'light' : 'dark';
   setLang(lang.initialLang());
@@ -182,7 +181,7 @@ app.whenReady().then(async () => {
 function closeNormally() {
   guard.done(); // fermeture normale, même avant la fin du démarrage
   session_.done();
-  for (const s of [state.favorites, state.history, state.settings, state.sessionStore, state.nadirChats]) if (s) s.flush();
+  for (const s of [state.favorites, state.history, state.settings, state.sessionStore]) if (s) s.flush();
 }
 app.on('before-quit', closeNormally);
 // Arrêt ou déconnexion de Windows : l'appli est tuée sans before-quit, seul session-end prévient.

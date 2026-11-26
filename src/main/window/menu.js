@@ -35,7 +35,7 @@ function series(prefix, keys) {
   return firsts.map(show).join(' / ');
 }
 
-// Liste de l'aide et de Nadir : [touches, description], d'après les raccourcis en vigueur.
+// Liste de l'aide : [touches, description], d'après les raccourcis en vigueur.
 function shortcutList() {
   const keys = keysOf();
   const rows = [];
@@ -87,7 +87,6 @@ function buildMenu() {
     downloads: panel('dl'),
     favorites: panel('fav'),
     extensions: panel('ext'),
-    nadir: panel('nadir'),
     mobile: () => panels.togglePanel('mobile'),
     // Déjà ouverts dans un onglet : on y va ; sinon la commande settings.
     settings: act(() => {
