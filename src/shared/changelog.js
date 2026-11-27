@@ -6,10 +6,10 @@ const CHANGELOG = [
   {
     version: '0.2.6',
     notes: [
-      'Barre du bas : l\'écart entre la flèche des applis et la première appli épinglée est le même qu\'entre deux extensions.',
+      'Barre du bas : les applis épinglées sont espacées comme les extensions, flèche du tiroir comprise.',
     ],
     en: [
-      'Bottom bar: the gap between the apps arrow and the first pinned app now matches the gap between two extensions.',
+      'Bottom bar: pinned apps are now spaced like extensions, including after the apps arrow.',
     ],
   },
   {
