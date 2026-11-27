@@ -499,6 +499,9 @@ table.settings .pill.on { background: var(--accent); color: var(--bg); }
 .apps-arrow { position: relative; width: 18px; height: 22px; display: grid; place-items: center; color: var(--on-accent); }
 .apps-arrow .chevron-icon { width: 14px; height: 14px; display: block; }
 .apps-arrow:hover { opacity: .7; }
+/* Après la flèche, même écart visible qu'entre deux extensions (14 px) : le trait du chevron
+   s'arrête ~4 px avant le bord de son bouton, + 6 de gap + 4. */
+.apps-arrow + .chip.app, .apps-arrow + .app-slot { margin-left: 4px; }
 .apps-arrow.unread::after { content: ''; position: absolute; right: -3px; top: 3px; width: 7px; height: 7px; border-radius: 50%; background: #E5484D; }
 .chip.app { position: relative; padding: 0 5px; }
 .chip.app .app-icon { width: 16px; height: 16px; display: block; }

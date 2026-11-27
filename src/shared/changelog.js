@@ -4,6 +4,15 @@
 // Ajouter une entrée en tête à chaque nouvelle version : notes en français, en anglais dans `en`.
 const CHANGELOG = [
   {
+    version: '0.2.6',
+    notes: [
+      'Barre du bas : l\'écart entre la flèche des applis et la première appli épinglée est le même qu\'entre deux extensions.',
+    ],
+    en: [
+      'Bottom bar: the gap between the apps arrow and the first pinned app now matches the gap between two extensions.',
+    ],
+  },
+  {
     version: '0.2.5',
     notes: [
       'Nadir, l\'assistant IA local, est retiré : son étoile, sa commande, ses réglages et son raccourci Ctrl+Maj+A disparaissent. Ses modèles téléchargés et ses discussions sont effacés au lancement, ce qui libère plusieurs Go. « ia <question> » reste là.',
