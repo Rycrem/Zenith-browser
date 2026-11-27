@@ -8,7 +8,6 @@ const theme = require('../window/theme');
 const screens = require('../terminal/screens');
 const updates = require('../updates/update-command');
 const ai = require('../ai/providers');
-const nadir = require('../nadir/nadir');
 const keys = require('./keys');
 const menu = require('../window/menu');
 const K = require('../../shared/shortcuts');
@@ -20,7 +19,7 @@ const tabPreview = require('../tabs/preview');
 // Une nouvelle commande qui a des réglages doit avoir sa page ici (PAGES, TITLES et BUILD).
 // Les raccourcis ont une sous-page par catégorie (keys-tabs…), sous « Raccourcis » qui les montre toutes.
 const KEY_PAGES = K.GROUPS.map((g) => `keys-${g.id}`);
-const PAGES = ['general', 'keys', ...KEY_PAGES, 'ia', 'nadir', 'alias', 'ext', 'perm', 'update'];
+const PAGES = ['general', 'keys', ...KEY_PAGES, 'ia', 'alias', 'ext', 'perm', 'update'];
 
 const opt = (label, cmd, on) => ({ label, cmd, on: !!on });
 // Formulaire : des champs, et la commande où {0}, {1}… sont remplacés par leur valeur.
@@ -72,14 +71,6 @@ function iaPage() {
   ].filter(Boolean);
 }
 
-function nadirPage() {
-  return nadir.levels().map((l) => ({
-    label: l.name,
-    hint: `${l.size} · ${l.downloaded ? t('téléchargé') : t('pas téléchargé')} · ${l.about}`,
-    options: [opt(l.current ? t('● actuel') : t('choisir'), `nadir niveau ${l.id}`, l.current)],
-  }));
-}
-
 function aliasPage() {
   return [
     ...Object.entries(state.settings.data.aliases).map(([k, v]) => ({ label: k, hint: `= ${v}`, options: [opt(t('supprimer'), `unalias ${k}`)] })),
@@ -125,10 +116,10 @@ function updatePage() {
 }
 
 const TITLES = {
-  general: 'Général', keys: 'Raccourcis (keys)', ia: 'IA (ia)', nadir: 'Nadir', alias: 'Alias', ext: 'Extensions (ext)', perm: 'Autorisations (perm)', update: 'Mises à jour (update)',
+  general: 'Général', keys: 'Raccourcis (keys)', ia: 'IA (ia)', alias: 'Alias', ext: 'Extensions (ext)', perm: 'Autorisations (perm)', update: 'Mises à jour (update)',
 };
 for (const g of K.GROUPS) TITLES[`keys-${g.id}`] = g.label;
-const BUILD = { general, keys: () => keys.keysPage(), ia: iaPage, nadir: nadirPage, alias: aliasPage, ext: extPage, perm: permPage, update: updatePage };
+const BUILD = { general, keys: () => keys.keysPage(), ia: iaPage, alias: aliasPage, ext: extPage, perm: permPage, update: updatePage };
 for (const g of K.GROUPS) BUILD[`keys-${g.id}`] = () => keys.keysPage(g.id);
 
 function showSettings(tab, page = 'general') {

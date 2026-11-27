@@ -55,14 +55,6 @@ function renderStatus() {
       title: t('Réglages (settings)'),
       onclick: () => run('settings', { echo: false }),
     }, gearIcon()),
-    // Nadir, tout à droite : l'étoile tourne pendant qu'il réfléchit, le point vert dit que son modèle est en mémoire.
-    h('button', {
-      type: 'button',
-      id: 'nadir-chip',
-      class: `chip${state.nadir && state.nadir.running ? ' running' : ''}${state.nadir && state.nadir.busy ? ' busy' : ''}`,
-      title: state.nadir && state.nadir.running ? t('Nadir, l\'assistant (Ctrl+Maj+A) · modèle en mémoire') : t('Nadir, l\'assistant (Ctrl+Maj+A)'),
-      onclick: () => openPanel('nadir'),
-    }, nadirIcon()),
   ]);
 }
 

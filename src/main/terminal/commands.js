@@ -33,7 +33,6 @@ const lang = require('../commands/lang');
 const settingsPage = require('../commands/settings');
 const keys = require('../commands/keys');
 const aiCommands = require('../ai/ai-command');
-const nadir = require('../nadir/nadir');
 const updates = require('../updates/update-command');
 const permissions = require('../security/permissions');
 const menu = require('../window/menu');
@@ -422,9 +421,6 @@ async function exec(raw, depth = 0) {
       case 'ia':
       case 'ai':
         aiCommands.aiCommand(tab, args, rest, say);
-        break;
-      case 'nadir':
-        nadir.nadirCommand(args, rest, say);
         break;
       case 'update':
         await updates.updateCommand(args, say);

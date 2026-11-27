@@ -1,7 +1,7 @@
 'use strict';
 
 // Raccourcis clavier de Zenith, modifiables dans « settings keys » (commande « keys »).
-// Tout nouveau raccourci s'ajoute ici et nulle part ailleurs : le menu, l'aide, Nadir et la page
+// Tout nouveau raccourci s'ajoute ici et nulle part ailleurs : le menu, l'aide et la page
 // des réglages sont construits à partir de cette liste (un test refuse un raccourci écrit en dur).
 // keys : raccourcis par défaut, au format des accélérateurs d'Electron ; le premier est affiché.
 // menu: false : raccourci lu à la main (before-input-event), pas par le menu.
@@ -40,7 +40,6 @@ const SHORTCUTS = [
   { id: 'downloads', group: 'panels', label: 'téléchargements', keys: ['CmdOrCtrl+J', 'CmdOrCtrl+Shift+J'] },
   { id: 'favorites', group: 'panels', label: 'favoris', keys: ['CmdOrCtrl+Shift+B'] },
   { id: 'extensions', group: 'panels', label: 'extensions', keys: ['CmdOrCtrl+Shift+E'] },
-  { id: 'nadir', group: 'panels', label: 'Nadir, l\'assistant', keys: ['CmdOrCtrl+Shift+A'] },
   { id: 'mobile', group: 'window', label: 'mode mobile', keys: ['CmdOrCtrl+Alt+M'] },
   { id: 'private', group: 'window', label: 'navigation privée', keys: ['CmdOrCtrl+Shift+N'] },
   { id: 'settings', group: 'panels', label: 'réglages', keys: ['CmdOrCtrl+,'] },

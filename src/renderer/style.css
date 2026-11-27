@@ -431,12 +431,6 @@ th { color: var(--dim); }
 .dl-icon { width: 14px; height: 14px; display: block; }
 #settings-chip, #ext-chip { color: var(--text); padding: 0 6px; min-width: 26px; }
 .mode-icon { width: 14px; height: 14px; display: block; }
-#nadir-chip { position: relative; color: var(--text); padding: 0 6px; min-width: 26px; }
-#nadir-chip .nadir-icon { width: 14px; height: 14px; display: block; color: var(--accent); }
-#nadir-chip.busy .nadir-icon { animation: nadir-think 1.4s ease-in-out infinite; }
-#nadir-chip.busy { box-shadow: inset 0 0 0 1px var(--accent); }
-#nadir-chip.running::after { content: ''; position: absolute; top: 3px; right: 3px; width: 5px; height: 5px; border-radius: 50%; background: var(--green); }
-@keyframes nadir-think { 0% { transform: rotate(0) scale(1); } 50% { transform: rotate(180deg) scale(.65); } 100% { transform: rotate(360deg) scale(1); } }
 
 /* Son : haut-parleur dans l'onglet, player dans la barre d'état */
 .speaker-icon { width: 14px; height: 14px; display: block; }
@@ -513,4 +507,5 @@ table.settings .pill.on { background: var(--accent); color: var(--bg); }
 .app-badge { position: absolute; right: -5px; top: -3px; min-width: 13px; height: 13px; padding: 0 3px; border-radius: 7px; background: #E5484D; color: #fff; font: 700 9px/13px sans-serif; text-align: center; pointer-events: none; }
 .app-badge.dot { min-width: 8px; width: 8px; height: 8px; padding: 0; right: -3px; top: -3px; }
 .app-slot { width: 28px; height: 22px; border: 2px dashed var(--on-accent); border-radius: 4px; background: rgba(255, 255, 255, .35); }
-.apps-sep { width: 1px; height: 16px; margin: 0 2px; background: var(--on-accent); opacity: .35; }
+/* Marge gauche = gap du groupe (6) + 10 ; à droite, 2 + gap de la barre (14) : 16 px des deux côtés. */
+.apps-sep { width: 1px; height: 16px; margin: 0 2px 0 10px; background: var(--on-accent); opacity: .35; }
